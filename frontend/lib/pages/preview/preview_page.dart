@@ -21,6 +21,7 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
   final _api = ApiClient();
   Map<String, dynamic>? _info;
   WebViewController? _ooCtrl;
+  WebViewController? _pdfCtrl;
   VideoPlayerController? _videoCtrl;
   bool _loading = true;
   String? _error;
@@ -41,6 +42,10 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
 
       if (t == 'onlyoffice') {
         await _loadOnlyOffice(info['config_url'] as String);
+      } else if (t == 'media' && mime == 'application/pdf') {
+        _pdfCtrl = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..loadRequest(Uri.parse(info['url'] as String));
       } else if (t == 'media' && mime.startsWith('video/')) {
         _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(info['url'] as String))
           ..initialize().then((_) => setState(() {}));
@@ -137,12 +142,8 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
             ],
           ),
         );
-      } else if (type == 'media' && mime == 'application/pdf') {
-        content = WebViewWidget(
-          controller: WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..loadRequest(Uri.parse(url)),
-        );
+      } else if (type == 'media' && mime == 'application/pdf' && _pdfCtrl != null) {
+        content = WebViewWidget(controller: _pdfCtrl!);
       } else if (type == 'raw' || (type == 'media' && mime.startsWith('text/'))) {
         content = _TextPreview(url: url, name: name, theme: theme);
       } else {

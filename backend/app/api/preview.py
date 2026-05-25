@@ -99,6 +99,8 @@ async def onlyoffice_config(
         raise HTTPException(status_code=403, detail="权限不足")
 
     file_url = await get_presigned_url(record.storage_path, expires=86400)
+    # OnlyOffice runs in Docker — localhost won't reach host MinIO
+    file_url = file_url.replace("localhost:9000", "host.docker.internal:9000")
     return {
         "document": {
             "fileType": record.mime_type,
