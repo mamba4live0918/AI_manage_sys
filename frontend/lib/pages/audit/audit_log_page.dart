@@ -57,7 +57,6 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final theme = Theme.of(context);
 
     return Watermark(
       username: auth.user?.username ?? '',
@@ -86,7 +85,7 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
                 SizedBox(
                   width: 150,
                   child: DropdownButtonFormField<String>(
-                    value: _filterAction,
+                    initialValue: _filterAction,
                     decoration: const InputDecoration(labelText: '操作类型', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('全部')),

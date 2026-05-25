@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io' show Platform;
+import 'package:dio/dio.dart';
 import '../../services/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
@@ -54,12 +52,11 @@ class _FileListPageState extends ConsumerState<FileListPage> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result?.files.single.path != null) {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (result?.files.single.bytes != null) {
       final file = result!.files.single;
-      final bytes = await file.readAsBytes();
       final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(bytes, filename: file.name),
+        'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
         if (_parentId != null) 'parent_id': _parentId,
       });
       try {
@@ -168,7 +165,7 @@ class _FileListPageState extends ConsumerState<FileListPage> {
                           return ListTile(
                             leading: Icon(_fileIcon(mime, isFolder), color: theme.colorScheme.primary),
                             title: Text(item['name'] ?? ''),
-                            subtitle: isFolder ? Text('文件夹') : Text(_formatSize(item['size_bytes'] ?? 0)),
+                            subtitle: isFolder ? const Text('文件夹') : Text(_formatSize(item['size_bytes'] ?? 0)),
                             trailing: PopupMenuButton(
                               itemBuilder: (_) => [
                                 if (!isFolder)

@@ -45,7 +45,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField(
-                  value: gType,
+                  initialValue: gType,
                   decoration: const InputDecoration(labelText: '授权类型'),
                   items: const [
                     DropdownMenuItem(value: 'user', child: Text('用户')),
@@ -62,7 +62,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField(
-                  value: action,
+                  initialValue: action,
                   decoration: const InputDecoration(labelText: '操作'),
                   items: const [
                     DropdownMenuItem(value: 'preview', child: Text('预览')),
@@ -134,7 +134,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _perms.isEmpty
-                      ? Center(child: Text('输入资源ID查询现有权限', style: TextStyle(color: Colors.grey)))
+                      ? const Center(child: Text('输入资源ID查询现有权限', style: TextStyle(color: Colors.grey)))
                       : ListView.builder(
                           itemCount: _perms.length,
                           itemBuilder: (_, i) {

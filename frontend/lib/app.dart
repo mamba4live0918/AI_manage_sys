@@ -19,7 +19,7 @@ class AIManageApp extends StatelessWidget {
       builder: (context, ref, _) {
         final auth = ref.watch(authProvider);
         if (!auth.isInitialized) {
-          return MaterialApp(
+          return const MaterialApp(
             home: Scaffold(body: Center(child: CircularProgressIndicator())),
           );
         }

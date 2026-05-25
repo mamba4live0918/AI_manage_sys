@@ -44,7 +44,7 @@ class _WatermarkPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final spacing = 200.0;
+    const spacing = 200.0;
     for (double y = -size.height; y < size.height * 2; y += spacing) {
       for (double x = -size.width; x < size.width * 2; x += spacing) {
         canvas.save();
