@@ -8,6 +8,7 @@ import '../../services/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
 import '../../widgets/shimmer.dart';
+import '../../utils/app_logger.dart';
 
 class FileListPage extends ConsumerStatefulWidget {
   const FileListPage({super.key});
@@ -96,6 +97,33 @@ class _FileListPageState extends ConsumerState<FileListPage> {
 
   void _openPreview(String fileId) {
     context.go('/files/preview/$fileId');
+  }
+
+  Future<void> _downloadFile(String id, String name) async {
+    try {
+      String? dir = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '选择保存文件夹',
+      );
+      if (dir == null) return;
+
+      final savePath = '$dir/$name';
+      appLog('[DOWNLOAD] saving to: $savePath');
+
+      await _api.dio.download('/preview/download/$id', savePath);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已下载: $name')),
+        );
+      }
+    } catch (e) {
+      appLog('[DOWNLOAD] error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('下载失败: $e')),
+        );
+      }
+    }
   }
 
   IconData _fileIcon(String mime, bool isFolder) {
@@ -301,6 +329,7 @@ class _FileListPageState extends ConsumerState<FileListPage> {
                       final id = item['id'];
                       final name = item['name'] ?? '';
                       if (v == 'preview') _openPreview(id);
+                      if (v == 'download') _downloadFile(id, name);
                       if (v == 'delete') _deleteFile(id, name);
                     },
                     icon: const Icon(Icons.more_horiz_rounded, size: 20),

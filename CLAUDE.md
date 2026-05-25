@@ -22,7 +22,7 @@
 | 密码哈希 | bcrypt | **4.0.1** | 必须钉住版本，5.x 与 passlib 不兼容 |
 | 缓存 | Redis | 7-alpine | Token黑名单 + 缓存 |
 | 文件存储 | MinIO | latest | S3兼容，私有部署 |
-| 文档预览 | OnlyOffice Docs CE | latest | 私有化部署 |
+| 文档预览 | LibreOffice headless | — | Office→PDF 临时转换 + PDF WebView 预览 |
 | AI推理 | Qwen2.5 14B (私有) | — | OpenAI兼容API，开发期用 DeepSeek |
 | 声音克隆 | GPT-SoVITS | — | 私有部署 |
 | 数字人 | 厂商SDK（待定） | — | 科大讯飞/硅基智能/商汤 |
@@ -35,7 +35,7 @@ AI_manage_sys/
 ├── CLAUDE.md                    # 本文件（AI上下文）
 ├── README.md                    # 人类可读文档
 ├── TODO.md                      # 全项目任务清单（170+任务，5阶段）
-├── docker-compose.yml           # PostgreSQL:5433 + Redis:6379 + MinIO:9000 + OnlyOffice:8088
+├── docker-compose.yml           # PostgreSQL:5433 + Redis:6379 + MinIO:9000
 ├── docs/
 │   └── SRS.md                   # 原始需求文档（51条FR）
 ├── backend/
@@ -49,7 +49,7 @@ AI_manage_sys/
 │       ├── security.py          # bcrypt + JWT + get_current_user + require_roles
 │       ├── models/models.py     # User / File / Permission / AuditLog
 │       ├── api/                 # auth / files / preview / permissions / audit（14个端点）
-│       └── services/            # storage(MinIO) / permission_checker(5级ACL) / audit / llm
+│       └── services/            # storage(MinIO) / permission_checker(5级ACL) / audit / llm / converter(LibreOffice)
 └── frontend/
     ├── pubspec.yaml             # Flutter依赖声明
     ├── pubspec.lock             # 锁定版本
@@ -64,7 +64,7 @@ AI_manage_sys/
         ├── pages/
         │   ├── auth/            # login_page — 用户名+密码登录
         │   ├── files/           # file_list_page — 浏览/上传/删除/文件夹
-        │   ├── preview/         # preview_page — OnlyOffice/视频/图片/音频 + 水印
+        │   ├── preview/         # preview_page — PDF/视频/图片/音频 + 水印（Office→LibreOffice→PDF）
         │   ├── permissions/     # permissions_page — ACL授予/撤销/查询
         │   ├── audit/           # audit_log_page — 审计日志分页+筛选
         │   ├── ip/              # 讲师IP（阶段二）
@@ -112,21 +112,23 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段一 — 验证完成，等待打 tag**
+**阶段一 — 联调通过，待打 tag**
 
 ### 已完成
-- Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000 / OnlyOffice:8088）
+- Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000）
 - 数据库 4 张表（users/files/permissions/audit_logs）+ 默认 admin 账号（admin/admin123）
-- 14 个 API 端点全部测试通过
+- 15+ API 端点全部测试通过（含新增 temp PDF 清理端点）
 - Flutter 静态分析 0 issues
-- Windows .exe 编译成功（81KB，`build/windows/x64/runner/Release/ai_manage_sys.exe`）
+- Windows .exe 编译成功
 - LLM 抽象层就绪（config 切换 DeepSeek → Qwen2.5 14B）
 - 5 级 ACL 权限引擎 + 审计日志完整
+- OnlyOffice 替换为 LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览，退出清理
+- 文件下载支持自定义路径（文件夹选择器）
+- 后端扩展名兜底识别 Office 文件（MIME 不准也能转 PDF）
+- 6 种 Office 格式端到端验证通过（.doc/.docx/.xls/.xlsx/.ppt/.pptx）
 
 ### 待完成
 - Android .apk 编译验证（需要 Android SDK cmdline-tools）
-- Web 构建验证
-- 前端实际运行联调（目前只做了 API 测试 + 编译，未启动 Flutter app 对连后端走通全流程）
 - git tag: `phase-1-complete`
 
 ## 已知问题 & 注意事项
@@ -136,6 +138,7 @@ AI_manage_sys/
 3. **Flutter SDK 路径**：`C:\Users\Mamba4live\Downloads\flutter\`（未加入 PATH）
 4. **VS BuildTools**：需要安装 "C++ ATL for v142" + "Windows 10 SDK 10.0.22621+" 才能编译 Windows
 5. **Android 编译待配置**：需要 Android Studio 或 cmdline-tools
+6. **LibreOffice 必须安装**：Office 文件预览依赖 LibreOffice headless 转 PDF，安装 `winget install TheDocumentFoundation.LibreOffice`
 
 ## 关键约束
 

@@ -26,9 +26,6 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "ai-manage-files"
     MINIO_SECURE: bool = False
 
-    # ── OnlyOffice ──
-    ONLYOFFICE_URL: str = "http://localhost:8088"
-
     # ── LLM ──
     LLM_PROVIDER: str = "openai_compatible"
     LLM_BASE_URL: str = "https://api.deepseek.com/v1"    # 开发阶段用免费/便宜API

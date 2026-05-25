@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_windows/webview_windows.dart';
 import 'package:video_player/video_player.dart';
 import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/app_logger.dart';
 import '../../widgets/watermark.dart';
 
 class PreviewPage extends ConsumerStatefulWidget {
@@ -20,11 +20,11 @@ class PreviewPage extends ConsumerStatefulWidget {
 class _PreviewPageState extends ConsumerState<PreviewPage> {
   final _api = ApiClient();
   Map<String, dynamic>? _info;
-  WebViewController? _ooCtrl;
-  WebViewController? _pdfCtrl;
+  WebviewController? _pdfCtrl;
   VideoPlayerController? _videoCtrl;
   bool _loading = true;
   String? _error;
+  String? _tempPath;
 
   @override
   void initState() {
@@ -38,58 +38,40 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
       final info = Map<String, dynamic>.from(resp.data);
       final t = info['type'] as String?;
       final mime = info['mime_type'] as String? ?? '';
-      print('[PREVIEW] type=$t mime=$mime info keys=${info.keys}');
+      _tempPath = info['temp_path'] as String?;
+      appLog('[PREVIEW] type=$t mime=$mime info keys=${info.keys}');
 
-      if (t == 'onlyoffice') {
-        await _loadOnlyOffice(info['config_url'] as String);
-      } else if (t == 'media' && mime == 'application/pdf') {
+      if (t == 'media' && mime == 'application/pdf') {
         final pdfUrl = info['url'] as String;
-        print('[PREVIEW] PDF url=$pdfUrl');
-        _pdfCtrl = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(const Color(0xFFF2F2F7))
-          ..loadRequest(Uri.parse(pdfUrl));
+        appLog('[PREVIEW] PDF url=$pdfUrl');
+        _pdfCtrl = WebviewController();
+        await _pdfCtrl!.initialize();
+        await _pdfCtrl!.loadUrl(pdfUrl);
       } else if (t == 'media' && mime.startsWith('video/')) {
         _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(info['url'] as String))
           ..initialize().then((_) => setState(() {}));
       }
       setState(() { _info = info; _loading = false; });
     } catch (e, stack) {
-      print('[PREVIEW] ERROR: $e\n$stack');
+      appLog('[PREVIEW] ERROR: $e\n$stack');
       setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
-  Future<void> _loadOnlyOffice(String configUrl) async {
-    try {
-      final resp = await _api.dio.get(configUrl);
-      final config = Map<String, dynamic>.from(resp.data);
-      final html = '''
-<!DOCTYPE html>
-<html style="height:100%">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="http://localhost:8088/web-apps/apps/api/documents/api.js"></script>
-  <style>html,body{height:100%;margin:0;padding:0}</style>
-</head>
-<body>
-  <div id="placeholder" style="height:100%"></div>
-  <script>
-    new DocsAPI.DocEditor("placeholder", ${jsonEncode(config)});
-  </script>
-</body>
-</html>''';
-      _ooCtrl = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(const Color(0xFFF2F2F7))
-        ..loadHtmlString(html, baseUrl: 'http://localhost:8088/');
-    } catch (_) {}
+  Future<void> _cleanup() async {
+    if (_tempPath != null) {
+      try {
+        await _api.dio.post('/preview/close/${widget.fileId}');
+        appLog('[PREVIEW] cleaned up temp file: $_tempPath');
+      } catch (_) {}
+    }
   }
 
   @override
   void dispose() {
     _videoCtrl?.dispose();
+    _pdfCtrl?.dispose();
+    _cleanup();
     super.dispose();
   }
 
@@ -98,36 +80,37 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
     final auth = ref.watch(authProvider);
     final theme = Theme.of(context);
 
+    appLog('[PREVIEW build] _loading=$_loading _error=$_error _info=$_info _pdfCtrl=$_pdfCtrl');
+
     Widget content;
     if (_loading) {
       content = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
+      final errText = _error!;
       content = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            Text(errText, style: TextStyle(color: theme.colorScheme.error)),
           ],
         ),
       );
     } else {
-      final type = _info!['type'] as String;
-      final mime = _info!['mime_type'] as String? ?? '';
-      final url = _info!['url'] as String? ?? '';
-      final name = _info!['name'] as String? ?? '';
+      final info = _info!;
+      final type = info['type'] as String;
+      final mime = info['mime_type'] as String? ?? '';
+      final url = info['url'] as String? ?? '';
+      final name = info['name'] as String? ?? '';
 
-      if (type == 'onlyoffice' && _ooCtrl != null) {
-        content = WebViewWidget(controller: _ooCtrl!);
-      } else if (type == 'onlyoffice') {
-        content = const Center(child: CircularProgressIndicator());
-      } else if (type == 'media' && mime.startsWith('video/') && _videoCtrl != null) {
+      if (type == 'media' && mime.startsWith('video/') && _videoCtrl != null) {
+        final vc = _videoCtrl!;
         content = Center(
-          child: _videoCtrl!.value.isInitialized
+          child: vc.value.isInitialized
               ? AspectRatio(
-                  aspectRatio: _videoCtrl!.value.aspectRatio,
-                  child: VideoPlayer(_videoCtrl!),
+                  aspectRatio: vc.value.aspectRatio,
+                  child: VideoPlayer(vc),
                 )
               : const CircularProgressIndicator(),
         );
@@ -147,7 +130,7 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
           ),
         );
       } else if (type == 'media' && mime == 'application/pdf' && _pdfCtrl != null) {
-        content = WebViewWidget(controller: _pdfCtrl!);
+        content = Webview(_pdfCtrl!);
       } else if (type == 'raw' || (type == 'media' && mime.startsWith('text/'))) {
         content = _TextPreview(url: url, name: name, theme: theme);
       } else {
