@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,7 @@ from app.database import get_db
 from app.models import User, File
 from app.security import get_current_user
 from app.config import settings
+from minio import Minio
 from app.services.storage import get_file, get_presigned_url
 from app.services.permission_checker import check_permission
 from app.services.audit import log as audit_log
@@ -98,9 +100,18 @@ async def onlyoffice_config(
     if not await check_permission(db, user, record.id, "preview"):
         raise HTTPException(status_code=403, detail="权限不足")
 
-    file_url = await get_presigned_url(record.storage_path, expires=86400)
-    # OnlyOffice runs in Docker — localhost won't reach host MinIO
-    file_url = file_url.replace("localhost:9000", "host.docker.internal:9000")
+    # Generate presigned URL with host.docker.internal so OnlyOffice container
+    # can reach MinIO (localhost resolves to container itself inside Docker).
+    # host.docker.internal resolves to host on both Windows host and Docker containers.
+    docker_minio = Minio(
+        "host.docker.internal:9000",
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        secure=settings.MINIO_SECURE,
+    )
+    file_url = docker_minio.presigned_get_object(
+        settings.MINIO_BUCKET, record.storage_path, expires=timedelta(seconds=86400),
+    )
     return {
         "document": {
             "fileType": record.mime_type,

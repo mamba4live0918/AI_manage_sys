@@ -38,22 +38,26 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
       final info = Map<String, dynamic>.from(resp.data);
       final t = info['type'] as String?;
       final mime = info['mime_type'] as String? ?? '';
-      setState(() { _info = info; });
+      print('[PREVIEW] type=$t mime=$mime info keys=${info.keys}');
 
       if (t == 'onlyoffice') {
         await _loadOnlyOffice(info['config_url'] as String);
       } else if (t == 'media' && mime == 'application/pdf') {
+        final pdfUrl = info['url'] as String;
+        print('[PREVIEW] PDF url=$pdfUrl');
         _pdfCtrl = WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..loadRequest(Uri.parse(info['url'] as String));
+          ..setBackgroundColor(const Color(0xFFF2F2F7))
+          ..loadRequest(Uri.parse(pdfUrl));
       } else if (t == 'media' && mime.startsWith('video/')) {
         _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(info['url'] as String))
           ..initialize().then((_) => setState(() {}));
       }
-    } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(() { _info = info; _loading = false; });
+    } catch (e, stack) {
+      print('[PREVIEW] ERROR: $e\n$stack');
+      setState(() { _error = e.toString(); _loading = false; });
     }
-    setState(() { _loading = false; });
   }
 
   Future<void> _loadOnlyOffice(String configUrl) async {

@@ -32,6 +32,8 @@ services:
     image: onlyoffice/documentserver:latest
     environment:
       JWT_ENABLED: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8088:80"
     volumes:
