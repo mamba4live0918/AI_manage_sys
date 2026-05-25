@@ -75,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(created_at DESC);
 -- 默认管理员
 INSERT INTO users (username, email, hashed_password, role, department)
 VALUES ('admin', 'admin@company.local',
-        '$2b$12$LJ3m4ys3Lk0TSwHCpNqr4OyY2Cx3QvK5sXEQvCNkNsEMGrLMdvR.a',
+        '$2b$12$w6d2ExDXt/iQdgheFBphyu7VZbzL398c3D9l.GPVeAN6OCYHRbzEi',
         'admin', '技术部')
 ON CONFLICT (username) DO NOTHING;
 -- 密码: admin123

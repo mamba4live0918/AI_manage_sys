@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   postgres:
@@ -8,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ai_manage_dev
       POSTGRES_DB: ai_manage
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

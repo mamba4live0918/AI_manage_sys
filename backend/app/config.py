@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # ── 数据库 ──
-    DATABASE_URL: str = "postgresql+asyncpg://ai_manage:ai_manage_dev@localhost:5432/ai_manage"
+    DATABASE_URL: str = "postgresql+asyncpg://ai_manage:ai_manage_dev@localhost:5433/ai_manage"
 
     # ── Redis ──
     REDIS_URL: str = "redis://localhost:6379/0"
