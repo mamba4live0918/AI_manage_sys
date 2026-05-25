@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
+import '../utils/app_logger.dart';
 
 class AuthState {
   final User? user;
@@ -44,21 +45,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _init() async {
-    final token = await _api.loadToken();
-    if (token != null) {
-      try {
-        final resp = await _api.dio.get('/auth/me');
-        state = AuthState(
-          user: User.fromJson(resp.data),
-          token: token,
-          isInitialized: true,
-        );
-        return;
-      } catch (_) {
-        await _api.clearToken();
+    appLog('[AUTH] _init() started');
+    try {
+      final token = await _api.loadToken();
+      appLog('[AUTH] loadToken returned: ${token != null ? "token present" : "no token"}');
+      if (token != null) {
+        try {
+          appLog('[AUTH] calling /auth/me...');
+          final resp = await _api.dio.get('/auth/me');
+          appLog('[AUTH] /auth/me success: ${resp.data}');
+          state = AuthState(
+            user: User.fromJson(resp.data),
+            token: token,
+            isInitialized: true,
+          );
+          appLog('[AUTH] state set: isInitialized=true, user=${User.fromJson(resp.data).username}');
+          return;
+        } catch (e) {
+          appLog('[AUTH] /auth/me failed: $e');
+          await _api.clearToken();
+        }
       }
+      state = const AuthState(isInitialized: true);
+      appLog('[AUTH] state set: isInitialized=true, no user');
+    } catch (e) {
+      appLog('[AUTH] _init() CRASHED: $e');
+      state = const AuthState(isInitialized: true);
     }
-    state = const AuthState(isInitialized: true);
   }
 
   Future<void> login(String username, String password) async {

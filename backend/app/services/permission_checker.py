@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from app.models import User, File, Permission
+from app.config import settings
 
 
 async def check_permission(
@@ -10,7 +11,6 @@ async def check_permission(
     resource_id: uuid.UUID,
     action: str,
 ) -> bool:
-    """5级ACL检查：管理员 → 用户 → 角色 → 部门 → 项目 → 父目录递归继承"""
     if user and user.role == "admin":
         return True
 
@@ -20,6 +20,17 @@ async def check_permission(
     if resource is None:
         return False
 
+    # 文件上传者始终可访问自己的文件
+    if user and resource.uploaded_by == user.id:
+        return True
+
+    # 保密级别准入：用户级别 ≥ 文件级别即放行
+    user_level = settings.ROLE_CLEARANCE.get(user.role if user else "", 0)
+    file_level = resource.confidentiality_level or 0
+    if user_level >= file_level:
+        return True
+
+    # 级别不够时，回退到显式 ACL（逐文件授权可覆盖保密级限制）
     # 递归收集所有可检查的 resource_id（自身+所有祖先目录）
     ids_to_check = [resource_id]
     current_id = resource.parent_id

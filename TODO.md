@@ -8,92 +8,98 @@
 
 ### 迭代1.1 — 项目骨架（1周）
 
-- [ ] 初始化Flutter项目（`flutter create`），配置四端入口
-- [ ] 配置Riverpod + Dio + GoRouter
-- [ ] 创建项目目录结构（pages/widgets/providers/services/models/config）
-- [ ] 创建FastAPI项目骨架，配置CORS + 路由注册
-- [ ] 编写docker-compose.yml（PostgreSQL + Redis + MinIO + OnlyOffice）
-- [ ] 编写数据库初始化SQL（用户表、文件表、权限表、审计日志表 + 索引）
-- [ ] 配置Alembic数据库迁移
-- [ ] 四端Hello World验证（Windows exe / iOS Simulator / Android Emulator / Chrome）
+- [x] 初始化Flutter项目（`flutter create`），配置四端入口
+- [x] 配置Riverpod + Dio + GoRouter
+- [x] 创建项目目录结构（pages/widgets/providers/services/models/config）
+- [x] 创建FastAPI项目骨架，配置CORS + 路由注册
+- [x] 编写docker-compose.yml（PostgreSQL + Redis + MinIO）
+- [x] 编写数据库初始化SQL（用户表、文件表、权限表、审计日志表 + 索引）
+- [x] 配置Alembic数据库迁移
+- [x] 四端Hello World验证（Windows exe / Android Emulator / Chrome）~iOS暂缓~
 
 ### 迭代1.2 — 用户认证 + RBAC（1周）
 
-- [ ] 后端：用户注册API + 登录API（JWT）
-- [ ] 后端：bcrypt密码哈希 + Token生成/验证
-- [ ] 后端：4级角色模型（admin / dept_manager / project_manager / general）
-- [ ] 后端：get_current_user 依赖注入 + require_roles 守卫
-- [ ] 后端：用户管理CRUD（仅admin）
-- [ ] Flutter：登录页面（用户名+密码 → JWT存储）
-- [ ] Flutter：Dio拦截器（请求自动注入Token，401自动跳转登录）
-- [ ] Flutter：AuthProvider（Riverpod，管理登录状态）
-- [ ] Flutter：路由守卫（未登录 → /login）
-- [ ] Flutter：PC端侧边栏导航 / 移动端底部Tab导航
+- [x] 后端：用户注册API + 登录API（JWT）
+- [x] 后端：bcrypt密码哈希 + Token生成/验证
+- [x] 后端：4级角色模型（admin / dept_manager / project_manager / general）
+- [x] 后端：get_current_user 依赖注入 + require_roles 守卫
+- [x] 后端：用户管理CRUD（仅admin）
+- [x] Flutter：登录页面（用户名+密码 → JWT存储）
+- [x] Flutter：Dio拦截器（请求自动注入Token，401自动跳转登录）
+- [x] Flutter：AuthProvider（Riverpod，管理登录状态）
+- [x] Flutter：路由守卫（未登录 → /login）
+- [x] Flutter：PC端侧边栏导航 / 移动端底部Tab导航
 
 ### 迭代1.3 — 文件管理 + 存储（1.5周）
 
-- [ ] 后端：MinIO服务集成（初始化bucket + 策略配置）
-- [ ] 后端：文件上传API（multipart，自动MIME识别，存储到MinIO）
-- [ ] 后端：文件列表API（分页 + 按目录筛选 + 排序）
-- [ ] 后端：创建文件夹API
-- [ ] 后端：删除文件/文件夹API
-- [ ] Flutter：文件列表页面（GridView/ListView自适应桌面/移动端）
-- [ ] Flutter：文件类型图标组件（文档/图片/音频/视频/文件夹）
-- [ ] Flutter：面包屑导航 + 多级目录浏览
-- [ ] Flutter：文件上传组件（桌面端拖拽 + 移动端拍照/相册/文件选择器）
-- [ ] Flutter：移动端原生拍照上传（image_picker）
-- [ ] Flutter：删除确认对话框
+- [x] 后端：MinIO服务集成（初始化bucket + 策略配置）
+- [x] 后端：文件上传API（multipart，自动MIME识别，存储到MinIO）
+- [x] 后端：文件列表API（分页 + 按目录筛选 + 排序）
+- [x] 后端：创建文件夹API
+- [x] 后端：删除文件/文件夹API
+- [x] Flutter：文件列表页面（ListView自适应桌面/移动端）
+- [x] Flutter：文件类型图标组件（文档/图片/音频/视频/文件夹）
+- [x] Flutter：面包屑导航 + 多级目录浏览
+- [x] Flutter：文件上传组件（文件选择器）
+- [ ] Flutter：移动端原生拍照上传（image_picker）~阶段二再做~
+- [x] Flutter：删除确认对话框
 
 ### 迭代1.4 — 文档预览（1周）
 
-- [ ] Docker：OnlyOffice Document Server部署 + 健康检查
-- [ ] 后端：OnlyOffice配置API（JWT签名 + 编辑器配置JSON）
-- [ ] 后端：OnlyOffice回调API（保存/关闭事件处理）
-- [ ] Flutter：OnlyOffice集成（WebView vs iframe，四端分别处理）
-- [ ] Flutter：Windows端OnlyOffice（webview_windows）
-- [ ] Flutter：移动端OnlyOffice（webview_flutter）
-- [ ] Flutter：预览页（全屏模式 + 退出按钮）
+- [x] ~~Docker：OnlyOffice Document Server部署~~ → **LibreOffice headless**（更轻量）
+- [x] 后端：Office文件转PDF API（LibreOffice CLI）
+- [x] 后端：临时PDF上传MinIO + 预签名URL返回
+- [x] 后端：预览关闭清理API（POST /preview/close）
+- [x] Flutter：PDF WebView预览（webview_windows）
+- [x] Flutter：6种Office格式支持（.doc/.docx/.xls/.xlsx/.ppt/.pptx）
 
 ### 迭代1.5 — 媒体预览 + 水印（0.5周）
 
-- [ ] Flutter：图片预览（InteractiveViewer + 手势缩放）
-- [ ] Flutter：音频播放器（just_audio，后台播放）
-- [ ] Flutter：视频播放器（video_player，全屏+进度条）
-- [ ] Flutter：流式分片加载（Range请求头）
-- [ ] Flutter：Canvas动态水印组件（用户名+部门+日期时间，平铺覆盖）
-- [ ] Flutter：所有预览页叠加水印组件
-- [ ] Flutter：可选禁止截屏（FlutterWindowManager.setFlags FLAG_SECURE）
+- [x] Flutter：图片预览（InteractiveViewer + 手势缩放）
+- [x] Flutter：音频播放（HTML5 Audio via WebView）
+- [x] Flutter：视频播放（HTML5 Video via WebView）
+- [x] Flutter：后端MIME扩展名兜底检测（_guess_mime）
+- [x] Flutter：Canvas动态水印组件（用户名+部门+日期，平铺覆盖）
+- [x] Flutter：所有预览页叠加水印组件
+- [ ] Flutter：可选禁止截屏 ~低优先级~
 
 ### 迭代1.6 — 权限系统（1.5周）
 
-- [ ] 后端：Permission模型（user/role/dept/project → resource → preview/download/edit）
-- [ ] 后端：5级ACL权限检查引擎（用户→角色→部门→项目→父目录继承）
-- [ ] 后端：权限校验中间件（预览/下载API调用前执行）
-- [ ] 后端：授予权限API
-- [ ] 后端：撤销权限API
-- [ ] 后端：查询资源权限列表API
-- [ ] 后端：下载API（独立鉴权，仅授权用户可下载）
-- [ ] Flutter：权限配置页面（管理员：选择角色/用户/部门 + 资源 → 授予权限）
-- [ ] Flutter：文件列表权限状态Tag（可预览/可下载/无权限）
-- [ ] Flutter：无权限预览 → 拦截弹窗提示
-- [ ] Flutter：无权限下载 → 隐藏下载按钮
+- [x] 后端：Permission模型（user/role/dept/project → resource → preview/download/edit）
+- [x] 后端：5级ACL权限检查引擎 → **升级为保密级别自动授权**
+- [x] 后端：保密级别模型（0公开/1内部/2机密/3绝密）+ 角色查看级别映射
+- [x] 后端：owner豁免（用户始终能看自己上传的文件）
+- [x] 后端：下载API（独立鉴权）
+- [x] Flutter：保密级别标签显示（公开/内部/机密/绝密，颜色区分）
+- [x] Flutter：admin点击标签修改保密级别
+- [x] ~~权限配置页面~~ → 被保密级别自动授权替代，已移除
+- [x] Flutter：文件下载（选择保存文件夹）
 
 ### 迭代1.7 — 审计日志（0.5周）
 
-- [ ] 后端：审计日志写入服务（preview/download/upload/delete/permission_change）
-- [ ] 后端：审计日志分页查询API（按用户/操作类型/时间范围筛选）
-- [ ] 后端：所有敏感操作调用审计服务记录
-- [ ] Flutter：审计日志查询页面（Table + 筛选 + 分页）
-- [ ] Flutter：管理员侧边栏入口
+- [x] 后端：审计日志写入服务（preview/download/upload/delete/permission_change）
+- [x] 后端：审计日志分页查询API（按用户/操作类型/时间范围筛选）
+- [x] 后端：所有敏感操作调用审计服务记录
+- [x] Flutter：审计日志查询页面（列表 + 筛选 + 分页）
+- [x] Flutter：管理员侧边栏入口
+
+### 阶段一额外完成
+
+- [x] 用户管理页面（admin查看所有用户 + 修改角色）
+- [x] 文件下载功能（自定义保存路径）
+- [x] 模糊搜索（权限搜索 → 已随权限页移除，搜索 API 保留）
+- [x] DEBUG banner 关闭
 
 ### 阶段一检查点
 
-- [ ] 四端编译成功（.exe / .ipa / .apk / web build通过）
-- [ ] 用户注册 → 登录 → 上传文件 → 创建目录
-- [ ] Word/Excel/PDF页内预览 + 水印
-- [ ] 图片/音频/视频预览 + 水印
-- [ ] 管理员配置权限 → 普通用户预览受限
-- [ ] 审计日志完整记录
+- [x] Windows .exe 编译通过
+- [ ] Android .apk 编译验证 ~需要 Android SDK~
+- [ ] iOS ~暂缓~
+- [x] 用户注册 → 登录 → 上传文件 → 创建目录
+- [x] Word/Excel/PPT/PDF预览 + 水印
+- [x] 图片/音频/视频预览 + 水印
+- [x] 保密级别自动授权（替代手动ACL）
+- [x] 审计日志完整记录
 - [ ] git tag: `phase-1-complete`
 
 ---

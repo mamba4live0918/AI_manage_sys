@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_windows/webview_windows.dart';
-import 'package:video_player/video_player.dart';
 import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
@@ -21,7 +20,7 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
   final _api = ApiClient();
   Map<String, dynamic>? _info;
   WebviewController? _pdfCtrl;
-  VideoPlayerController? _videoCtrl;
+  WebviewController? _avCtrl;
   bool _loading = true;
   String? _error;
   String? _tempPath;
@@ -39,23 +38,35 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
       final t = info['type'] as String?;
       final mime = info['mime_type'] as String? ?? '';
       _tempPath = info['temp_path'] as String?;
-      appLog('[PREVIEW] type=$t mime=$mime info keys=${info.keys}');
+      appLog('[PREVIEW] type=$t mime=$mime');
 
       if (t == 'media' && mime == 'application/pdf') {
         final pdfUrl = info['url'] as String;
-        appLog('[PREVIEW] PDF url=$pdfUrl');
         _pdfCtrl = WebviewController();
         await _pdfCtrl!.initialize();
         await _pdfCtrl!.loadUrl(pdfUrl);
-      } else if (t == 'media' && mime.startsWith('video/')) {
-        _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(info['url'] as String))
-          ..initialize().then((_) => setState(() {}));
+      } else if (t == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/'))) {
+        final url = info['url'] as String;
+        final tag = mime.startsWith('video/') ? 'video' : 'audio';
+        _avCtrl = WebviewController();
+        await _avCtrl!.initialize();
+        await _avCtrl!.loadStringContent(_mediaHtml(url, mime, tag));
       }
       setState(() { _info = info; _loading = false; });
     } catch (e, stack) {
       appLog('[PREVIEW] ERROR: $e\n$stack');
       setState(() { _error = e.toString(); _loading = false; });
     }
+  }
+
+  String _mediaHtml(String url, String mime, String tag) {
+    final dim = tag == 'video' ? 'width:100%;height:100%' : 'width:100%;max-width:480px';
+    return '''
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden}
+$tag{$dim;outline:none}</style></head><body>
+<$tag controls autoplay src="$url" type="$mime" style="$dim"></$tag>
+</body></html>''';
   }
 
   Future<void> _cleanup() async {
@@ -69,8 +80,8 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
 
   @override
   void dispose() {
-    _videoCtrl?.dispose();
     _pdfCtrl?.dispose();
+    _avCtrl?.dispose();
     _cleanup();
     super.dispose();
   }
@@ -80,20 +91,17 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
     final auth = ref.watch(authProvider);
     final theme = Theme.of(context);
 
-    appLog('[PREVIEW build] _loading=$_loading _error=$_error _info=$_info _pdfCtrl=$_pdfCtrl');
-
     Widget content;
     if (_loading) {
       content = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
-      final errText = _error!;
       content = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text(errText, style: TextStyle(color: theme.colorScheme.error)),
+            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ],
         ),
       );
@@ -104,33 +112,14 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
       final url = info['url'] as String? ?? '';
       final name = info['name'] as String? ?? '';
 
-      if (type == 'media' && mime.startsWith('video/') && _videoCtrl != null) {
-        final vc = _videoCtrl!;
-        content = Center(
-          child: vc.value.isInitialized
-              ? AspectRatio(
-                  aspectRatio: vc.value.aspectRatio,
-                  child: VideoPlayer(vc),
-                )
-              : const CircularProgressIndicator(),
-        );
+      if (type == 'media' && mime == 'application/pdf' && _pdfCtrl != null) {
+        content = Webview(_pdfCtrl!);
+      } else if (type == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/')) && _avCtrl != null) {
+        content = Webview(_avCtrl!);
       } else if (type == 'media' && mime.startsWith('image/')) {
         content = InteractiveViewer(
           child: Center(child: Image.network(url)),
         );
-      } else if (type == 'media' && mime.startsWith('audio/')) {
-        content = Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.audio_file, size: 64, color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(name, style: theme.textTheme.titleMedium),
-            ],
-          ),
-        );
-      } else if (type == 'media' && mime == 'application/pdf' && _pdfCtrl != null) {
-        content = Webview(_pdfCtrl!);
       } else if (type == 'raw' || (type == 'media' && mime.startsWith('text/'))) {
         content = _TextPreview(url: url, name: name, theme: theme);
       } else {
@@ -146,15 +135,6 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
         appBar: AppBar(
           title: Text(_info?['name'] ?? '预览'),
           leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-          actions: [
-            if (_videoCtrl != null)
-              IconButton(
-                icon: Icon(_videoCtrl!.value.isPlaying ? Icons.pause : Icons.play_arrow),
-                onPressed: () => setState(() {
-                  _videoCtrl!.value.isPlaying ? _videoCtrl!.pause() : _videoCtrl!.play();
-                }),
-              ),
-          ],
         ),
         body: content,
       ),

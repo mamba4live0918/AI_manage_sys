@@ -311,6 +311,12 @@ class _FileListPageState extends ConsumerState<FileListPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                _LevelBadge(
+                  level: item['confidentiality_level'] ?? 0,
+                  isAdmin: ref.watch(authProvider).user?.role == 'admin',
+                  onChanged: (newLevel) => _changeLevel(item['id'], newLevel),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   _formatDate(item['created_at'] ?? ''),
                   style: TextStyle(
@@ -355,5 +361,64 @@ class _FileListPageState extends ConsumerState<FileListPage> {
     } catch (_) {
       return '';
     }
+  }
+
+  Future<void> _changeLevel(String fileId, int newLevel) async {
+    try {
+      await _api.dio.patch('/files/$fileId/level', data: {'confidentiality_level': newLevel});
+      _loadFiles();
+    } catch (e) {
+      appLog('[CHANGE_LEVEL] error: $e');
+    }
+  }
+}
+
+const _levelNames = {0: '公开', 1: '内部', 2: '机密', 3: '绝密'};
+const _levelColors = {0: AppTheme.green, 1: AppTheme.blue, 2: Colors.orange, 3: AppTheme.red};
+
+class _LevelBadge extends StatelessWidget {
+  final int level;
+  final bool isAdmin;
+  final void Function(int) onChanged;
+
+  const _LevelBadge({required this.level, required this.isAdmin, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = _levelNames[level] ?? '公开';
+    final color = _levelColors[level] ?? AppTheme.green;
+
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withAlpha(25),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withAlpha(120), width: 0.5),
+      ),
+      child: Text(name, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+    );
+
+    if (!isAdmin) return badge;
+
+    return PopupMenuButton<int>(
+      offset: const Offset(0, 24),
+      itemBuilder: (_) => _levelNames.entries.map((e) => PopupMenuItem(
+        value: e.key,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: _levelColors[e.key] ?? AppTheme.green, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(e.value, style: const TextStyle(fontSize: 13)),
+          if (e.key == level) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.check, size: 14, color: AppTheme.green),
+          ],
+        ]),
+      )).toList(),
+      onSelected: (v) => onChanged(v),
+      child: badge,
+    );
   }
 }

@@ -24,6 +24,27 @@ OFFICE_MIMES = {
 
 OFFICE_EXTENSIONS = {".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"}
 
+MIME_BY_EXT = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+    ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg",
+    ".flac": "audio/flac", ".aac": "audio/aac", ".m4a": "audio/mp4",
+    ".mp4": "video/mp4", ".webm": "video/webm", ".mkv": "video/x-matroska",
+    ".avi": "video/x-msvideo", ".mov": "video/quicktime",
+    ".pdf": "application/pdf", ".txt": "text/plain",
+    ".json": "application/json", ".xml": "application/xml",
+    ".html": "text/html", ".css": "text/css", ".js": "text/javascript",
+}
+
+
+def _guess_mime(name: str, stored_mime: str) -> str:
+    if stored_mime and stored_mime != "application/octet-stream":
+        return stored_mime
+    import os
+    _, ext = os.path.splitext(name)
+    return MIME_BY_EXT.get(ext.lower(), stored_mime or "application/octet-stream")
+
 
 def _is_office_file(record: File) -> bool:
     if record.mime_type in OFFICE_MIMES:
@@ -58,7 +79,7 @@ async def preview_file(
 
     await audit_log(db, user, "preview", "file", record.id, record.name, request=request)
 
-    mime = record.mime_type or ""
+    mime = _guess_mime(record.name, record.mime_type or "")
 
     if mime.startswith("image/") or mime.startswith("audio/") or mime.startswith("video/") or mime == "application/pdf":
         url = await get_presigned_url(record.storage_path)

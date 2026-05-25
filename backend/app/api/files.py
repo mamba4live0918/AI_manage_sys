@@ -49,6 +49,8 @@ async def list_files(
                 "parent_id": str(r.parent_id) if r.parent_id else None,
                 "mime_type": r.mime_type,
                 "size_bytes": r.size_bytes,
+                "confidentiality_level": r.confidentiality_level,
+                "uploaded_by": str(r.uploaded_by) if r.uploaded_by else None,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows
@@ -63,6 +65,7 @@ async def list_files(
 async def upload(
     file: UploadFile = FastAPIFile(...),
     parent_id: str | None = None,
+    confidentiality_level: int = 0,
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -80,6 +83,7 @@ async def upload(
         size_bytes=len(contents),
         storage_path=storage_path,
         uploaded_by=user.id,
+        confidentiality_level=min(max(confidentiality_level, 0), 3),
     )
     db.add(record)
     await db.commit()
@@ -134,3 +138,33 @@ async def delete(
 
     await audit_log(db, user, "delete", "file", uuid.UUID(file_id), name, request=request)
     return {"message": "删除成功"}
+
+
+class LevelUpdate(BaseModel):
+    confidentiality_level: int
+
+
+@router.patch("/{file_id}/level")
+async def set_level(
+    file_id: str,
+    body: LevelUpdate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可设置保密级别")
+
+    result = await db.execute(select(File).where(File.id == uuid.UUID(file_id)))
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    new_level = min(max(body.confidentiality_level, 0), 3)
+    old_level = record.confidentiality_level
+    record.confidentiality_level = new_level
+    await db.commit()
+
+    await audit_log(db, user, "set_level", "file", record.id, record.name,
+                    f"level {old_level} → {new_level}", request=request)
+    return {"id": str(record.id), "confidentiality_level": new_level}

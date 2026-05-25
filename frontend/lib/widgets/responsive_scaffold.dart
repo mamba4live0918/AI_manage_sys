@@ -122,16 +122,16 @@ class ResponsiveScaffold extends ConsumerWidget {
                       onTap: () => _navigate(context, 0),
                     ),
                     _TabItem(
-                      icon: Icons.shield_rounded,
-                      outline: Icons.shield_outlined,
-                      label: '权限',
+                      icon: Icons.schedule_rounded,
+                      outline: Icons.schedule_outlined,
+                      label: '审计',
                       selected: index == 1,
                       onTap: () => _navigate(context, 1),
                     ),
                     _TabItem(
-                      icon: Icons.schedule_rounded,
-                      outline: Icons.schedule_outlined,
-                      label: '审计',
+                      icon: Icons.people_rounded,
+                      outline: Icons.people_outline_rounded,
+                      label: '用户',
                       selected: index == 2,
                       onTap: () => _navigate(context, 2),
                     ),
@@ -163,8 +163,8 @@ class ResponsiveScaffold extends ConsumerWidget {
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
     if (loc.startsWith('/files')) return 0;
-    if (loc.startsWith('/permissions')) return 1;
-    if (loc.startsWith('/audit')) return 2;
+    if (loc.startsWith('/audit')) return 1;
+    if (loc.startsWith('/users')) return 2;
     return 0;
   }
 
@@ -173,9 +173,9 @@ class ResponsiveScaffold extends ConsumerWidget {
       case 0:
         context.go('/files');
       case 1:
-        context.go('/permissions');
-      case 2:
         context.go('/audit');
+      case 2:
+        context.go('/users');
     }
   }
 }
@@ -223,8 +223,8 @@ class _SidebarNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (Icons.folder_rounded, Icons.folder_outlined, '文件'),
-      (Icons.shield_rounded, Icons.shield_outlined, '权限'),
       (Icons.schedule_rounded, Icons.schedule_outlined, '审计'),
+      (Icons.people_rounded, Icons.people_outline_rounded, '用户'),
     ];
 
     return Column(

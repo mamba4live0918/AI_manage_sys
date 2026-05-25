@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "ai-manage-files"
     MINIO_SECURE: bool = False
 
+    # ── 权限 ──
+    ROLE_CLEARANCE: dict = {
+        "admin": 3,
+        "dept_manager": 2,
+        "project_manager": 1,
+        "general": 0,
+    }
+
     # ── LLM ──
     LLM_PROVIDER: str = "openai_compatible"
     LLM_BASE_URL: str = "https://api.deepseek.com/v1"    # 开发阶段用免费/便宜API

@@ -112,20 +112,25 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段一 — 联调通过，待打 tag**
+**阶段一 — 功能完成，收尾阶段**
 
 ### 已完成
 - Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000）
 - 数据库 4 张表（users/files/permissions/audit_logs）+ 默认 admin 账号（admin/admin123）
-- 15+ API 端点全部测试通过（含新增 temp PDF 清理端点）
+- 20+ API 端点全部测试通过
 - Flutter 静态分析 0 issues
 - Windows .exe 编译成功
 - LLM 抽象层就绪（config 切换 DeepSeek → Qwen2.5 14B）
-- 5 级 ACL 权限引擎 + 审计日志完整
+- **保密级别自动授权**（替代手动 ACL）：4级保密 + 角色查看级别映射 + owner 豁免
 - OnlyOffice 替换为 LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览，退出清理
 - 文件下载支持自定义路径（文件夹选择器）
-- 后端扩展名兜底识别 Office 文件（MIME 不准也能转 PDF）
+- 后端扩展名兜底 MIME 检测（`_guess_mime()`：图片/音频/视频/Office 全覆盖）
 - 6 种 Office 格式端到端验证通过（.doc/.docx/.xls/.xlsx/.ppt/.pptx）
+- 图片/音频/视频上传 + 预览 + 下载端到端验证通过
+- 用户管理页面（admin 查看用户列表 + 修改角色）
+- 审计日志分页查询 + 筛选
+- UI：iOS 风格侧边栏/底部栏（文件/审计/用户 3 tab）+ 深色/浅色主题切换
+- 前端 Canvas 动态水印（用户名+部门+日期）
 
 ### 待完成
 - Android .apk 编译验证（需要 Android SDK cmdline-tools）

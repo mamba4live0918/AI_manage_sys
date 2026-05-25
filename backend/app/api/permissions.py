@@ -1,10 +1,10 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.database import get_db
-from app.models import User, Permission
+from app.models import User, File, Permission
 from app.security import get_current_user, require_roles
 from app.services.audit import log as audit_log
 
@@ -17,6 +17,48 @@ class GrantRequest(BaseModel):
     grantee_type: str  # user | role | department | project
     grantee_value: str
     action: str  # preview | download | edit | admin
+
+
+@router.get("/search")
+async def search_permissions(
+    q: str = Query(default="", description="模糊搜索关键词"),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    if not q.strip():
+        return {"items": []}
+
+    pattern = f"%{q.strip()}%"
+
+    # search by grantee_value or file name (join files table)
+    perm_query = (
+        select(Permission, File.name)
+        .outerjoin(File, Permission.resource_id == File.id)
+        .where(
+            or_(
+                Permission.grantee_value.ilike(pattern),
+                File.name.ilike(pattern),
+            )
+        )
+        .order_by(Permission.created_at.desc())
+    )
+    result = await db.execute(perm_query)
+    rows = result.all()
+
+    return {
+        "items": [
+            {
+                "id": str(r.Permission.id),
+                "resource_type": r.Permission.resource_type,
+                "resource_id": str(r.Permission.resource_id),
+                "resource_name": r.name or "",
+                "grantee_type": r.Permission.grantee_type,
+                "grantee_value": r.Permission.grantee_value,
+                "action": r.Permission.action,
+            }
+            for r in rows
+        ]
+    }
 
 
 @router.get("/resource/{resource_id}")
