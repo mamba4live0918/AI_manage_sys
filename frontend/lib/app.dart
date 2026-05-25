@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'config/theme.dart';
 import 'providers/auth_provider.dart';
 import 'services/api_client.dart';
 import 'pages/auth/login_page.dart';
@@ -34,28 +35,55 @@ class AIManageApp extends StatelessWidget {
             return null;
           },
           routes: [
-            GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+            GoRoute(
+              path: '/login',
+              pageBuilder: (context, state) => AppTheme.pageTransition(
+                context: context,
+                state: state,
+                begin: const Offset(0, 0.06),
+                child: const LoginPage(),
+              ),
+            ),
             ShellRoute(
               builder: (_, __, child) => ResponsiveScaffold(child: child),
               routes: [
                 GoRoute(
                   path: '/files',
-                  builder: (_, __) => const FileListPage(),
+                  pageBuilder: (context, state) => AppTheme.pageTransition(
+                    context: context,
+                    state: state,
+                    child: const FileListPage(),
+                  ),
                   routes: [
                     GoRoute(
                       path: 'preview/:fileId',
-                      builder: (_, state) =>
-                          PreviewPage(fileId: state.pathParameters['fileId']!),
+                      pageBuilder: (context, state) {
+                        final fileId = state.pathParameters['fileId']!;
+                        return AppTheme.pageTransition(
+                          context: context,
+                          state: state,
+                          begin: const Offset(0.12, 0),
+                          child: PreviewPage(fileId: fileId),
+                        );
+                      },
                     ),
                   ],
                 ),
                 GoRoute(
                   path: '/permissions',
-                  builder: (_, __) => const PermissionsPage(),
+                  pageBuilder: (context, state) => AppTheme.pageTransition(
+                    context: context,
+                    state: state,
+                    child: const PermissionsPage(),
+                  ),
                 ),
                 GoRoute(
                   path: '/audit',
-                  builder: (_, __) => const AuditLogPage(),
+                  pageBuilder: (context, state) => AppTheme.pageTransition(
+                    context: context,
+                    state: state,
+                    child: const AuditLogPage(),
+                  ),
                 ),
               ],
             ),
@@ -67,16 +95,9 @@ class AIManageApp extends StatelessWidget {
 
         return MaterialApp.router(
           title: 'AI管理系统',
-          theme: ThemeData(
-            colorSchemeSeed: const Color(0xFF1a56db),
-            useMaterial3: true,
-            brightness: Brightness.light,
-          ),
-          darkTheme: ThemeData(
-            colorSchemeSeed: const Color(0xFF1a56db),
-            useMaterial3: true,
-            brightness: Brightness.dark,
-          ),
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
           routerConfig: router,
         );
       },

@@ -21,20 +21,54 @@ class ResponsiveScaffold extends ConsumerWidget {
             NavigationRail(
               selectedIndex: _selectedIndex(context),
               onDestinationSelected: (i) => _navigate(context, i),
-              labelType: NavigationRailLabelType.all,
               leading: Padding(
-                padding: const EdgeInsets.all(12),
-                child: CircleAvatar(child: Text(auth.user?.username[0].toUpperCase() ?? '?')),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      child: Text(
+                        auth.user?.username[0].toUpperCase() ?? '?',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      auth.user?.username ?? '',
+                      style: Theme.of(context).textTheme.labelSmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              trailing: IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: '退出',
-                onPressed: () => ref.read(authProvider.notifier).logout(),
+              trailing: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: '退出',
+                  onPressed: () => ref.read(authProvider.notifier).logout(),
+                ),
               ),
               destinations: const [
-                NavigationRailDestination(icon: Icon(Icons.folder), label: Text('文件')),
-                NavigationRailDestination(icon: Icon(Icons.security), label: Text('权限')),
-                NavigationRailDestination(icon: Icon(Icons.history), label: Text('审计')),
+                NavigationRailDestination(
+                  icon: Icon(Icons.folder_outlined),
+                  selectedIcon: Icon(Icons.folder_rounded),
+                  label: Text('文件'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.admin_panel_settings_outlined),
+                  selectedIcon: Icon(Icons.admin_panel_settings_rounded),
+                  label: Text('权限'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.history_outlined),
+                  selectedIcon: Icon(Icons.history_rounded),
+                  label: Text('审计'),
+                ),
               ],
             ),
             const VerticalDivider(width: 1),
@@ -50,10 +84,23 @@ class ResponsiveScaffold extends ConsumerWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex(context),
         onDestinationSelected: (i) => _navigate(context, i),
+        animationDuration: const Duration(milliseconds: 400),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.folder_outlined), selectedIcon: Icon(Icons.folder), label: '文件'),
-          NavigationDestination(icon: Icon(Icons.security_outlined), selectedIcon: Icon(Icons.security), label: '权限'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: '审计'),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder_rounded),
+            label: '文件',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.admin_panel_settings_outlined),
+            selectedIcon: Icon(Icons.admin_panel_settings_rounded),
+            label: '权限',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history_rounded),
+            label: '审计',
+          ),
         ],
       ),
     );
@@ -69,9 +116,12 @@ class ResponsiveScaffold extends ConsumerWidget {
 
   void _navigate(BuildContext context, int index) {
     switch (index) {
-      case 0: context.go('/files');
-      case 1: context.go('/permissions');
-      case 2: context.go('/audit');
+      case 0:
+        context.go('/files');
+      case 1:
+        context.go('/permissions');
+      case 2:
+        context.go('/audit');
     }
   }
 }
