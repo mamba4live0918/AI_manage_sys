@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -19,6 +20,7 @@ class PreviewPage extends ConsumerStatefulWidget {
 class _PreviewPageState extends ConsumerState<PreviewPage> {
   final _api = ApiClient();
   Map<String, dynamic>? _info;
+  WebViewController? _ooCtrl;
   VideoPlayerController? _videoCtrl;
   bool _loading = true;
   String? _error;
@@ -32,22 +34,48 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
   Future<void> _load() async {
     try {
       final resp = await _api.dio.get('/preview/file/${widget.fileId}');
-      setState(() {
-        _info = resp.data;
-        _loading = false;
-      });
-      final t = _info?['type'];
-      final mime = _info?['mime_type'] ?? '';
-      if (t == 'media' && mime.startsWith('video/')) {
-        _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(_info!['url']))
+      final info = Map<String, dynamic>.from(resp.data);
+      final t = info['type'] as String?;
+      final mime = info['mime_type'] as String? ?? '';
+      setState(() { _info = info; });
+
+      if (t == 'onlyoffice') {
+        await _loadOnlyOffice(info['config_url'] as String);
+      } else if (t == 'media' && mime.startsWith('video/')) {
+        _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(info['url'] as String))
           ..initialize().then((_) => setState(() {}));
       }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      setState(() { _error = e.toString(); });
     }
+    setState(() { _loading = false; });
+  }
+
+  Future<void> _loadOnlyOffice(String configUrl) async {
+    try {
+      final resp = await _api.dio.get(configUrl);
+      final config = Map<String, dynamic>.from(resp.data);
+      final html = '''
+<!DOCTYPE html>
+<html style="height:100%">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="http://localhost:8088/web-apps/apps/api/documents/api.js"></script>
+  <style>html,body{height:100%;margin:0;padding:0}</style>
+</head>
+<body>
+  <div id="placeholder" style="height:100%"></div>
+  <script>
+    new DocsAPI.DocEditor("placeholder", ${jsonEncode(config)});
+  </script>
+</body>
+</html>''';
+      _ooCtrl = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0xFFF2F2F7))
+        ..loadHtmlString(html, baseUrl: 'http://localhost:8088/');
+    } catch (_) {}
   }
 
   @override
@@ -78,16 +106,13 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
     } else {
       final type = _info!['type'] as String;
       final mime = _info!['mime_type'] as String? ?? '';
-
       final url = _info!['url'] as String? ?? '';
       final name = _info!['name'] as String? ?? '';
 
-      if (type == 'onlyoffice') {
-        content = WebViewWidget(
-          controller: WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..loadRequest(Uri.parse(_info!['config_url'] as String)),
-        );
+      if (type == 'onlyoffice' && _ooCtrl != null) {
+        content = WebViewWidget(controller: _ooCtrl!);
+      } else if (type == 'onlyoffice') {
+        content = const Center(child: CircularProgressIndicator());
       } else if (type == 'media' && mime.startsWith('video/') && _videoCtrl != null) {
         content = Center(
           child: _videoCtrl!.value.isInitialized
@@ -119,7 +144,7 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
             ..loadRequest(Uri.parse(url)),
         );
       } else if (type == 'raw' || (type == 'media' && mime.startsWith('text/'))) {
-        content = _TextPreview(url: url, api: _api, name: name, theme: theme);
+        content = _TextPreview(url: url, name: name, theme: theme);
       } else {
         content = Center(child: Text('不支持预览此文件类型 ($mime)'));
       }
@@ -151,13 +176,11 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
 
 class _TextPreview extends StatefulWidget {
   final String url;
-  final ApiClient api;
   final String name;
   final ThemeData theme;
 
   const _TextPreview({
     required this.url,
-    required this.api,
     required this.name,
     required this.theme,
   });
@@ -178,10 +201,7 @@ class _TextPreviewState extends State<_TextPreview> {
 
   Future<void> _fetch() async {
     try {
-      final resp = await widget.api.dio.get(
-        widget.url,
-        options: Options(responseType: ResponseType.plain),
-      );
+      final resp = await Dio().get(widget.url);
       setState(() => _text = resp.data.toString());
     } catch (e) {
       setState(() => _error = e.toString());

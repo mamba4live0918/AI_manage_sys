@@ -53,11 +53,12 @@ async def preview_file(
         "application/vnd.ms-powerpoint",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ):
+        base = str(request.base_url).rstrip("/") if request else f"http://localhost:8001"
         return {
             "type": "onlyoffice",
             "mime_type": mime,
             "name": record.name,
-            "config_url": f"{settings.API_PREFIX}/preview/onlyoffice/config/{file_id}",
+            "config_url": f"{base}{settings.API_PREFIX}/preview/onlyoffice/config/{file_id}",
         }
 
     url = await get_presigned_url(record.storage_path)
