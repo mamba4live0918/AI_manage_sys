@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'config/theme.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/api_client.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/files/file_list_page.dart';
@@ -11,96 +12,111 @@ import 'pages/permissions/permissions_page.dart';
 import 'pages/audit/audit_log_page.dart';
 import 'widgets/responsive_scaffold.dart';
 
-class AIManageApp extends StatelessWidget {
+class AIManageApp extends ConsumerStatefulWidget {
   const AIManageApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final auth = ref.watch(authProvider);
-        if (!auth.isInitialized) {
-          return const MaterialApp(
-            home: Scaffold(body: Center(child: CircularProgressIndicator())),
-          );
-        }
+  ConsumerState<AIManageApp> createState() => _AIManageAppState();
+}
 
-        final router = GoRouter(
-          initialLocation: auth.isLoggedIn ? '/files' : '/login',
-          redirect: (context, state) {
-            final loggedIn = ref.read(authProvider).isLoggedIn;
-            final goingToLogin = state.matchedLocation == '/login';
-            if (!loggedIn && !goingToLogin) return '/login';
-            if (loggedIn && goingToLogin) return '/files';
-            return null;
-          },
+class _AIManageAppState extends ConsumerState<AIManageApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = _buildRouter();
+  }
+
+  GoRouter _buildRouter() {
+    return GoRouter(
+      initialLocation: '/login',
+      redirect: (context, state) {
+        final loggedIn = ref.read(authProvider).isLoggedIn;
+        final goingToLogin = state.matchedLocation == '/login';
+        if (!loggedIn && !goingToLogin) return '/login';
+        if (loggedIn && goingToLogin) return '/files';
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/login',
+          pageBuilder: (context, state) => NoTransitionPage(
+            key: state.pageKey,
+            child: const LoginPage(),
+          ),
+        ),
+        ShellRoute(
+          pageBuilder: (context, state, child) => NoTransitionPage(
+            key: state.pageKey,
+            child: ResponsiveScaffold(child: child),
+          ),
           routes: [
             GoRoute(
-              path: '/login',
-              pageBuilder: (context, state) => AppTheme.pageTransition(
-                context: context,
-                state: state,
-                begin: const Offset(0, 0.06),
-                child: const LoginPage(),
+              path: '/files',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const FileListPage(),
               ),
-            ),
-            ShellRoute(
-              builder: (_, __, child) => ResponsiveScaffold(child: child),
               routes: [
                 GoRoute(
-                  path: '/files',
-                  pageBuilder: (context, state) => AppTheme.pageTransition(
-                    context: context,
-                    state: state,
-                    child: const FileListPage(),
-                  ),
-                  routes: [
-                    GoRoute(
-                      path: 'preview/:fileId',
-                      pageBuilder: (context, state) {
-                        final fileId = state.pathParameters['fileId']!;
-                        return AppTheme.pageTransition(
-                          context: context,
-                          state: state,
-                          begin: const Offset(0.12, 0),
-                          child: PreviewPage(fileId: fileId),
-                        );
-                      },
+                  path: 'preview/:fileId',
+                  pageBuilder: (context, state) => NoTransitionPage(
+                    key: state.pageKey,
+                    child: PreviewPage(
+                      fileId: state.pathParameters['fileId']!,
                     ),
-                  ],
-                ),
-                GoRoute(
-                  path: '/permissions',
-                  pageBuilder: (context, state) => AppTheme.pageTransition(
-                    context: context,
-                    state: state,
-                    child: const PermissionsPage(),
-                  ),
-                ),
-                GoRoute(
-                  path: '/audit',
-                  pageBuilder: (context, state) => AppTheme.pageTransition(
-                    context: context,
-                    state: state,
-                    child: const AuditLogPage(),
                   ),
                 ),
               ],
             ),
+            GoRoute(
+              path: '/permissions',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const PermissionsPage(),
+              ),
+            ),
+            GoRoute(
+              path: '/audit',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const AuditLogPage(),
+              ),
+            ),
           ],
-        );
+        ),
+      ],
+    );
+  }
 
-        // Wire 401 handler
-        ApiClient().onUnauthorized = () => ref.read(authProvider.notifier).logout();
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    final themeMode = ref.watch(themeProvider);
 
-        return MaterialApp.router(
-          title: 'AI管理系统',
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeMode.system,
-          routerConfig: router,
-        );
-      },
+    ref.listen(authProvider, (prev, next) {
+      if (prev?.isLoggedIn != true && next.isLoggedIn) {
+        _router.go('/files');
+      } else if (prev?.isLoggedIn == true && !next.isLoggedIn) {
+        _router.go('/login');
+      }
+    });
+
+    if (!auth.isInitialized) {
+      return const MaterialApp(
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
+    ApiClient().onUnauthorized = () => ref.read(authProvider.notifier).logout();
+
+    return MaterialApp.router(
+      title: 'AI管理系统',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+      routerConfig: _router,
     );
   }
 }

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import '../../config/theme.dart';
 import '../../services/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
+import '../../widgets/shimmer.dart';
 
 class FileListPage extends ConsumerStatefulWidget {
   const FileListPage({super.key});
@@ -64,7 +66,8 @@ class _FileListPageState extends ConsumerState<FileListPage> {
         _loadFiles();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('上传失败: $e')));
         }
       }
     }
@@ -74,11 +77,14 @@ class _FileListPageState extends ConsumerState<FileListPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除 "$name" 吗？'),
+        title: const Text('删除文件'),
+        content: Text('确定要删除 "$name" 吗？\n此操作不可撤销。'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('删除', style: TextStyle(color: AppTheme.red))),
         ],
       ),
     );
@@ -93,14 +99,25 @@ class _FileListPageState extends ConsumerState<FileListPage> {
   }
 
   IconData _fileIcon(String mime, bool isFolder) {
-    if (isFolder) return Icons.folder;
-    if (mime.startsWith('image/')) return Icons.image;
-    if (mime.startsWith('audio/')) return Icons.audio_file;
-    if (mime.startsWith('video/')) return Icons.videocam;
-    if (mime.contains('pdf')) return Icons.picture_as_pdf;
-    if (mime.contains('word') || mime.contains('document')) return Icons.description;
-    if (mime.contains('excel') || mime.contains('sheet')) return Icons.table_chart;
-    return Icons.insert_drive_file;
+    if (isFolder) return Icons.folder_rounded;
+    if (mime.startsWith('image/')) return Icons.photo_rounded;
+    if (mime.startsWith('audio/')) return Icons.music_note_rounded;
+    if (mime.startsWith('video/')) return Icons.movie_rounded;
+    if (mime.contains('pdf')) return Icons.document_scanner_rounded;
+    if (mime.contains('word') || mime.contains('document')) return Icons.description_rounded;
+    if (mime.contains('excel') || mime.contains('sheet')) return Icons.table_chart_rounded;
+    return Icons.insert_drive_file_rounded;
+  }
+
+  Color _fileColor(String mime, bool isFolder) {
+    if (isFolder) return AppTheme.blue;
+    if (mime.startsWith('image/')) return AppTheme.green;
+    if (mime.startsWith('audio/')) return AppTheme.pink;
+    if (mime.startsWith('video/')) return AppTheme.purple;
+    if (mime.contains('pdf')) return AppTheme.red;
+    if (mime.contains('word')) return AppTheme.blue;
+    if (mime.contains('excel')) return AppTheme.green;
+    return AppTheme.orange;
   }
 
   String _formatSize(int bytes) {
@@ -117,83 +134,197 @@ class _FileListPageState extends ConsumerState<FileListPage> {
     return Watermark(
       username: auth.user?.username ?? '',
       department: auth.user?.department ?? '',
-      child: Column(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: _parentId != null
+            ? AppBar(
+                title: Text(_parentId == null ? '文件' : '浏览中...',
+                    style: theme.textTheme.titleMedium),
+              )
+            : null,
+        body: Column(
+          children: [
+            _buildHeader(theme),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _loading
+                  ? const ShimmerList()
+                  : _items.isEmpty
+                      ? _buildEmpty(theme)
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _items.length,
+                          itemBuilder: (_, i) => _buildFileRow(_items[i]),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 12, 4),
+      child: Row(
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                if (_parentId != null)
-                  IconButton(icon: const Icon(Icons.arrow_back), onPressed: _goBack),
-                Expanded(
-                  child: Text(
-                    _parentId == null ? '文件管理' : '浏览中...',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: _pickFile,
-                  icon: const Icon(Icons.upload),
-                  label: const Text('上传'),
-                ),
-              ],
+          if (_parentId != null) ...[
+            IconButton(
+              icon: const Icon(Icons.chevron_left_rounded, size: 28),
+              onPressed: _goBack,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: Text(
+              _parentId == null ? '文件' : '浏览中...',
+              style: theme.textTheme.headlineLarge,
             ),
           ),
-          const Divider(height: 1),
-          // File list
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 12),
-                            Text('暂无文件', style: TextStyle(color: Colors.grey[600])),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _items.length,
-                        itemBuilder: (_, i) {
-                          final item = _items[i];
-                          final isFolder = item['is_folder'] == true;
-                          final mime = item['mime_type'] ?? '';
-                          return ListTile(
-                            leading: Icon(_fileIcon(mime, isFolder), color: theme.colorScheme.primary),
-                            title: Text(item['name'] ?? ''),
-                            subtitle: isFolder ? const Text('文件夹') : Text(_formatSize(item['size_bytes'] ?? 0)),
-                            trailing: PopupMenuButton(
-                              itemBuilder: (_) => [
-                                if (!isFolder)
-                                  const PopupMenuItem(value: 'preview', child: Text('预览')),
-                                if (!isFolder)
-                                  const PopupMenuItem(value: 'download', child: Text('下载')),
-                                const PopupMenuItem(value: 'delete', child: Text('删除')),
-                              ],
-                              onSelected: (v) {
-                                final id = item['id'];
-                                final name = item['name'] ?? '';
-                                if (v == 'preview') _openPreview(id);
-                                if (v == 'delete') _deleteFile(id, name);
-                              },
-                            ),
-                            onTap: () {
-                              if (isFolder) {
-                                _navigateTo(item['id']);
-                              } else {
-                                _openPreview(item['id']);
-                              }
-                            },
-                          );
-                        },
-                      ),
+          const Spacer(),
+          SizedBox(
+            height: 34,
+            child: FilledButton.icon(
+              onPressed: _pickFile,
+              icon: const Icon(Icons.upload_rounded, size: 16),
+              label: const Text('上传', style: TextStyle(fontSize: 15)),
+              style: FilledButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildEmpty(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: AppTheme.blue.withAlpha(15),
+            ),
+            child: const Icon(Icons.folder_open_rounded, size: 36, color: AppTheme.blue),
+          ),
+          const SizedBox(height: 20),
+          Text('暂无文件', style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(120),
+          )),
+          const SizedBox(height: 6),
+          Text('点击上传添加文件', style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(80),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileRow(Map<String, dynamic> item) {
+    final isFolder = item['is_folder'] == true;
+    final mime = item['mime_type'] ?? '';
+    final iconColor = _fileColor(mime, isFolder);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (isFolder) {
+              _navigateTo(item['id']);
+            } else {
+              _openPreview(item['id']);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(9),
+                    color: iconColor.withAlpha(20),
+                  ),
+                  child: Icon(_fileIcon(mime, isFolder), color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['name'] ?? '',
+                        style: const TextStyle(fontSize: 17, height: 1.3),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isFolder ? '文件夹' : _formatSize(item['size_bytes'] ?? 0),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(item['created_at'] ?? ''),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                  ),
+                ),
+                if (!isFolder)
+                  PopupMenuButton(
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'preview', child: Text('预览')),
+                      PopupMenuItem(value: 'download', child: Text('下载')),
+                      PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
+                    ],
+                    onSelected: (v) {
+                      final id = item['id'];
+                      final name = item['name'] ?? '';
+                      if (v == 'preview') _openPreview(id);
+                      if (v == 'delete') _deleteFile(id, name);
+                    },
+                    icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String iso) {
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inMinutes < 1) return '刚刚';
+      if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+      if (diff.inDays < 1) return '${diff.inHours}小时前';
+      if (diff.inDays < 7) return '${diff.inDays}天前';
+      return '${dt.month}/${dt.day}';
+    } catch (_) {
+      return '';
+    }
   }
 }
