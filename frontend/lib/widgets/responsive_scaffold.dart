@@ -130,33 +130,36 @@ class ResponsiveScaffold extends ConsumerWidget {
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(top: 6, bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    for (int i = 0; i < items.length; i++)
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < items.length; i++)
+                        _TabItem(
+                          icon: items[i].value.$1,
+                          outline: items[i].value.$2,
+                          label: items[i].value.$3,
+                          selected: idx == i,
+                          onTap: () => context.go(items[i].value.$4),
+                        ),
                       _TabItem(
-                        icon: items[i].value.$1,
-                        outline: items[i].value.$2,
-                        label: items[i].value.$3,
-                        selected: idx == i,
-                        onTap: () => context.go(items[i].value.$4),
+                        icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        label: '主题',
+                        selected: false,
+                        onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
                       ),
-                    _TabItem(
-                      icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      label: '主题',
-                      selected: false,
-                      onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
-                    ),
-                    _TabItem(
-                      icon: Icons.person_rounded,
-                      outline: Icons.person_outline_rounded,
-                      label: '退出',
-                      selected: false,
-                      onTap: () => ref.read(authProvider.notifier).logout(),
-                      destructive: true,
-                    ),
-                  ],
+                      _TabItem(
+                        icon: Icons.person_rounded,
+                        outline: Icons.person_outline_rounded,
+                        label: '退出',
+                        selected: false,
+                        onTap: () => ref.read(authProvider.notifier).logout(),
+                        destructive: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
