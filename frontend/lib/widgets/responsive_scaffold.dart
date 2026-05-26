@@ -18,9 +18,16 @@ const _moduleConfig = <String, _NavItem>{
 
 typedef _NavItem = (IconData, IconData, String, String);
 
-class ResponsiveScaffold extends ConsumerWidget {
+class ResponsiveScaffold extends ConsumerStatefulWidget {
   final Widget child;
   const ResponsiveScaffold({super.key, required this.child});
+
+  @override
+  ConsumerState<ResponsiveScaffold> createState() => _ResponsiveScaffoldState();
+}
+
+class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
+  bool _sidebarCollapsed = false;
 
   List<MapEntry<String, _NavItem>> _navItems(AuthState auth) {
     final modules = auth.user?.accessibleModules ?? [];
@@ -31,79 +38,108 @@ class ResponsiveScaffold extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final isDesktop = MediaQuery.of(context).size.width >= 768;
 
-    if (isDesktop) return _desktopLayout(context, ref, auth);
-    return _mobileLayout(context, ref, auth);
+    if (isDesktop) return _desktopLayout(auth);
+    return _mobileLayout(auth);
   }
 
-  Widget _desktopLayout(BuildContext context, WidgetRef ref, AuthState auth) {
+  // ── Desktop layout ──
+
+  Widget _desktopLayout(AuthState auth) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final items = _navItems(auth);
     final idx = _selectedIndex(context, items);
+    final collapsed = _sidebarCollapsed;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
       body: Row(
         children: [
-          ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                width: 88,
-                decoration: BoxDecoration(
-                  color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
-                      .withAlpha(isDark ? 170 : 180),
-                  border: Border(
-                    right: BorderSide(
-                      color: (isDark ? Colors.white : Colors.black).withAlpha(10),
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 48),
-                    _SidebarAvatar(auth: auth),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: _SidebarNav(
-                        items: items,
-                        currentIndex: idx,
-                        onTap: (i) => context.go(items[i].value.$4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            width: collapsed ? 56 : 88,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
+                        .withAlpha(isDark ? 170 : 180),
+                    border: Border(
+                      right: BorderSide(
+                        color: (isDark ? Colors.white : Colors.black).withAlpha(10),
+                        width: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _SidebarAction(
-                      icon: isDark
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      label: '主题',
-                      onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
-                    ),
-                    const SizedBox(height: 2),
-                    _SidebarAction(
-                      icon: Icons.logout_rounded,
-                      label: '退出',
-                      onTap: () => ref.read(authProvider.notifier).logout(),
-                      destructive: true,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      // collapse toggle
+                      _CollapseToggle(
+                        collapsed: collapsed,
+                        isDark: isDark,
+                        onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                      ),
+                      const SizedBox(height: 12),
+                      if (!collapsed) ...[
+                        _SidebarAvatar(auth: auth),
+                        const SizedBox(height: 20),
+                      ],
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: collapsed
+                              ? _SidebarNavCollapsed(
+                                  items: items,
+                                  currentIndex: idx,
+                                  onTap: (i) => context.go(items[i].value.$4),
+                                )
+                              : _SidebarNav(
+                                  items: items,
+                                  currentIndex: idx,
+                                  onTap: (i) => context.go(items[i].value.$4),
+                                ),
+                        ),
+                      ),
+                      if (!collapsed) ...[
+                        const SizedBox(height: 8),
+                        _SidebarAction(
+                          icon: isDark
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          label: '主题',
+                          onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
+                        ),
+                        const SizedBox(height: 2),
+                        _SidebarAction(
+                          icon: Icons.logout_rounded,
+                          label: '退出',
+                          onTap: () => ref.read(authProvider.notifier).logout(),
+                          destructive: true,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          Expanded(child: child),
+          Expanded(child: widget.child),
         ],
       ),
     );
   }
 
-  Widget _mobileLayout(BuildContext context, WidgetRef ref, AuthState auth) {
+  // ── Mobile layout ──
+
+  Widget _mobileLayout(AuthState auth) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final items = _navItems(auth);
@@ -112,7 +148,7 @@ class ResponsiveScaffold extends ConsumerWidget {
     return Scaffold(
       extendBody: true,
       backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
-      body: child,
+      body: widget.child,
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -127,39 +163,38 @@ class ResponsiveScaffold extends ConsumerWidget {
                 ),
               ),
             ),
-            child: SafeArea(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               child: Padding(
                 padding: const EdgeInsets.only(top: 6, bottom: 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      for (int i = 0; i < items.length; i++)
-                        _TabItem(
-                          icon: items[i].value.$1,
-                          outline: items[i].value.$2,
-                          label: items[i].value.$3,
-                          selected: idx == i,
-                          onTap: () => context.go(items[i].value.$4),
-                        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 0; i < items.length; i++)
                       _TabItem(
-                        icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                        label: '主题',
-                        selected: false,
-                        onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
+                        icon: items[i].value.$1,
+                        outline: items[i].value.$2,
+                        label: items[i].value.$3,
+                        selected: idx == i,
+                        onTap: () => context.go(items[i].value.$4),
                       ),
-                      _TabItem(
-                        icon: Icons.person_rounded,
-                        outline: Icons.person_outline_rounded,
-                        label: '退出',
-                        selected: false,
-                        onTap: () => ref.read(authProvider.notifier).logout(),
-                        destructive: true,
-                      ),
-                    ],
-                  ),
+                    _TabItem(
+                      icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                      label: '主题',
+                      selected: false,
+                      onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
+                    ),
+                    _TabItem(
+                      icon: Icons.person_rounded,
+                      outline: Icons.person_outline_rounded,
+                      label: '退出',
+                      selected: false,
+                      onTap: () => ref.read(authProvider.notifier).logout(),
+                      destructive: true,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -175,6 +210,37 @@ class ResponsiveScaffold extends ConsumerWidget {
       if (loc.startsWith(items[i].value.$4)) return i;
     }
     return 0;
+  }
+}
+
+// ── Collapse toggle ──
+
+class _CollapseToggle extends StatelessWidget {
+  final bool collapsed;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _CollapseToggle({required this.collapsed, required this.isDark, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = (isDark ? Colors.white : Colors.black).withAlpha(100);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 32,
+        height: 28,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: color.withAlpha(20),
+        ),
+        child: Icon(
+          collapsed ? Icons.menu_rounded : Icons.menu_open_rounded,
+          size: 16,
+          color: color,
+        ),
+      ),
+    );
   }
 }
 
@@ -230,6 +296,46 @@ class _SidebarNav extends StatelessWidget {
             outline: items[i].value.$2,
             label: items[i].value.$3,
             onTap: () => onTap(i),
+          ),
+      ],
+    );
+  }
+}
+
+class _SidebarNavCollapsed extends StatelessWidget {
+  final List<MapEntry<String, _NavItem>> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  const _SidebarNavCollapsed({required this.items, required this.currentIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < items.length; i++)
+          GestureDetector(
+            onTap: () => onTap(i),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 44,
+              height: 44,
+              margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: currentIndex == i
+                    ? AppTheme.blue.withAlpha(isDark ? 30 : 20)
+                    : Colors.transparent,
+              ),
+              child: Icon(
+                currentIndex == i ? items[i].value.$1 : items[i].value.$2,
+                size: 22,
+                color: currentIndex == i
+                    ? AppTheme.blue
+                    : (isDark ? Colors.white : Colors.black).withAlpha(140),
+              ),
+            ),
           ),
       ],
     );
