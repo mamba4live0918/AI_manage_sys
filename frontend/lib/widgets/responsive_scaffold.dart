@@ -139,6 +139,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
 
   // ── Mobile layout ──
 
+  bool _mobileDrawerOpen = false;
+
   Widget _mobileLayout(AuthState auth) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -146,60 +148,122 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
     final idx = _selectedIndex(context, items);
 
     return Scaffold(
-      extendBody: true,
       backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
-      body: widget.child,
-      bottomNavigationBar: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
-                  .withAlpha(isDark ? 200 : 200),
-              border: Border(
-                top: BorderSide(
-                  color: (isDark ? Colors.white : Colors.black).withAlpha(10),
-                  width: 0.5,
+      body: Stack(
+        children: [
+          // main content
+          widget.child,
+
+          // burger button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 12,
+            child: _MobileBurger(
+              isDark: isDark,
+              onTap: () => setState(() => _mobileDrawerOpen = true),
+            ),
+          ),
+
+          // backdrop
+          if (_mobileDrawerOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _mobileDrawerOpen = false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  color: Colors.black.withAlpha(_mobileDrawerOpen ? 80 : 0),
                 ),
               ),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < items.length; i++)
-                      _TabItem(
-                        icon: items[i].value.$1,
-                        outline: items[i].value.$2,
-                        label: items[i].value.$3,
-                        selected: idx == i,
-                        onTap: () => context.go(items[i].value.$4),
+
+          // sliding sidebar
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            left: _mobileDrawerOpen ? 0 : -264,
+            top: 0,
+            bottom: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  width: 260,
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
+                        .withAlpha(isDark ? 220 : 230),
+                    border: Border(
+                      right: BorderSide(
+                        color: (isDark ? Colors.white : Colors.black).withAlpha(15),
+                        width: 0.5,
                       ),
-                    _TabItem(
-                      icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      label: '主题',
-                      selected: false,
-                      onTap: () => ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark),
                     ),
-                    _TabItem(
-                      icon: Icons.person_rounded,
-                      outline: Icons.person_outline_rounded,
-                      label: '退出',
-                      selected: false,
-                      onTap: () => ref.read(authProvider.notifier).logout(),
-                      destructive: true,
-                    ),
-                  ],
+                  ),
+                  child: Column(
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).padding.top + 16),
+                      // close button
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: _MobileBurger(
+                            isDark: isDark,
+                            onTap: () => setState(() => _mobileDrawerOpen = false),
+                            closeIcon: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _SidebarAvatar(auth: auth),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (int i = 0; i < items.length; i++)
+                                _SidebarNavItem(
+                                  selected: idx == i,
+                                  icon: items[i].value.$1,
+                                  outline: items[i].value.$2,
+                                  label: items[i].value.$3,
+                                  onTap: () {
+                                    context.go(items[i].value.$4);
+                                    setState(() => _mobileDrawerOpen = false);
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _SidebarAction(
+                        icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        label: '主题',
+                        onTap: () {
+                          ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark);
+                          setState(() => _mobileDrawerOpen = false);
+                        },
+                      ),
+                      const SizedBox(height: 2),
+                      _SidebarAction(
+                        icon: Icons.logout_rounded,
+                        label: '退出',
+                        onTap: () {
+                          ref.read(authProvider.notifier).logout();
+                          setState(() => _mobileDrawerOpen = false);
+                        },
+                        destructive: true,
+                      ),
+                      SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -450,56 +514,31 @@ class _SidebarAction extends StatelessWidget {
   }
 }
 
-// ── Mobile tab item ──
+// ── Mobile burger button ──
 
-class _TabItem extends StatelessWidget {
-  final IconData icon;
-  final IconData outline;
-  final String label;
-  final bool selected;
+class _MobileBurger extends StatelessWidget {
+  final bool isDark;
   final VoidCallback onTap;
-  final bool destructive;
-
-  const _TabItem({
-    required this.icon,
-    required this.outline,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.destructive = false,
-  });
+  final bool closeIcon;
+  const _MobileBurger({required this.isDark, required this.onTap, this.closeIcon = false});
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive
-        ? AppTheme.red
-        : selected
-            ? AppTheme.blue
-            : (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : Colors.black)
-                .withAlpha(120);
-
+    final color = (isDark ? Colors.white : Colors.black).withAlpha(180);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(selected ? icon : outline, size: 24, color: color),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: color,
-                letterSpacing: -0.1,
-              ),
-            ),
-          ],
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: (isDark ? Colors.white : Colors.black).withAlpha(15),
+        ),
+        child: Icon(
+          closeIcon ? Icons.close_rounded : Icons.menu_rounded,
+          size: 20,
+          color: color,
         ),
       ),
     );
