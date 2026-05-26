@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,10 +13,7 @@ class ResponsiveScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final isDesktop = Platform.isWindows ||
-        Platform.isLinux ||
-        Platform.isMacOS ||
-        MediaQuery.of(context).size.width >= 768;
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     if (isDesktop) return _desktopLayout(context, ref, auth);
     return _mobileLayout(context, ref, auth);
@@ -115,25 +111,39 @@ class ResponsiveScaffold extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _TabItem(
+                      icon: Icons.home_rounded,
+                      outline: Icons.home_outlined,
+                      label: '首页',
+                      selected: index == 0,
+                      onTap: () => _navigate(context, 0),
+                    ),
+                    _TabItem(
                       icon: Icons.folder_rounded,
                       outline: Icons.folder_outlined,
                       label: '文件',
-                      selected: index == 0,
-                      onTap: () => _navigate(context, 0),
+                      selected: index == 1,
+                      onTap: () => _navigate(context, 1),
+                    ),
+                    _TabItem(
+                      icon: Icons.auto_awesome_rounded,
+                      outline: Icons.auto_awesome_outlined,
+                      label: '讲师IP',
+                      selected: index == 2,
+                      onTap: () => _navigate(context, 2),
                     ),
                     _TabItem(
                       icon: Icons.schedule_rounded,
                       outline: Icons.schedule_outlined,
                       label: '审计',
-                      selected: index == 1,
-                      onTap: () => _navigate(context, 1),
+                      selected: index == 3,
+                      onTap: () => _navigate(context, 3),
                     ),
                     _TabItem(
                       icon: Icons.people_rounded,
                       outline: Icons.people_outline_rounded,
                       label: '用户',
-                      selected: index == 2,
-                      onTap: () => _navigate(context, 2),
+                      selected: index == 4,
+                      onTap: () => _navigate(context, 4),
                     ),
                     _TabItem(
                       icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -162,19 +172,25 @@ class ResponsiveScaffold extends ConsumerWidget {
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/files')) return 0;
-    if (loc.startsWith('/audit')) return 1;
-    if (loc.startsWith('/users')) return 2;
+    if (loc.startsWith('/dashboard')) return 0;
+    if (loc.startsWith('/files')) return 1;
+    if (loc.startsWith('/ip')) return 2;
+    if (loc.startsWith('/audit')) return 3;
+    if (loc.startsWith('/users')) return 4;
     return 0;
   }
 
   void _navigate(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/files');
+        context.go('/dashboard');
       case 1:
-        context.go('/audit');
+        context.go('/files');
       case 2:
+        context.go('/ip');
+      case 3:
+        context.go('/audit');
+      case 4:
         context.go('/users');
     }
   }
@@ -222,7 +238,9 @@ class _SidebarNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
+      (Icons.home_rounded, Icons.home_outlined, '首页'),
       (Icons.folder_rounded, Icons.folder_outlined, '文件'),
+      (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP'),
       (Icons.schedule_rounded, Icons.schedule_outlined, '审计'),
       (Icons.people_rounded, Icons.people_outline_rounded, '用户'),
     ];

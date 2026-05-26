@@ -47,9 +47,9 @@ AI_manage_sys/
 │       ├── config.py            # Pydantic Settings（.env → 配置）
 │       ├── database.py          # SQLAlchemy async engine + session
 │       ├── security.py          # bcrypt + JWT + get_current_user + require_roles
-│       ├── models/models.py     # User / File / Permission / AuditLog
-│       ├── api/                 # auth / files / preview / permissions / audit（14个端点）
-│       └── services/            # storage(MinIO) / permission_checker(5级ACL) / audit / llm / converter(LibreOffice)
+│       ├── models/models.py     # User / File / Permission / AuditLog / Department
+│       ├── api/                 # auth / files / preview / permissions / audit / dashboard / department / copywriting
+│       └── services/            # storage(MinIO) / permission_checker(5级ACL+部门长) / audit / llm / converter(LibreOffice)
 └── frontend/
     ├── pubspec.yaml             # Flutter依赖声明
     ├── pubspec.lock             # 锁定版本
@@ -63,10 +63,11 @@ AI_manage_sys/
         ├── services/            # api_client.dart（Dio单例 + JWT拦截器 + 401跳转）
         ├── pages/
         │   ├── auth/            # login_page — 用户名+密码登录
+        │   ├── dashboard/       # dashboard_page — 首页仪表盘（统计卡片+存储分布+最近动态）
         │   ├── files/           # file_list_page — 浏览/上传/删除/文件夹
         │   ├── preview/         # preview_page — PDF/视频/图片/音频 + 水印（Office→LibreOffice→PDF）
-        │   ├── permissions/     # permissions_page — ACL授予/撤销/查询
-        │   ├── audit/           # audit_log_page — 审计日志分页+筛选
+        │   ├── permissions/     # users_page — 部门组织架构（部门卡片折叠+未安排人员+角色管理）
+        │   ├── audit/           # audit_log_page — 审计日志分页+13种操作筛选
         │   ├── ip/              # 讲师IP（阶段二）
         │   ├── marketing/       # 市场部（阶段三）
         │   ├── bidding/         # 招投标（阶段三）
@@ -116,20 +117,22 @@ AI_manage_sys/
 
 ### 已完成
 - Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000）
-- 数据库 4 张表（users/files/permissions/audit_logs）+ 默认 admin 账号（admin/admin123）
-- 20+ API 端点全部测试通过
+- 数据库 5 张表（users/files/permissions/audit_logs/departments）+ 默认 admin 账号（admin/admin123）
+- 25+ API 端点全部测试通过
 - Flutter 静态分析 0 issues
 - Windows .exe 编译成功
 - LLM 抽象层就绪（config 切换 DeepSeek → Qwen2.5 14B）
+- **首页仪表盘**：系统统计卡片（用户/文件/存储/文案/今日操作）+ 存储类型分布 + 最近动态
+- **部门/小组组织架构**：Department 模型 + CRUD API + 部门长权限范围（可管理本部门成员文件）
+- **用户管理重构**：部门卡片折叠视图 + 未安排人员独立卡片 + 部门长/成员管理
 - **保密级别自动授权**（替代手动 ACL）：4级保密 + 角色查看级别映射 + owner 豁免
 - OnlyOffice 替换为 LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览，退出清理
 - 文件下载支持自定义路径（文件夹选择器）
 - 后端扩展名兜底 MIME 检测（`_guess_mime()`：图片/音频/视频/Office 全覆盖）
 - 6 种 Office 格式端到端验证通过（.doc/.docx/.xls/.xlsx/.ppt/.pptx）
 - 图片/音频/视频上传 + 预览 + 下载端到端验证通过
-- 用户管理页面（admin 查看用户列表 + 修改角色）
-- 审计日志分页查询 + 筛选
-- UI：iOS 风格侧边栏/底部栏（文件/审计/用户 3 tab）+ 深色/浅色主题切换
+- 审计日志分页查询 + 13种操作类型筛选 + 完整中文标签/颜色映射
+- UI：iOS 风格侧边栏/底部栏（首页/文件/IP/审计/用户 5 tab）+ 深色/浅色主题切换
 - 前端 Canvas 动态水印（用户名+部门+日期）
 
 ### 待完成

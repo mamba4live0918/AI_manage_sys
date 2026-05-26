@@ -24,6 +24,19 @@ async def check_permission(
     if user and resource.uploaded_by == user.id:
         return True
 
+    # 部门长可访问本部门成员的文件
+    if user and resource.uploaded_by is not None:
+        from app.models import Department
+        dept_result = await db.execute(
+            select(Department).where(
+                Department.leader_id == user.id,
+                Department.id == User.department_id,
+                User.id == resource.uploaded_by,
+            )
+        )
+        if dept_result.scalar_one_or_none():
+            return True
+
     # 保密级别准入：用户级别 ≥ 文件级别即放行
     user_level = settings.ROLE_CLEARANCE.get(user.role if user else "", 0)
     file_level = resource.confidentiality_level or 0

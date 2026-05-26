@@ -46,10 +46,20 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
   Color _actionColor(String action) {
     return switch (action) {
       'preview' => AppTheme.blue,
+      'preview_close' => Colors.grey,
       'download' => AppTheme.green,
       'upload' => AppTheme.teal,
       'delete' => AppTheme.red,
+      'create_folder' => AppTheme.orange,
+      'set_level' => AppTheme.purple,
       'permission_change' => AppTheme.orange,
+      'copy_generate' => AppTheme.purple,
+      'dept_create' => AppTheme.blue,
+      'dept_update' => AppTheme.blue,
+      'dept_delete' => AppTheme.red,
+      'dept_set_leader' => AppTheme.orange,
+      'dept_add_member' => AppTheme.green,
+      'dept_remove_member' => AppTheme.orange,
       _ => Colors.grey,
     };
   }
@@ -57,10 +67,20 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
   String _actionLabel(String action) {
     return switch (action) {
       'preview' => '预览',
+      'preview_close' => '关闭预览',
       'download' => '下载',
       'upload' => '上传',
       'delete' => '删除',
+      'create_folder' => '新建文件夹',
+      'set_level' => '设置级别',
       'permission_change' => '权限变更',
+      'copy_generate' => '文案生成',
+      'dept_create' => '创建部门',
+      'dept_update' => '修改部门',
+      'dept_delete' => '删除部门',
+      'dept_set_leader' => '设置部门长',
+      'dept_add_member' => '添加成员',
+      'dept_remove_member' => '移除成员',
       _ => action,
     };
   }
@@ -136,7 +156,21 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
   }
 
   Widget _buildFilterChips(ThemeData theme, bool isDark) {
-    final actions = [null, 'upload', 'download', 'preview', 'delete', 'permission_change'];
+    final actions = [
+      null,
+      'upload',
+      'download',
+      'preview',
+      'delete',
+      'create_folder',
+      'set_level',
+      'copy_generate',
+      'permission_change',
+      'dept_create',
+      'dept_set_leader',
+      'dept_add_member',
+      'dept_remove_member',
+    ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),

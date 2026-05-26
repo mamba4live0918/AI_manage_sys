@@ -1,3 +1,3 @@
-from app.models.models import Base, User, File, Permission, AuditLog
+from app.models.models import Base, User, Department, File, Permission, AuditLog, CopyTemplate, CopyHistory
 
-__all__ = ["Base", "User", "File", "Permission", "AuditLog"]
+__all__ = ["Base", "User", "Department", "File", "Permission", "AuditLog", "CopyTemplate", "CopyHistory"]

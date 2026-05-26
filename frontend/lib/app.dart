@@ -10,6 +10,8 @@ import 'pages/files/file_list_page.dart';
 import 'pages/preview/preview_page.dart';
 import 'pages/permissions/users_page.dart';
 import 'pages/audit/audit_log_page.dart';
+import 'pages/ip/ip_dashboard_page.dart';
+import 'pages/dashboard/dashboard_page.dart';
 import 'widgets/responsive_scaffold.dart';
 import 'utils/app_logger.dart';
 
@@ -31,15 +33,29 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
 
   GoRouter _buildRouter() {
     return GoRouter(
-      initialLocation: '/login',
+      initialLocation: '/loading',
       redirect: (context, state) {
-        final loggedIn = ref.read(authProvider).isLoggedIn;
-        final goingToLogin = state.matchedLocation == '/login';
-        if (!loggedIn && !goingToLogin) return '/login';
-        if (loggedIn && goingToLogin) return '/files';
+        final auth = ref.read(authProvider);
+        final loc = state.matchedLocation;
+
+        if (!auth.isInitialized) return '/loading';
+        if (loc == '/loading') {
+          return auth.isLoggedIn ? '/dashboard' : '/login';
+        }
+        if (!auth.isLoggedIn && loc != '/login') return '/login';
+        if (auth.isLoggedIn && loc == '/login') return '/dashboard';
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/loading',
+          pageBuilder: (context, state) => NoTransitionPage(
+            key: state.pageKey,
+            child: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ),
         GoRoute(
           path: '/login',
           pageBuilder: (context, state) => NoTransitionPage(
@@ -53,6 +69,13 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
             child: ResponsiveScaffold(child: child),
           ),
           routes: [
+            GoRoute(
+              path: '/dashboard',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const DashboardPage(),
+              ),
+            ),
             GoRoute(
               path: '/files',
               pageBuilder: (context, state) => NoTransitionPage(
@@ -79,6 +102,13 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
               ),
             ),
             GoRoute(
+              path: '/ip',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const IpDashboardPage(),
+              ),
+            ),
+            GoRoute(
               path: '/audit',
               pageBuilder: (context, state) => NoTransitionPage(
                 key: state.pageKey,
@@ -95,25 +125,23 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final themeMode = ref.watch(themeProvider);
-    appLog('[APP build] isInitialized=${auth.isInitialized} isLoggedIn=${auth.isLoggedIn} error=${auth.error}');
+    appLog('[APP build] isInitialized=${auth.isInitialized} isLoggedIn=${auth.isLoggedIn}');
 
     ref.listen(authProvider, (prev, next) {
+      // Handle initial auth check completion
+      if (prev?.isInitialized != true && next.isInitialized) {
+        appLog('[APP] auth initialized, going to ${next.isLoggedIn ? '/dashboard' : '/login'}');
+        _router.go(next.isLoggedIn ? '/dashboard' : '/login');
+        return;
+      }
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
-        appLog('[APP] redirect: /files');
-        _router.go('/files');
+        appLog('[APP] redirect: /dashboard');
+        _router.go('/dashboard');
       } else if (prev?.isLoggedIn == true && !next.isLoggedIn) {
         appLog('[APP] redirect: /login');
         _router.go('/login');
       }
     });
-
-    if (!auth.isInitialized) {
-      appLog('[APP] showing loading spinner (not initialized)');
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
 
     appLog('[APP] building MaterialApp.router');
     ApiClient().onUnauthorized = () => ref.read(authProvider.notifier).logout();

@@ -1,12 +1,4 @@
-import 'dart:io';
+import 'app_logger_impl.dart'
+    if (dart.library.html) 'app_logger_web.dart';
 
-void appLog(String msg) {
-  try {
-    final f = File('C:\\tmp\\app_debug.log');
-    f.writeAsStringSync(
-      '${DateTime.now().toIso8601String()} $msg\n',
-      mode: FileMode.append,
-      flush: true,
-    );
-  } catch (_) {}
-}
+void appLog(String msg) => logImpl(msg);
