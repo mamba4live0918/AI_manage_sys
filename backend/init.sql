@@ -4,6 +4,15 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- 部门/小组表
+CREATE TABLE IF NOT EXISTS departments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(128) UNIQUE NOT NULL,
+    description VARCHAR(256) DEFAULT '',
+    leader_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -13,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(32) NOT NULL DEFAULT 'general'
         CHECK (role IN ('admin', 'dept_manager', 'project_manager', 'general')),
     department VARCHAR(128) DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -29,6 +39,7 @@ CREATE TABLE IF NOT EXISTS files (
     storage_path VARCHAR(1024) DEFAULT '',
     uploaded_by UUID REFERENCES users(id),
     project_id VARCHAR(64) DEFAULT '',
+    confidentiality_level INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -71,6 +82,34 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(username);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(created_at DESC);
+
+-- 文案模板表
+CREATE TABLE IF NOT EXISTS copy_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(128) NOT NULL,
+    platform_type VARCHAR(32) DEFAULT 'wechat',
+    template_content TEXT NOT NULL,
+    system_prompt TEXT DEFAULT '',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 文案生成历史表
+CREATE TABLE IF NOT EXISTS copy_histories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    platform_type VARCHAR(32) DEFAULT 'wechat',
+    topic VARCHAR(256) DEFAULT '',
+    core_info TEXT DEFAULT '',
+    target_audience VARCHAR(256) DEFAULT '',
+    tone VARCHAR(64) DEFAULT '',
+    purpose VARCHAR(64) DEFAULT '',
+    content TEXT DEFAULT '',
+    model VARCHAR(64) DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_copy_hist_user ON copy_histories(user_id);
 
 -- 默认管理员
 INSERT INTO users (username, email, hashed_password, role, department)
