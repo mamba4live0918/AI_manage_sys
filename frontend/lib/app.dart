@@ -134,6 +134,20 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
                 child: const AuditLogPage(),
               ),
             ),
+            GoRoute(
+              path: '/marketing',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const _PlaceholderPage(title: '市场部'),
+              ),
+            ),
+            GoRoute(
+              path: '/bidding',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const _PlaceholderPage(title: '招投标'),
+              ),
+            ),
           ],
         ),
       ],
@@ -172,6 +186,36 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: _router,
+    );
+  }
+}
+
+class _PlaceholderPage extends StatelessWidget {
+  final String title;
+  const _PlaceholderPage({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F6FA),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.construction_rounded, size: 64,
+                color: isDark ? Colors.white38 : Colors.black38),
+            const SizedBox(height: 16),
+            Text(title,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black54)),
+            const SizedBox(height: 8),
+            Text('模块开发中...',
+                style: TextStyle(fontSize: 14,
+                    color: isDark ? Colors.white38 : Colors.black38)),
+          ],
+        ),
+      ),
     );
   }
 }
