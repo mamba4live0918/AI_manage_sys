@@ -185,14 +185,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -244,
+            left: _mobileDrawerOpen ? 0 : -79,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 240,
+                  width: 75,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
@@ -205,56 +205,36 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   ),
                   child: Column(
                     children: [
-                      SizedBox(height: MediaQuery.of(context).padding.top + 16),
-                      // close button
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _MobileBurger(
-                            isDark: isDark,
-                            onTap: () => setState(() => _mobileDrawerOpen = false),
-                            closeIcon: true,
-                          ),
-                        ),
+                      SizedBox(height: topPadding + 16),
+                      _MobileBurger(
+                        isDark: isDark,
+                        onTap: () => setState(() => _mobileDrawerOpen = false),
+                        closeIcon: true,
                       ),
-                      const SizedBox(height: 8),
-                      _SidebarAvatar(auth: auth),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (int i = 0; i < items.length; i++)
-                                _SidebarNavItem(
-                                  selected: idx == i,
-                                  icon: items[i].value.$1,
-                                  outline: items[i].value.$2,
-                                  label: items[i].value.$3,
-                                  onTap: () {
-                                    context.go(items[i].value.$4);
-                                    setState(() => _mobileDrawerOpen = false);
-                                  },
-                                ),
-                            ],
+                          child: _SidebarNavCollapsed(
+                            items: items,
+                            currentIndex: idx,
+                            onTap: (i) {
+                              context.go(items[i].value.$4);
+                              setState(() => _mobileDrawerOpen = false);
+                            },
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _SidebarAction(
+                      _SidebarActionCompact(
                         icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        label: '主题',
                         onTap: () {
                           ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark);
                           setState(() => _mobileDrawerOpen = false);
                         },
                       ),
                       const SizedBox(height: 2),
-                      _SidebarAction(
+                      _SidebarActionCompact(
                         icon: Icons.logout_rounded,
-                        label: '退出',
                         onTap: () {
                           ref.read(authProvider.notifier).logout();
                           setState(() => _mobileDrawerOpen = false);
@@ -514,6 +494,37 @@ class _SidebarAction extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Sidebar action compact (icon only, for narrow sidebars) ──
+
+class _SidebarActionCompact extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool destructive;
+  const _SidebarActionCompact({required this.icon, required this.onTap, this.destructive = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = destructive
+        ? AppTheme.red
+        : (isDark ? Colors.white : Colors.black).withAlpha(140);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 44,
+        height: 44,
+        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.transparent,
+        ),
+        child: Icon(icon, size: 20, color: color),
       ),
     );
   }
