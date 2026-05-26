@@ -14,11 +14,13 @@ router = APIRouter(prefix="/departments", tags=["departments"])
 class CreateDepartmentRequest(BaseModel):
     name: str
     description: str = ""
+    accessible_modules: list[str] = []
 
 
 class UpdateDepartmentRequest(BaseModel):
     name: str | None = None
     description: str | None = None
+    accessible_modules: list[str] | None = None
 
 
 class SetLeaderRequest(BaseModel):
@@ -54,6 +56,7 @@ def _department_row(d, members_count: int = 0):
         }
         if d.leader
         else None,
+        "accessible_modules": d.accessible_modules or [],
         "member_count": members_count,
         "created_at": d.created_at.isoformat() if d.created_at else None,
     }
@@ -92,7 +95,8 @@ async def create_department(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="部门名称已存在")
 
-    dept = Department(name=body.name, description=body.description)
+    dept = Department(name=body.name, description=body.description,
+                      accessible_modules=body.accessible_modules)
     db.add(dept)
     await db.commit()
     await db.refresh(dept)
@@ -127,6 +131,8 @@ async def update_department(
         dept.name = body.name
     if body.description is not None:
         dept.description = body.description
+    if body.accessible_modules is not None:
+        dept.accessible_modules = body.accessible_modules
 
     await db.commit()
 

@@ -63,6 +63,16 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     });
   }
 
+  static const _allModuleLabels = {
+    'dashboard': '首页',
+    'files': '文件',
+    'ip': '讲师IP',
+    'audit': '审计',
+    'users': '用户管理',
+    'marketing': '市场部',
+    'bidding': '招投标',
+  };
+
   Color _roleColor(String role) => _roleColors[role] ?? AppTheme.blue;
   String _roleName(String role) => _roleNames[role] ?? role;
 
@@ -71,33 +81,54 @@ class _UsersPageState extends ConsumerState<UsersPage> {
   Future<void> _createDepartment() async {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
+    final selModules = <String>['dashboard', 'files'];
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('新建部门'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: '部门名称'),
-              autofocus: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: const Text('新建部门'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: '部门名称'),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(labelText: '描述（可选）'),
+                ),
+                const SizedBox(height: 14),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('可访问模块', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 6),
+                ..._allModuleLabels.entries.map((e) => CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  title: Text(e.value, style: const TextStyle(fontSize: 14)),
+                  value: selModules.contains(e.key),
+                  onChanged: (v) => setDlg(() {
+                    if (v == true) { selModules.add(e.key); } else { selModules.remove(e.key); }
+                  }),
+                )),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(labelText: '描述（可选）'),
-            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('创建')),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('创建')),
-        ],
       ),
     );
     if (ok == true && nameCtrl.text.trim().isNotEmpty) {
@@ -105,6 +136,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
         await _api.dio.post('/departments', data: {
           'name': nameCtrl.text.trim(),
           'description': descCtrl.text.trim(),
+          'accessible_modules': selModules,
         });
         _load();
       } catch (e) {
@@ -113,6 +145,116 @@ class _UsersPageState extends ConsumerState<UsersPage> {
               .showSnackBar(SnackBar(content: Text('创建失败: $e')));
         }
       }
+    }
+  }
+
+  Future<void> _editDepartment(Map<String, dynamic> dept) async {
+    final nameCtrl = TextEditingController(text: dept['name'] ?? '');
+    final descCtrl = TextEditingController(text: dept['description'] ?? '');
+    final selModules = List<String>.from(dept['accessible_modules'] ?? []);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: const Text('编辑部门'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: '部门名称'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(labelText: '描述'),
+                ),
+                const SizedBox(height: 14),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('可访问模块', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 6),
+                ..._allModuleLabels.entries.map((e) => CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  title: Text(e.value, style: const TextStyle(fontSize: 14)),
+                  value: selModules.contains(e.key),
+                  onChanged: (v) => setDlg(() {
+                    if (v == true) { selModules.add(e.key); } else { selModules.remove(e.key); }
+                  }),
+                )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('保存')),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      await _api.dio.put('/departments/${dept['id']}', data: {
+        'name': nameCtrl.text.trim(),
+        'description': descCtrl.text.trim(),
+        'accessible_modules': selModules,
+      });
+      _load();
+    }
+  }
+
+  Future<void> _editUserModules(Map<String, dynamic> ud) async {
+    final selModules = List<String>.from(ud['extra_modules'] ?? []);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text('额外模块权限 — ${ud['username']}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('跨部门临时访问权限（叠加到部门默认模块）',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                ..._allModuleLabels.entries.map((e) => CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  title: Text(e.value, style: const TextStyle(fontSize: 14)),
+                  value: selModules.contains(e.key),
+                  onChanged: (v) => setDlg(() {
+                    if (v == true) { selModules.add(e.key); } else { selModules.remove(e.key); }
+                  }),
+                )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('保存')),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      await _api.dio.patch('/auth/users/${ud['id']}/modules', data: {
+        'extra_modules': selModules,
+      });
+      _load();
     }
   }
 
@@ -529,10 +671,12 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                             onDeleteDept: () => _deleteDepartment(
                                 _departments[i]['id'],
                                 _departments[i]['name']),
+                            onEditDept: () => _editDepartment(_departments[i]),
                             onRemoveMember: (uid) => _removeMember(
                                 _departments[i]['id'], uid),
                             onChangeRole: _changeRole,
                             onDeleteUser: _deleteUser,
+                            onEditUserModules: _editUserModules,
                           ),
                         ),
                         childCount: _departments.length,
@@ -623,6 +767,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                   onChangeRole: (uid, uname, role) =>
                       _changeRole(uid, uname, role),
                   onDeleteUser: (uid, uname) => _deleteUser(uid, uname),
+                  onEditModules: () => _editUserModules(u),
                   onAddToDept: _departments.isNotEmpty
                       ? () => _addToDept(u['id'], u['username'])
                       : null,
@@ -645,9 +790,11 @@ class _DepartmentCard extends StatelessWidget {
   final VoidCallback onSetLeader;
   final VoidCallback onAddMember;
   final VoidCallback onDeleteDept;
+  final VoidCallback onEditDept;
   final void Function(String userId) onRemoveMember;
   final void Function(String userId, String username, String role) onChangeRole;
   final void Function(String userId, String username) onDeleteUser;
+  final void Function(Map<String, dynamic> user) onEditUserModules;
 
   const _DepartmentCard({
     required this.dept,
@@ -659,9 +806,11 @@ class _DepartmentCard extends StatelessWidget {
     required this.onSetLeader,
     required this.onAddMember,
     required this.onDeleteDept,
+    required this.onEditDept,
     required this.onRemoveMember,
     required this.onChangeRole,
     required this.onDeleteUser,
+    required this.onEditUserModules,
   });
 
   @override
@@ -745,6 +894,8 @@ class _DepartmentCard extends StatelessWidget {
                               .withAlpha(100)),
                       onSelected: (v) {
                         switch (v) {
+                          case 'edit':
+                            onEditDept();
                           case 'leader':
                             onSetLeader();
                           case 'add':
@@ -754,6 +905,8 @@ class _DepartmentCard extends StatelessWidget {
                         }
                       },
                       itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                            value: 'edit', child: Text('编辑部门')),
                         const PopupMenuItem(
                             value: 'leader', child: Text('设置部门长')),
                         const PopupMenuItem(
@@ -786,6 +939,7 @@ class _DepartmentCard extends StatelessWidget {
                     isInDept: true,
                     onChangeRole: onChangeRole,
                     onDeleteUser: onDeleteUser,
+                    onEditModules: () => onEditUserModules(u),
                     onRemoveFromDept: () => onRemoveMember(u['id']),
                   )),
           ],
@@ -808,6 +962,7 @@ class _UserRow extends StatelessWidget {
   final void Function(String userId, String username)? onDeleteUser;
   final VoidCallback? onRemoveFromDept;
   final VoidCallback? onAddToDept;
+  final VoidCallback? onEditModules;
 
   const _UserRow({
     required this.user,
@@ -819,6 +974,7 @@ class _UserRow extends StatelessWidget {
     this.onDeleteUser,
     this.onRemoveFromDept,
     this.onAddToDept,
+    this.onEditModules,
   });
 
   @override
@@ -883,6 +1039,13 @@ class _UserRow extends StatelessWidget {
                   icon: Icons.edit_rounded,
                   tooltip: '修改角色',
                   onTap: () => onChangeRole!(user['id'], username, role),
+                ),
+              if (onEditModules != null)
+                _MiniIconButton(
+                  icon: Icons.extension_rounded,
+                  tooltip: '额外模块',
+                  onTap: onEditModules!,
+                  color: AppTheme.purple,
                 ),
               if (onAddToDept != null)
                 _MiniIconButton(

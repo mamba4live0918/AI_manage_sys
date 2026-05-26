@@ -26,15 +26,57 @@ class TokenResponse(BaseModel):
     user: dict
 
 
-class UserResponse(BaseModel):
-    id: str
+class RoleUpdate(BaseModel):
+    role: str
+
+
+class CreateUserRequest(BaseModel):
     username: str
     email: str
-    role: str
-    department: str
-    is_active: bool
+    password: str
+    role: str = "general"
 
-    model_config = {"from_attributes": True}
+
+class UpdateModulesRequest(BaseModel):
+    extra_modules: list[str] = []
+
+
+ALL_MODULES = [
+    {"key": "dashboard", "label": "首页", "icon": "home"},
+    {"key": "files", "label": "文件", "icon": "folder"},
+    {"key": "ip", "label": "讲师IP", "icon": "auto_awesome"},
+    {"key": "audit", "label": "审计", "icon": "schedule"},
+    {"key": "users", "label": "用户管理", "icon": "people"},
+    {"key": "marketing", "label": "市场部", "icon": "campaign"},
+    {"key": "bidding", "label": "招投标", "icon": "gavel"},
+]
+
+ALL_MODULE_KEYS = [m["key"] for m in ALL_MODULES]
+
+
+def _get_accessible_modules(user: User, dept: Department | None = None) -> list[str]:
+    if user.role == "admin":
+        return ALL_MODULE_KEYS
+    modules = set(dept.accessible_modules if dept else [])
+    modules.update(user.extra_modules or [])
+    if not modules:
+        modules.update(["dashboard", "files"])
+    # preserve order from ALL_MODULES
+    return [k for k in ALL_MODULE_KEYS if k in modules]
+
+
+def _user_dict(r: User) -> dict:
+    return {
+        "id": str(r.id),
+        "username": r.username,
+        "email": r.email,
+        "role": r.role,
+        "department": r.department or "",
+        "department_id": str(r.department_id) if r.department_id else None,
+        "extra_modules": r.extra_modules or [],
+        "is_active": r.is_active,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -66,6 +108,14 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
     token = create_access_token({"sub": str(user.id), "role": user.role})
+    # eager load department for module access
+    if user.department_id:
+        dept_result = await db.execute(
+            select(Department).where(Department.id == user.department_id)
+        )
+        dept = dept_result.scalar_one_or_none()
+    else:
+        dept = None
     return TokenResponse(
         access_token=token,
         user={
@@ -74,43 +124,30 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             "email": user.email,
             "role": user.role,
             "department": user.department,
+            "department_id": str(user.department_id) if user.department_id else None,
+            "accessible_modules": _get_accessible_modules(user, dept),
         },
     )
 
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user)):
+async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.department_id:
+        dept_result = await db.execute(
+            select(Department).where(Department.id == user.department_id)
+        )
+        dept = dept_result.scalar_one_or_none()
+    else:
+        dept = None
     return {
         "id": str(user.id),
         "username": user.username,
         "email": user.email,
         "role": user.role,
         "department": user.department,
+        "department_id": str(user.department_id) if user.department_id else None,
+        "accessible_modules": _get_accessible_modules(user, dept),
         "is_active": user.is_active,
-    }
-
-
-class RoleUpdate(BaseModel):
-    role: str
-
-
-class CreateUserRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-    role: str = "general"
-
-
-def _user_dict(r: User) -> dict:
-    return {
-        "id": str(r.id),
-        "username": r.username,
-        "email": r.email,
-        "role": r.role,
-        "department": r.department or "",
-        "department_id": str(r.department_id) if r.department_id else None,
-        "is_active": r.is_active,
-        "created_at": r.created_at.isoformat() if r.created_at else None,
     }
 
 
@@ -151,6 +188,7 @@ async def list_users(
             } if d.leader else None,
             "members": dept_users.get(str(d.id), []),
             "member_count": len(dept_users.get(str(d.id), [])),
+            "accessible_modules": d.accessible_modules or [],
             "created_at": d.created_at.isoformat() if d.created_at else None,
         })
 
@@ -233,3 +271,46 @@ async def delete_user(
     await db.delete(target)
     await db.commit()
     return {"message": "用户已删除"}
+
+
+@router.get("/config/nav")
+async def get_nav_config(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.department_id:
+        dept_result = await db.execute(
+            select(Department).where(Department.id == user.department_id)
+        )
+        dept = dept_result.scalar_one_or_none()
+    else:
+        dept = None
+    modules = _get_accessible_modules(user, dept)
+    return {
+        "modules": [m for m in ALL_MODULES if m["key"] in modules],
+    }
+
+
+@router.get("/modules")
+async def list_all_modules(user: User = Depends(get_current_user)):
+    return {"modules": ALL_MODULES}
+
+
+@router.patch("/users/{user_id}/modules")
+async def update_user_modules(
+    user_id: str,
+    body: UpdateModulesRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    target.extra_modules = body.extra_modules
+    await db.commit()
+    return {"message": "模块权限已更新", "extra_modules": target.extra_modules}

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import User, Department
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/auth/login")
@@ -56,5 +56,29 @@ def require_roles(*roles: str):
     async def checker(user: User = Depends(get_current_user)) -> User:
         if user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="权限不足")
+        return user
+    return checker
+
+
+def require_module(module: str):
+    async def checker(
+        user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        if user.role == "admin":
+            return user
+        # get department modules
+        dept_modules = []
+        if user.department_id:
+            result = await db.execute(
+                select(Department).where(Department.id == user.department_id)
+            )
+            dept = result.scalar_one_or_none()
+            if dept:
+                dept_modules = dept.accessible_modules or []
+        # union with user extra modules
+        allowed = set(dept_modules) | set(user.extra_modules or [])
+        if module not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无此模块访问权限")
         return user
     return checker

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, BigInteger, Integer, DateTime, Float, ForeignKey, Text, func
+from sqlalchemy import String, Boolean, BigInteger, Integer, DateTime, Float, ForeignKey, Text, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -20,6 +20,7 @@ class Department(Base):
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     description: Mapped[str] = mapped_column(String(256), default="")
     leader_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    accessible_modules: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     leader: Mapped["User | None"] = relationship(foreign_keys=[leader_id], lazy="selectin")
@@ -35,6 +36,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(32), default="general")
     department: Mapped[str] = mapped_column(String(128), default="")
     department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
+    extra_modules: Mapped[list] = mapped_column(JSON, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)

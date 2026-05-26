@@ -6,9 +6,29 @@ import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 
+const _moduleConfig = <String, _NavItem>{
+  'dashboard': (Icons.home_rounded, Icons.home_outlined, '首页', '/dashboard'),
+  'files': (Icons.folder_rounded, Icons.folder_outlined, '文件', '/files'),
+  'ip': (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP', '/ip'),
+  'audit': (Icons.schedule_rounded, Icons.schedule_outlined, '审计', '/audit'),
+  'users': (Icons.people_rounded, Icons.people_outline_rounded, '用户管理', '/users'),
+  'marketing': (Icons.campaign_rounded, Icons.campaign_outlined, '市场部', '/marketing'),
+  'bidding': (Icons.gavel_rounded, Icons.gavel_outlined, '招投标', '/bidding'),
+};
+
+typedef _NavItem = (IconData, IconData, String, String);
+
 class ResponsiveScaffold extends ConsumerWidget {
   final Widget child;
   const ResponsiveScaffold({super.key, required this.child});
+
+  List<MapEntry<String, _NavItem>> _navItems(AuthState auth) {
+    final modules = auth.user?.accessibleModules ?? [];
+    return modules
+        .where((k) => _moduleConfig.containsKey(k))
+        .map((k) => MapEntry(k, _moduleConfig[k]!))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,15 +39,16 @@ class ResponsiveScaffold extends ConsumerWidget {
     return _mobileLayout(context, ref, auth);
   }
 
-  Widget _desktopLayout(BuildContext context, WidgetRef ref, dynamic auth) {
+  Widget _desktopLayout(BuildContext context, WidgetRef ref, AuthState auth) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final items = _navItems(auth);
+    final idx = _selectedIndex(context, items);
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
       body: Row(
         children: [
-          // iOS-style sidebar
           ClipRect(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -50,8 +71,9 @@ class ResponsiveScaffold extends ConsumerWidget {
                     const SizedBox(height: 24),
                     Expanded(
                       child: _SidebarNav(
-                        currentIndex: _selectedIndex(context),
-                        onTap: (i) => _navigate(context, i),
+                        items: items,
+                        currentIndex: idx,
+                        onTap: (i) => context.go(items[i].value.$4),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -81,10 +103,11 @@ class ResponsiveScaffold extends ConsumerWidget {
     );
   }
 
-  Widget _mobileLayout(BuildContext context, WidgetRef ref, dynamic auth) {
+  Widget _mobileLayout(BuildContext context, WidgetRef ref, AuthState auth) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final index = _selectedIndex(context);
+    final items = _navItems(auth);
+    final idx = _selectedIndex(context, items);
 
     return Scaffold(
       extendBody: true,
@@ -110,41 +133,14 @@ class ResponsiveScaffold extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _TabItem(
-                      icon: Icons.home_rounded,
-                      outline: Icons.home_outlined,
-                      label: '首页',
-                      selected: index == 0,
-                      onTap: () => _navigate(context, 0),
-                    ),
-                    _TabItem(
-                      icon: Icons.folder_rounded,
-                      outline: Icons.folder_outlined,
-                      label: '文件',
-                      selected: index == 1,
-                      onTap: () => _navigate(context, 1),
-                    ),
-                    _TabItem(
-                      icon: Icons.auto_awesome_rounded,
-                      outline: Icons.auto_awesome_outlined,
-                      label: '讲师IP',
-                      selected: index == 2,
-                      onTap: () => _navigate(context, 2),
-                    ),
-                    _TabItem(
-                      icon: Icons.schedule_rounded,
-                      outline: Icons.schedule_outlined,
-                      label: '审计',
-                      selected: index == 3,
-                      onTap: () => _navigate(context, 3),
-                    ),
-                    _TabItem(
-                      icon: Icons.people_rounded,
-                      outline: Icons.people_outline_rounded,
-                      label: '用户',
-                      selected: index == 4,
-                      onTap: () => _navigate(context, 4),
-                    ),
+                    for (int i = 0; i < items.length; i++)
+                      _TabItem(
+                        icon: items[i].value.$1,
+                        outline: items[i].value.$2,
+                        label: items[i].value.$3,
+                        selected: idx == i,
+                        onTap: () => context.go(items[i].value.$4),
+                      ),
                     _TabItem(
                       icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                       outline: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
@@ -170,36 +166,19 @@ class ResponsiveScaffold extends ConsumerWidget {
     );
   }
 
-  int _selectedIndex(BuildContext context) {
+  int _selectedIndex(BuildContext context, List<MapEntry<String, _NavItem>> items) {
     final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/dashboard')) return 0;
-    if (loc.startsWith('/files')) return 1;
-    if (loc.startsWith('/ip')) return 2;
-    if (loc.startsWith('/audit')) return 3;
-    if (loc.startsWith('/users')) return 4;
-    return 0;
-  }
-
-  void _navigate(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/dashboard');
-      case 1:
-        context.go('/files');
-      case 2:
-        context.go('/ip');
-      case 3:
-        context.go('/audit');
-      case 4:
-        context.go('/users');
+    for (int i = 0; i < items.length; i++) {
+      if (loc.startsWith(items[i].value.$4)) return i;
     }
+    return 0;
   }
 }
 
 // ── Sidebar components ──
 
 class _SidebarAvatar extends StatelessWidget {
-  final dynamic auth;
+  final AuthState auth;
   const _SidebarAvatar({required this.auth});
 
   @override
@@ -231,29 +210,22 @@ class _SidebarAvatar extends StatelessWidget {
 }
 
 class _SidebarNav extends StatelessWidget {
+  final List<MapEntry<String, _NavItem>> items;
   final int currentIndex;
   final ValueChanged<int> onTap;
-  const _SidebarNav({required this.currentIndex, required this.onTap});
+  const _SidebarNav({required this.items, required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      (Icons.home_rounded, Icons.home_outlined, '首页'),
-      (Icons.folder_rounded, Icons.folder_outlined, '文件'),
-      (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP'),
-      (Icons.schedule_rounded, Icons.schedule_outlined, '审计'),
-      (Icons.people_rounded, Icons.people_outline_rounded, '用户'),
-    ];
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         for (int i = 0; i < items.length; i++)
           _SidebarNavItem(
             selected: currentIndex == i,
-            icon: items[i].$1,
-            outline: items[i].$2,
-            label: items[i].$3,
+            icon: items[i].value.$1,
+            outline: items[i].value.$2,
+            label: items[i].value.$3,
             onTap: () => onTap(i),
           ),
       ],

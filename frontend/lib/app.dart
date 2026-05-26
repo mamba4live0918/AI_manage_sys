@@ -31,6 +31,17 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
     _router = _buildRouter();
   }
 
+  String? _routeModule(String location) {
+    if (location.startsWith('/dashboard')) return 'dashboard';
+    if (location.startsWith('/files')) return 'files';
+    if (location.startsWith('/ip')) return 'ip';
+    if (location.startsWith('/audit')) return 'audit';
+    if (location.startsWith('/users')) return 'users';
+    if (location.startsWith('/marketing')) return 'marketing';
+    if (location.startsWith('/bidding')) return 'bidding';
+    return null;
+  }
+
   GoRouter _buildRouter() {
     return GoRouter(
       initialLocation: '/loading',
@@ -44,6 +55,14 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
         }
         if (!auth.isLoggedIn && loc != '/login') return '/login';
         if (auth.isLoggedIn && loc == '/login') return '/dashboard';
+
+        // module access check
+        if (auth.isLoggedIn && auth.user != null && !auth.user!.isAdmin) {
+          final module = _routeModule(loc);
+          if (module != null && !auth.user!.accessibleModules.contains(module)) {
+            return '/dashboard';
+          }
+        }
         return null;
       },
       routes: [
