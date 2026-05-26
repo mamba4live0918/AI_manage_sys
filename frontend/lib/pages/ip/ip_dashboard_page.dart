@@ -61,6 +61,7 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
         if (!_tabCtrl.indexIsChanging && _tabCtrl.index == 2) _loadHistory();
       });
     _loadTemplates();
+    _loadHistory();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       appLog('[IP] First frame rendered, mounted=$mounted, tabIndex=${_tabCtrl.index}');
     });

@@ -146,22 +146,27 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
     final isDark = theme.brightness == Brightness.dark;
     final items = _navItems(auth);
     final idx = _selectedIndex(context, items);
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
       body: Stack(
         children: [
-          // main content
-          widget.child,
-
-          // burger button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 12,
-            child: _MobileBurger(
-              isDark: isDark,
-              onTap: () => setState(() => _mobileDrawerOpen = true),
-            ),
+          // main content with header
+          Column(
+            children: [
+              // thin transparent toolbar so burger doesn't overlap content
+              Container(
+                height: topPadding + 44,
+                padding: EdgeInsets.only(top: topPadding + 4, left: 12),
+                alignment: Alignment.centerLeft,
+                child: _MobileBurger(
+                  isDark: isDark,
+                  onTap: () => setState(() => _mobileDrawerOpen = true),
+                ),
+              ),
+              Expanded(child: widget.child),
+            ],
           ),
 
           // backdrop
@@ -180,14 +185,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -264,
+            left: _mobileDrawerOpen ? 0 : -244,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 260,
+                  width: 240,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
