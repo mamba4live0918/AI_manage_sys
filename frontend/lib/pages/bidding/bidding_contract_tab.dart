@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
+import 'bidding_contract_detail_page.dart';
+import 'bidding_contract_generate_page.dart';
 
 class BiddingContractTab extends StatefulWidget {
   const BiddingContractTab({super.key});
@@ -38,79 +40,11 @@ class _BiddingContractTabState extends State<BiddingContractTab> {
   }
 
   Future<void> _generate() async {
-    String? selectedTemplateId;
-    final titleCtrl = TextEditingController();
-    final counterpartyCtrl = TextEditingController();
-    final varsCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setDlg) => AlertDialog(
-          title: const Text('生成合同'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              InputDecorator(
-                decoration: const InputDecoration(labelText: '合同模板 (可选)'),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: selectedTemplateId,
-                    isExpanded: true, isDense: true,
-                    hint: const Text('选择模板或直接输入'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('不使用模板')),
-                      ..._templates.map((t) => DropdownMenuItem(
-                        value: t['id'] as String?,
-                        child: Text(t['name'] as String? ?? ''),
-                      )),
-                    ],
-                    onChanged: (v) => setDlg(() => selectedTemplateId = v),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '合同标题 *')),
-              const SizedBox(height: 8),
-              TextField(controller: counterpartyCtrl, decoration: const InputDecoration(labelText: '对方名称')),
-              const SizedBox(height: 8),
-              TextField(controller: varsCtrl, maxLines: 2, decoration: const InputDecoration(
-                labelText: '变量替换', hintText: 'key1: value1, key2: value2',
-              )),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('生成')),
-          ],
-        ),
-      ),
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => BiddingContractGeneratePage(templates: _templates)),
     );
-    if (ok != true || titleCtrl.text.trim().isEmpty) return;
-
-    final Map<String, String> vars = {};
-    for (final part in varsCtrl.text.split(',')) {
-      final kv = part.trim().split(':');
-      if (kv.length == 2) vars[kv[0].trim()] = kv[1].trim();
-    }
-
-    setState(() => _loading = true);
-    try {
-      final resp = await _api.dio.post('/bidding/contracts', data: {
-        'template_id': selectedTemplateId,
-        'title': titleCtrl.text.trim(),
-        'counterparty': counterpartyCtrl.text.trim(),
-        'variables': vars,
-      });
-      _load();
-      if (mounted) {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => _ContractDetailPage(contractId: resp.data['id'] as String),
-        ));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('生成失败: $e')));
-    }
-    setState(() => _loading = false);
+    _load();
   }
 
   Future<void> _delete(String id, String title) async {
@@ -219,7 +153,7 @@ class _BiddingContractTabState extends State<BiddingContractTab> {
                           ]),
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => _ContractDetailPage(contractId: id),
+                              builder: (_) => BiddingContractDetailPage(contractId: id),
                             ));
                           },
                         ),
@@ -231,220 +165,6 @@ class _BiddingContractTabState extends State<BiddingContractTab> {
   }
 }
 
-
-// ── Contract Detail Page ──
-
-class _ContractDetailPage extends StatefulWidget {
-  final String contractId;
-  const _ContractDetailPage({required this.contractId});
-
-  @override
-  State<_ContractDetailPage> createState() => _ContractDetailPageState();
-}
-
-class _ContractDetailPageState extends State<_ContractDetailPage> {
-  final _api = ApiClient();
-  Map<String, dynamic>? _contract;
-  List<Map<String, dynamic>> _versions = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final contractResp = await _api.dio.get('/bidding/contracts/${widget.contractId}');
-      final versionsResp = await _api.dio.get('/bidding/contracts/${widget.contractId}/versions');
-      setState(() {
-        _contract = contractResp.data;
-        _versions = List<Map<String, dynamic>>.from(versionsResp.data['items']);
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusLabels = {'draft': '草稿', 'pending': '待签署', 'signed': '已签署', 'expired': '已过期', 'archived': '已归档'};
-    final theme = Theme.of(context);
-
-    if (_loading) {
-      return Scaffold(appBar: AppBar(title: const Text('合同详情')), body: const Center(child: CircularProgressIndicator()));
-    }
-    if (_contract == null) {
-      return Scaffold(appBar: AppBar(title: const Text('合同详情')), body: const Center(child: Text('加载失败')));
-    }
-
-    final c = _contract!;
-    final content = c['content'] as String? ?? '';
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(c['title'] as String? ?? '合同详情', overflow: TextOverflow.ellipsis),
-        actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: AppTheme.purple.withAlpha(20)),
-            child: Text(statusLabels[c['status']] ?? c['status'] ?? '', style: const TextStyle(fontSize: 12, color: AppTheme.purple)),
-          ),
-        ],
-      ),
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(children: [
-            _infoChip('对方', c['counterparty'] as String? ?? ''),
-            const SizedBox(width: 8),
-            _infoChip('版本', 'v${c['current_version']}'),
-            const Spacer(),
-            if (_versions.length >= 2)
-              TextButton.icon(
-                onPressed: () => _showDiffDialog(context),
-                icon: const Icon(Icons.compare_rounded, size: 16),
-                label: const Text('版本对比', style: TextStyle(fontSize: 13)),
-              ),
-          ]),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('合同内容', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              // Markdown content with basic formatting
-              SelectableText(content, style: const TextStyle(fontSize: 14, height: 1.8)),
-              if (_versions.length > 1) ...[
-                const SizedBox(height: 24),
-                const Text('版本历史', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                ..._versions.map((v) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text('v${v['version_number']} — ${v['change_summary'] ?? ''}'),
-                  trailing: Text(v['created_at']?.toString().substring(0, 10) ?? '', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(120))),
-                )),
-              ],
-            ]),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _infoChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), color: Colors.grey.withAlpha(15)),
-      child: Text('$label: $value', style: const TextStyle(fontSize: 12)),
-    );
-  }
-
-  void _showDiffDialog(BuildContext context) {
-    if (_versions.length < 2) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setDlg) {
-          int v1 = _versions[1]['version_number'] as int? ?? 1;
-          int v2 = _versions[0]['version_number'] as int? ?? 2;
-          return AlertDialog(
-            title: const Text('版本对比'),
-            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(children: [
-                Expanded(child: InputDecorator(
-                  decoration: const InputDecoration(labelText: '版本A'),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: v1, isExpanded: true, isDense: true,
-                      items: _versions.map((v) => DropdownMenuItem(
-                        value: v['version_number'] as int? ?? 0,
-                        child: Text('v${v['version_number']}'),
-                      )).toList(),
-                      onChanged: (v) => setDlg(() => v1 = v!),
-                    ),
-                  ),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: InputDecorator(
-                  decoration: const InputDecoration(labelText: '版本B'),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: v2, isExpanded: true, isDense: true,
-                      items: _versions.map((v) => DropdownMenuItem(
-                        value: v['version_number'] as int? ?? 0,
-                        child: Text('v${v['version_number']}'),
-                      )).toList(),
-                      onChanged: (v) => setDlg(() => v2 = v!),
-                    ),
-                  ),
-                )),
-              ]),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 40,
-                child: FilledButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    try {
-                      final resp = await _api.dio.get('/bidding/contracts/${widget.contractId}/diff', queryParameters: {'v1': v1, 'v2': v2});
-                      if (mounted) {
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => _DiffViewPage(diff: resp.data['diff'] as String? ?? ''),
-                        ));
-                      }
-                    } catch (_) {}
-                  },
-                  child: const Text('查看差异'),
-                ),
-              ),
-            ]),
-          );
-        },
-      ),
-    );
-  }
-}
-
-
-// ── Diff View Page ──
-
-class _DiffViewPage extends StatelessWidget {
-  final String diff;
-  const _DiffViewPage({required this.diff});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('版本差异')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF1E1E1E),
-          ),
-          child: SelectableText(
-            diff.isEmpty ? '无差异' : diff,
-            style: const TextStyle(
-              fontSize: 13,
-              fontFamily: 'monospace',
-              color: Color(0xFFD4D4D4),
-              height: 1.6,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 
 // ── Template List Page ──

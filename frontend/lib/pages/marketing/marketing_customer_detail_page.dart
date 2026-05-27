@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
+import 'marketing_churn_config_page.dart';
+import 'marketing_demand_prediction_page.dart';
 
 const _eventTypeNames = {
   'meeting': '会议', 'call': '电话', 'email': '邮件', 'purchase': '采购',
@@ -161,17 +163,10 @@ class _MarketingCustomerDetailPageState extends State<MarketingCustomerDetailPag
   }
 
   Future<void> _predictDemand() async {
-    try {
-      final resp = await _api.dio.post('/marketing/customers/${widget.customerId}/predict-demand');
-      final content = resp.data['content'] as String? ?? '';
-      final model = resp.data['model'] as String? ?? '';
-      if (mounted) {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => _DemandResultPage(content: content, model: model),
-        ));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('预测失败: $e')));
+    if (mounted) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => MarketingDemandPredictionPage(customerId: widget.customerId),
+      ));
     }
   }
 
@@ -339,7 +334,7 @@ class _MarketingCustomerDetailPageState extends State<MarketingCustomerDetailPag
           SizedBox(height: 40, child: OutlinedButton(
             onPressed: () async {
               await Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ChurnConfigPage(churnConfig: _churnConfig),
+                builder: (_) => MarketingChurnConfigPage(churnConfig: _churnConfig),
               ));
               _loadChurn();
             },
@@ -414,112 +409,3 @@ const _sourceNames = {
 const _statusNames = {'active': '活跃', 'dormant': '休眠', 'churned': '已流失'};
 
 
-// ── Demand Prediction Result Page ──
-
-class _DemandResultPage extends StatelessWidget {
-  final String content;
-  final String model;
-  const _DemandResultPage({required this.content, required this.model});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('需求预测报告'),
-        actions: [
-          if (model.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: AppTheme.purple.withAlpha(20)),
-                child: Text(model, style: const TextStyle(fontSize: 12, color: AppTheme.purple)),
-              ),
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: SelectableText(content, style: const TextStyle(fontSize: 15, height: 1.8)),
-      ),
-    );
-  }
-}
-
-
-// ── Churn Config Page ──
-
-class ChurnConfigPage extends StatefulWidget {
-  final Map<String, dynamic>? churnConfig;
-  const ChurnConfigPage({super.key, this.churnConfig});
-
-  @override
-  State<ChurnConfigPage> createState() => _ChurnConfigPageState();
-}
-
-class _ChurnConfigPageState extends State<ChurnConfigPage> {
-  final _api = ApiClient();
-  late int _inactivityDays;
-  late int _lowThreshold;
-  late bool _autoNotify;
-
-  @override
-  void initState() {
-    super.initState();
-    _inactivityDays = widget.churnConfig?['inactivity_days'] as int? ?? 90;
-    _lowThreshold = widget.churnConfig?['low_satisfaction_threshold'] as int? ?? 40;
-    _autoNotify = widget.churnConfig?['auto_notify'] as bool? ?? true;
-  }
-
-  Future<void> _save() async {
-    await _api.dio.put('/marketing/churn-config', data: {
-      'inactivity_days': _inactivityDays,
-      'low_satisfaction_threshold': _lowThreshold,
-      'auto_notify': _autoNotify,
-    });
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('流失预警配置')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        SwitchListTile(
-          title: const Text('自动通知'),
-          subtitle: Text(_autoNotify ? '开启' : '关闭'),
-          value: _autoNotify,
-          onChanged: (v) => setState(() => _autoNotify = v),
-        ),
-        ListTile(
-          title: const Text('不活跃天数阈值'),
-          subtitle: Text('$_inactivityDays 天'),
-          trailing: SizedBox(
-            width: 100,
-            child: TextField(
-              controller: TextEditingController(text: '$_inactivityDays'),
-              keyboardType: TextInputType.number,
-              onChanged: (v) => _inactivityDays = int.tryParse(v) ?? 90,
-              decoration: const InputDecoration(isDense: true, suffixText: '天'),
-            ),
-          ),
-        ),
-        ListTile(
-          title: const Text('低满意度阈值'),
-          subtitle: Text('$_lowThreshold 分'),
-          trailing: SizedBox(
-            width: 100,
-            child: TextField(
-              controller: TextEditingController(text: '$_lowThreshold'),
-              keyboardType: TextInputType.number,
-              onChanged: (v) => _lowThreshold = int.tryParse(v) ?? 40,
-              decoration: const InputDecoration(isDense: true, suffixText: '分'),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(onPressed: _save, child: const Text('保存配置')),
-      ]),
-    );
-  }
-}
