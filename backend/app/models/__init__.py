@@ -11,6 +11,12 @@ from app.models.models import (
     ContractTemplate, Contract, ContractVersion,
     BiddingKnowledgeDir, BiddingKnowledgeDoc,
     BiddingProcess, Supplier, Instructor,
+    # Phase 4: PM
+    PmProject, VisitLog, Courseware, ProjectReport,
+    # Phase 4: HR
+    Employee, Resume, Approval,
+    # Phase 4: Finance
+    Settlement, Expense, Voucher,
 )
 
 __all__ = [
@@ -23,4 +29,7 @@ __all__ = [
     "ContractTemplate", "Contract", "ContractVersion",
     "BiddingKnowledgeDir", "BiddingKnowledgeDoc",
     "BiddingProcess", "Supplier", "Instructor",
+    "PmProject", "VisitLog", "Courseware", "ProjectReport",
+    "Employee", "Resume", "Approval",
+    "Settlement", "Expense", "Voucher",
 ]

@@ -49,6 +49,9 @@ ALL_MODULES = [
     {"key": "users", "label": "用户管理", "icon": "people"},
     {"key": "marketing", "label": "市场部", "icon": "campaign"},
     {"key": "bidding", "label": "招投标", "icon": "gavel"},
+    {"key": "pm", "label": "项目管理", "icon": "engineering"},
+    {"key": "hr", "label": "HR", "icon": "people"},
+    {"key": "finance", "label": "财务", "icon": "account_balance"},
 ]
 
 ALL_MODULE_KEYS = [m["key"] for m in ALL_MODULES]

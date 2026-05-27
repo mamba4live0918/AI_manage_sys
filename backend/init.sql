@@ -112,6 +112,152 @@ CREATE TABLE IF NOT EXISTS copy_histories (
 );
 CREATE INDEX IF NOT EXISTS idx_copy_hist_user ON copy_histories(user_id);
 
+-- ── Phase 4: PM ──
+
+CREATE TABLE IF NOT EXISTS pm_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(256) NOT NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    stage VARCHAR(64) DEFAULT 'initiation',
+    start_date TIMESTAMPTZ,
+    end_date TIMESTAMPTZ,
+    budget FLOAT DEFAULT 0.0,
+    description TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pm_project_dept ON pm_projects(department_id);
+
+CREATE TABLE IF NOT EXISTS visit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE CASCADE NOT NULL,
+    content TEXT DEFAULT '',
+    location VARCHAR(256) DEFAULT '',
+    visited_at TIMESTAMPTZ DEFAULT now(),
+    recorded_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_visit_log_project ON visit_logs(project_id);
+
+CREATE TABLE IF NOT EXISTS coursewares (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
+    title VARCHAR(256) NOT NULL,
+    type VARCHAR(64) DEFAULT 'document',
+    content TEXT DEFAULT '',
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
+    version INTEGER DEFAULT 1,
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_courseware_project ON coursewares(project_id);
+
+CREATE TABLE IF NOT EXISTS project_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE CASCADE NOT NULL,
+    report_type VARCHAR(64) DEFAULT 'progress',
+    content TEXT DEFAULT '',
+    content_html TEXT DEFAULT '',
+    model VARCHAR(64) DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_report_project ON project_reports(project_id);
+
+-- ── Phase 4: HR ──
+
+CREATE TABLE IF NOT EXISTS employees (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(128) NOT NULL,
+    position VARCHAR(128) DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    hire_date TIMESTAMPTZ,
+    status VARCHAR(32) DEFAULT 'active',
+    phone VARCHAR(64) DEFAULT '',
+    email VARCHAR(256) DEFAULT '',
+    notes TEXT DEFAULT '',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_employee_dept ON employees(department_id);
+
+CREATE TABLE IF NOT EXISTS resumes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(128) NOT NULL,
+    content TEXT DEFAULT '',
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
+    match_score FLOAT DEFAULT 0.0,
+    match_result TEXT DEFAULT '',
+    status VARCHAR(32) DEFAULT 'new',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    approval_type VARCHAR(32) DEFAULT 'leave',
+    applicant_id UUID REFERENCES users(id) NOT NULL,
+    status VARCHAR(32) DEFAULT 'pending',
+    content TEXT DEFAULT '',
+    approver_id UUID REFERENCES users(id),
+    comment TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_approval_applicant ON approvals(applicant_id);
+
+-- ── Phase 4: Finance ──
+
+CREATE TABLE IF NOT EXISTS settlements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
+    amount FLOAT DEFAULT 0.0,
+    status VARCHAR(32) DEFAULT 'pending',
+    settlement_date TIMESTAMPTZ,
+    invoice_no VARCHAR(128) DEFAULT '',
+    notes TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_settlement_dept ON settlements(department_id);
+
+CREATE TABLE IF NOT EXISTS expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
+    amount FLOAT DEFAULT 0.0,
+    category VARCHAR(64) DEFAULT 'other',
+    description TEXT DEFAULT '',
+    status VARCHAR(32) DEFAULT 'pending',
+    submitted_by UUID REFERENCES users(id),
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_expense_dept ON expenses(department_id);
+
+CREATE TABLE IF NOT EXISTS vouchers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    settlement_id UUID REFERENCES settlements(id) ON DELETE SET NULL,
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
+    type VARCHAR(64) DEFAULT 'invoice',
+    description TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_voucher_settlement ON vouchers(settlement_id);
+
 -- 默认管理员
 INSERT INTO users (username, email, hashed_password, role, department)
 VALUES ('admin', 'admin@company.local',

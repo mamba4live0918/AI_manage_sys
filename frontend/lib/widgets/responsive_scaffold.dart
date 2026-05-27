@@ -14,6 +14,9 @@ const _moduleConfig = <String, _NavItem>{
   'users': (Icons.people_rounded, Icons.people_outline_rounded, '用户管理', '/users'),
   'marketing': (Icons.campaign_rounded, Icons.campaign_outlined, '市场部', '/marketing'),
   'bidding': (Icons.gavel_rounded, Icons.gavel_outlined, '招投标', '/bidding'),
+  'pm': (Icons.engineering_rounded, Icons.engineering_outlined, '项目管理', '/pm'),
+  'hr': (Icons.people_rounded, Icons.people_outline_rounded, 'HR', '/hr'),
+  'finance': (Icons.account_balance_rounded, Icons.account_balance_outlined, '财务', '/finance'),
 };
 
 typedef _NavItem = (IconData, IconData, String, String);
