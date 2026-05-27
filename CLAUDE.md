@@ -113,34 +113,25 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段一 — 功能完成，收尾阶段 → 阶段三进行中**
+**阶段四已完成 → 进入阶段五**
 
-### 阶段一：已完成
-- Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000）
-- 数据库 5 张表（users/files/permissions/audit_logs/departments）+ 默认 admin 账号（admin/admin123）
-- 25+ API 端点全部测试通过
-- Flutter 静态分析 0 issues
-- Windows .exe 编译成功
-- LLM 抽象层就绪（config 切换 DeepSeek → Qwen2.5 14B）
-- **首页仪表盘**：系统统计卡片（用户/文件/存储/文案/今日操作）+ 存储类型分布 + 最近动态
-- **部门/小组组织架构**：Department 模型 + CRUD API + 部门长权限范围
-- **用户管理重构**：部门卡片折叠视图 + 未安排人员独立卡片 + 部门长/成员管理
-- **部门UI隔离**：admin配置部门可访问模块，非admin只看本部门模块
-- **保密级别自动授权**：4级保密 + 角色查看级别映射 + owner 豁免
-- LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览
-- 文件下载支持自定义路径 + 扩展名兜底 MIME 检测
-- 审计日志分页查询 + 13种操作类型筛选
+### 阶段一 ✅ · 阶段二 ✅ (2.1 文案，2.2/2.3 跳过)
+### 阶段三 ✅ — 17模型 + 34端点 + 20页面，E2E 54/54
+### 阶段四 ✅ — 10模型 + 36端点 + 14页面，E2E 48/48，回归 54/54
 
-### 阶段二：部分完成，后续跳过
-- ✅ 2.1 LLM文案生成（后端模板CRUD + 生成API + Flutter三Tab页面 + HTML预览）
-- ⏭️ 2.2 声音克隆 — 跳过
-- ⏭️ 2.3 数字人+短视频 — 跳过
+### 阶段五待开始
+- 全模块联调 + 权限一致性校验
+- 性能压测 + 安全审计
+- Android .apk 编译验证
+- Windows 安装包 + 签名
+- 私有化部署（Docker Compose Prod + Nginx + SSL）
 
-### 阶段一待完成
-- Android .apk 编译验证（需要 Android SDK cmdline-tools）
-- git tag: `phase-1-complete`
-
-### 阶段三：市场部 + 招投标（开始中）
+### 已知待补功能
+- 课件/凭证支持文件上传附件
+- 图表组件（fl_chart）+ 日历组件（TableCalendar）
+- 审批流引擎（多级流转）
+- 面试排期
+- Elasticsearch 全文检索
 
 ## 已知问题 & 注意事项
 
