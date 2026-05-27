@@ -113,9 +113,9 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段一 — 功能完成，收尾阶段**
+**阶段一 — 功能完成，收尾阶段 → 阶段三进行中**
 
-### 已完成
+### 阶段一：已完成
 - Docker 基础设施运行正常（PostgreSQL:5433 / Redis:6379 / MinIO:9000）
 - 数据库 5 张表（users/files/permissions/audit_logs/departments）+ 默认 admin 账号（admin/admin123）
 - 25+ API 端点全部测试通过
@@ -123,21 +123,24 @@ AI_manage_sys/
 - Windows .exe 编译成功
 - LLM 抽象层就绪（config 切换 DeepSeek → Qwen2.5 14B）
 - **首页仪表盘**：系统统计卡片（用户/文件/存储/文案/今日操作）+ 存储类型分布 + 最近动态
-- **部门/小组组织架构**：Department 模型 + CRUD API + 部门长权限范围（可管理本部门成员文件）
+- **部门/小组组织架构**：Department 模型 + CRUD API + 部门长权限范围
 - **用户管理重构**：部门卡片折叠视图 + 未安排人员独立卡片 + 部门长/成员管理
-- **保密级别自动授权**（替代手动 ACL）：4级保密 + 角色查看级别映射 + owner 豁免
-- OnlyOffice 替换为 LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览，退出清理
-- 文件下载支持自定义路径（文件夹选择器）
-- 后端扩展名兜底 MIME 检测（`_guess_mime()`：图片/音频/视频/Office 全覆盖）
-- 6 种 Office 格式端到端验证通过（.doc/.docx/.xls/.xlsx/.ppt/.pptx）
-- 图片/音频/视频上传 + 预览 + 下载端到端验证通过
-- 审计日志分页查询 + 13种操作类型筛选 + 完整中文标签/颜色映射
-- UI：iOS 风格侧边栏/底部栏（首页/文件/IP/审计/用户 5 tab）+ 深色/浅色主题切换
-- 前端 Canvas 动态水印（用户名+部门+日期）
+- **部门UI隔离**：admin配置部门可访问模块，非admin只看本部门模块
+- **保密级别自动授权**：4级保密 + 角色查看级别映射 + owner 豁免
+- LibreOffice headless：Word/Excel/PPT 自动转 PDF 预览
+- 文件下载支持自定义路径 + 扩展名兜底 MIME 检测
+- 审计日志分页查询 + 13种操作类型筛选
 
-### 待完成
+### 阶段二：部分完成，后续跳过
+- ✅ 2.1 LLM文案生成（后端模板CRUD + 生成API + Flutter三Tab页面 + HTML预览）
+- ⏭️ 2.2 声音克隆 — 跳过
+- ⏭️ 2.3 数字人+短视频 — 跳过
+
+### 阶段一待完成
 - Android .apk 编译验证（需要 Android SDK cmdline-tools）
 - git tag: `phase-1-complete`
+
+### 阶段三：市场部 + 招投标（开始中）
 
 ## 已知问题 & 注意事项
 
