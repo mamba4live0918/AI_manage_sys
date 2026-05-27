@@ -1356,8 +1356,8 @@ async def match_course(
 
     user_prompt = f"课程需求：{body.course_name}\n额外要求：{body.requirements}\n\n候选讲师：\n{candidates_text}\n\n请为每位讲师评分（1-10分）并排序，返回JSON：{{ \"matches\": [{{\"instructor_id\": \"...\", \"name\": \"...\", \"score\": 8, \"reason\": \"...\"}}] }}"
 
-    llm = get_llm()
     try:
+        llm = get_llm()
         resp = await llm.generate(
             system_prompt=MATCH_COURSE_PROMPT,
             user_prompt=user_prompt,
@@ -1366,14 +1366,13 @@ async def match_course(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM调用失败: {e}")
 
-    # Try to parse LLM results
     try:
         parsed = json.loads(resp.content)
         matches = parsed.get("matches", [])
     except json.JSONDecodeError:
         matches = []
 
-    await audit_log(db, user, "course_match", "instructor", "", body.course_name or body.requirements, "success", f"model={resp.model}", request=request)
+    await audit_log(db, user, "course_match", "instructor", None, body.course_name or body.requirements, "success", f"model={resp.model}", request=request)
     return {"matches": matches, "model": resp.model}
 
 
