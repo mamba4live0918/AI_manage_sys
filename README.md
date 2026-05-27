@@ -1,16 +1,17 @@
 # 公司AI场景建设管理系统
 
-全链路AI赋能管理平台，一套 Flutter 代码编译 **Windows .exe / iOS .ipa / Android .apk / Web** 四端，FastAPI 后端提供 REST API。覆盖市场部、招投标合同中心、项目管理中台、HR、财务五大业务域 + 讲师IP专属子系统 + 全系统权限化文件预览。
+全链路AI赋能管理平台，一套 Flutter 代码编译 **Windows .exe / Android .apk / Web** 三端，FastAPI 后端提供 REST API。覆盖市场部、招投标合同中心、项目管理中台、HR、财务五大业务域 + 讲师IP专属子系统 + 全系统权限化文件预览。
+
+**当前进度：阶段四完成（4/5）**
 
 ## 技术栈
 
 ```
-Flutter 3.x (Riverpod)  ←→  FastAPI 0.115  ←→  PostgreSQL 16
-     ↕ 四端编译              ↕ async            Redis 7
-  .exe .ipa .apk Web      REST API            MinIO
-                                               OnlyOffice Docs
-                                               Qwen2.5 14B (LLM)
-                                               GPT-SoVITS (声音克隆)
+Flutter 3.44 (Riverpod)  ←→  FastAPI 0.115  ←→  PostgreSQL 16
+     ↕ 三端编译              ↕ async            Redis 7
+  .exe .apk .web          REST API            MinIO
+                                               DeepSeek / Qwen2.5 14B (LLM)
+                                               LibreOffice (文档预览)
 ```
 
 ## 快速开始
@@ -73,16 +74,24 @@ AI_manage_sys/
 │       ├── config.py            # 配置
 │       ├── security.py          # JWT + 密码
 │       ├── models/              # ORM模型
-│       ├── api/                 # 路由
-│       │   ├── auth.py          # 注册/登录
+│       ├── api/                 # 路由（70+ 端点）
+│       │   ├── auth.py          # 注册/登录/部门模块
 │       │   ├── files.py         # 文件管理
 │       │   ├── preview.py       # 预览/下载
 │       │   ├── permissions.py   # 权限配置
-│       │   └── audit.py         # 审计日志
+│       │   ├── audit.py         # 审计日志
+│       │   ├── copywriting.py   # 讲师IP AI文案
+│       │   ├── marketing.py     # 市场部（阶段三）
+│       │   ├── bidding.py       # 招投标（阶段三）
+│       │   ├── pm.py            # 项目管理（阶段四）
+│       │   ├── hr.py            # HR（阶段四）
+│       │   └── finance.py       # 财务（阶段四）
 │       └── services/            # 业务逻辑
 │           ├── storage.py       # MinIO
-│           ├── permission_checker.py  # ACL引擎
-│           └── audit.py         # 审计写入
+│           ├── permission_checker.py  # 5级ACL引擎
+│           ├── audit.py         # 审计写入
+│           ├── file_extractor.py  # PDF/DOCX/XLSX文本提取
+│           └── llm/             # LLM抽象层（OpenAI兼容协议）
 └── frontend/                    # Flutter全端
     ├── pubspec.yaml
     └── lib/
@@ -109,20 +118,28 @@ AI_manage_sys/
 
 ## 分阶段交付
 
-| 阶段 | 内容 | 周期 | 累计需求 |
-|------|------|------|---------|
-| 一 | 基础设施 + Flutter骨架 + 权限文件预览 | 5-6周 | 7 |
-| 二 | 讲师IP（文案/声音/数字人/短视频） | 4-5周 | 12 |
-| 三 | 市场部 + 招投标 | 5-6周 | 21 |
-| 四 | 项目管理 + HR + 财务 | 5-6周 | 35 |
-| 五 | 联调 + 安全 + 四端打包分发 + 部署 | 3-4周 | 51 |
+| 阶段 | 内容 | 状态 | 模型 | API | 前端页面 | E2E |
+|------|------|------|------|-----|---------|-----|
+| 一 | 基础设施 + Flutter骨架 + 权限文件预览 | ✅ 完成 | 5 | 25+ | 8 | — |
+| 二 | 讲师IP（AI文案生成 + HTML预览） | ✅ 部分 | 3 | 8 | 3 | — |
+| 三 | 市场部 + 招投标 | ✅ 完成 | 17 | 34 | 20 | 54/54 |
+| 四 | 项目管理 + HR + 财务 | ✅ 完成 | 10 | 36 | 14 | 48/48 |
+| 五 | 联调 + 安全 + 三端打包分发 + 部署 | 📋 待开始 | — | — | — | — |
+
+### 阶段四模块一览
+
+| 模块 | 模型 | 亮点功能 |
+|------|------|---------|
+| 项目管理 | PmProject, VisitLog, Courseware, ProjectReport | 项目台账 + 走访日志 + LLM项目报告生成 + 课件管理 |
+| HR | Employee, Resume, Approval | 员工档案 + 简历上传(PDF/DOCX) + LLM智能匹配 + 审批流 |
+| 财务 | Settlement, Expense, Voucher | 结算记录 + 费用报销审批 + 凭证归档 |
 
 ## 关键约束
 
 - 私有化部署，数据不出企业
-- 移动端为原生App（.ipa/.apk），PC端为原生桌面程序（.exe）
-- 数字人克隆需采购厂商私有化授权（约10-20万/年）
+- 移动端为原生App（.apk），PC端为原生桌面程序（.exe）
 - 预算优先，善用开源方案降本
+- 开发期 LLM 使用 DeepSeek API，生产可切换本地 Qwen2.5 14B
 
 ## 报告
 
