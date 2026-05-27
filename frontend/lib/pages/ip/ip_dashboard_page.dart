@@ -428,7 +428,7 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
                           children: [
                             const Icon(Icons.error_outline, size: 40, color: Colors.red),
                             const SizedBox(height: 12),
-                            Text('加载失败: ${_templatesError}',
+                            Text('加载失败: $_templatesError',
                               style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
                               textAlign: TextAlign.center,
                             ),

@@ -540,7 +540,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: role,
+                initialValue: role,
                 decoration: const InputDecoration(labelText: '角色'),
                 items: _roleNames.entries
                     .map((e) =>
@@ -610,9 +610,9 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     final isAdmin = auth.user?.role == 'admin';
 
     if (!isAdmin) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: Colors.transparent,
-        body: const Center(child: Text('仅管理员可访问')),
+        body: Center(child: Text('仅管理员可访问')),
       );
     }
 

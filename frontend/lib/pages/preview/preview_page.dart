@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_windows/webview_windows.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
@@ -19,7 +20,6 @@ class PreviewPage extends ConsumerStatefulWidget {
 class _PreviewPageState extends ConsumerState<PreviewPage> {
   final _api = ApiClient();
   Map<String, dynamic>? _info;
-  WebviewController? _pdfCtrl;
   WebviewController? _avCtrl;
   bool _loading = true;
   String? _error;
@@ -40,12 +40,7 @@ class _PreviewPageState extends ConsumerState<PreviewPage> {
       _tempPath = info['temp_path'] as String?;
       appLog('[PREVIEW] type=$t mime=$mime');
 
-      if (t == 'media' && mime == 'application/pdf') {
-        final pdfUrl = info['url'] as String;
-        _pdfCtrl = WebviewController();
-        await _pdfCtrl!.initialize();
-        await _pdfCtrl!.loadUrl(pdfUrl);
-      } else if (t == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/'))) {
+      if (t == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/'))) {
         final url = info['url'] as String;
         final tag = mime.startsWith('video/') ? 'video' : 'audio';
         _avCtrl = WebviewController();
@@ -80,7 +75,6 @@ $tag{$dim;outline:none}</style></head><body>
 
   @override
   void dispose() {
-    _pdfCtrl?.dispose();
     _avCtrl?.dispose();
     _cleanup();
     super.dispose();
@@ -112,8 +106,8 @@ $tag{$dim;outline:none}</style></head><body>
       final url = info['url'] as String? ?? '';
       final name = info['name'] as String? ?? '';
 
-      if (type == 'media' && mime == 'application/pdf' && _pdfCtrl != null) {
-        content = Webview(_pdfCtrl!);
+      if (type == 'media' && mime == 'application/pdf') {
+        content = PdfViewer.uri(Uri.parse(url));
       } else if (type == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/')) && _avCtrl != null) {
         content = Webview(_avCtrl!);
       } else if (type == 'media' && mime.startsWith('image/')) {
