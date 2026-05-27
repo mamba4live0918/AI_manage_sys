@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile
@@ -1370,71 +1371,51 @@ async def knowledge_qa(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    # Enhance search query using last assistant reply for context
-    search_text = body.question
-    if body.history:
-        last_assistant = ""
-        for h in reversed(body.history):
-            if h.get("role") == "assistant":
-                last_assistant = h.get("content", "")
-                break
-        if last_assistant:
-            search_text = f"{body.question} {last_assistant[:200]}"
-
-    # Search knowledge base
-    search_query = select(KnowledgeEntry).order_by(KnowledgeEntry.updated_at.desc())
+    # Fetch all knowledge entries for this user/department
+    base_query = select(KnowledgeEntry).order_by(KnowledgeEntry.updated_at.desc())
     if user.role != "admin":
         if user.department_id:
-            search_query = search_query.where(KnowledgeEntry.department_id == user.department_id)
+            base_query = base_query.where(KnowledgeEntry.department_id == user.department_id)
         else:
-            search_query = search_query.where(KnowledgeEntry.created_by == user.id)
-    # Use ILIKE first for exact match, then pg_trgm similarity for fuzzy
-    search_query = search_query.where(
-        KnowledgeEntry.title.ilike(f"%{search_text}%")
-        | KnowledgeEntry.content.ilike(f"%{search_text}%")
-    )
-    result = await db.execute(search_query.limit(body.top_k))
-    entries = result.scalars().all()
+            base_query = base_query.where(KnowledgeEntry.created_by == user.id)
+    result = await db.execute(base_query.limit(50))
+    all_entries = result.scalars().all()
 
-    if not entries:
-        # Fallback: pg_trgm word_similarity for Chinese semantic search
-        search_query = select(KnowledgeEntry).order_by(KnowledgeEntry.updated_at.desc())
-        if user.role != "admin":
-            if user.department_id:
-                search_query = search_query.where(KnowledgeEntry.department_id == user.department_id)
-            else:
-                search_query = search_query.where(KnowledgeEntry.created_by == user.id)
-        # Use word_similarity which handles Chinese better than similarity
-        search_query = search_query.where(
-            (func.word_similarity(KnowledgeEntry.title, search_text) > 0.1)
-            | (func.word_similarity(KnowledgeEntry.content, search_text) > 0.1)
-        ).order_by(func.greatest(func.word_similarity(KnowledgeEntry.title, search_text),
-                                   func.word_similarity(KnowledgeEntry.content, search_text)).desc()).limit(body.top_k)
-        result = await db.execute(search_query)
-        entries = result.scalars().all()
+    # Build knowledge base catalog for LLM to search through
+    if all_entries:
+        catalog_parts = []
+        for i, k in enumerate(all_entries, 1):
+            # Show full content so LLM can do semantic matching
+            catalog_parts.append(f"[{i}] 标题: {k.title}\n内容: {k.content[:2000]}")
+        catalog = "\n\n---\n\n".join(catalog_parts)
+        instruction = f"""以下是公司知识库的全部资料（共{len(all_entries)}篇）。请仔细阅读每篇资料，找出与用户问题相关的资料来回答。
+
+知识库资料：
+{catalog}
+
+请根据以上资料回答用户的问题。回答时：
+1. 只引用真正相关的资料，不相关的忽略
+2. 在回答末尾，用"[来源: 第X篇 {{标题}}]"的格式标注你参考了哪些资料"""
+    else:
+        instruction = "（知识库中暂无资料）"
+
+    # Build user prompt with optional history
+    if body.history:
+        history_str = "\n".join(
+            f"{'👤 用户' if h['role'] == 'user' else '🤖 助手'}：{h['content']}"
+            for h in body.history[-10:]
+        )
+        user_prompt = f"{instruction}\n\n{QA_HISTORY_WRAP_PROMPT.format(history=history_str)}\n\n用户最新问题：{body.question}"
+    else:
+        user_prompt = f"{instruction}\n\n用户问题：{body.question}"
 
     sources = [
         {
             "id": str(k.id), "title": k.title, "content_preview": k.content[:150],
             "source_file_id": str(k.source_file_id) if k.source_file_id else None,
         }
-        for k in entries
+        for k in all_entries
     ]
-
-    if entries:
-        context_parts = [f"[{i}] 【{k.title}】\n{k.content[:1000]}" for i, k in enumerate(entries, 1)]
-        context = "\n\n---\n\n".join(context_parts)
-        user_prompt = f"知识库内容：\n\n{context}\n\n用户问题：{body.question}"
-    else:
-        user_prompt = f"（知识库中未找到与该问题直接相关的资料。）\n\n用户问题：{body.question}"
-
-    if body.history:
-        history_str = "\n".join(
-            f"{'👤 用户' if h['role'] == 'user' else '🤖 助手'}：{h['content']}"
-            for h in body.history[-10:]
-        )
-        prefix = f"知识库内容：\n\n{context}\n\n" if entries else "（知识库中未找到与该问题直接相关的资料。）\n\n"
-        user_prompt = f"{prefix}{QA_HISTORY_WRAP_PROMPT.format(history=history_str)}\n\n用户最新问题：{body.question}"
 
     llm = get_llm()
     try:
