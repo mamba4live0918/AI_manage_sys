@@ -6,7 +6,7 @@ import '../../config/theme.dart';
 import '../../services/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
-import '../../widgets/shimmer.dart';
+
 import '../../widgets/html_frame.dart';
 import '../../utils/app_logger.dart';
 
@@ -261,10 +261,14 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
   }
 
   Future<void> _loadHistory() async {
+    appLog('[HISTORY] _loadHistory() called, setting loading=true');
     setState(() { _loadingHistory = true; _historyError = null; });
     try {
       final resp = await _api.dio.get('/copy/history');
-      setState(() { _history = List<Map<String, dynamic>>.from(resp.data['items']); _loadingHistory = false; });
+      final items = List<Map<String, dynamic>>.from(resp.data['items']);
+      appLog('[HISTORY] _loadHistory() got ${items.length} items, calling setState');
+      setState(() { _history = items; _loadingHistory = false; });
+      appLog('[HISTORY] _loadHistory() setState done, mounted=$mounted');
     } catch (e) {
       appLog('[HISTORY] load error: $e');
       setState(() { _historyError = '$e'; _loadingHistory = false; });
@@ -619,83 +623,75 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
   }
 
   Widget _buildHistoryTab(ThemeData theme, bool isDark) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-          child: Row(
-            children: [
-              Text('${_history.length} 条记录',
-                style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withAlpha(120))),
-              const Spacer(),
-              SizedBox(
-                height: 34,
-                child: FilledButton.tonalIcon(
-                  onPressed: _loadHistory,
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('刷新', style: TextStyle(fontSize: 15)),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+    appLog('[BUILD] _buildHistoryTab called, loading=$_loadingHistory error=$_historyError items=${_history.length}');
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Row(
+          children: [
+            Text('${_history.length} 条记录',
+              style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withAlpha(120))),
+            const Spacer(),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _loadHistory,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('刷新', style: TextStyle(fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        Expanded(
-          child: _loadingHistory
-              ? const Center(child: CircularProgressIndicator())
-              : _historyError != null
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.error_outline, size: 40, color: Colors.red),
-                          const SizedBox(height: 12),
-                          Text('加载失败: $_historyError',
-                            style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          FilledButton(onPressed: _loadHistory, child: const Text('重试')),
-                        ],
-                      ),
-                    )
-                  : _history.isEmpty
-                      ? Center(
-                          child: Text('暂无生成记录',
-                            style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))),
-                        )
-                      : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _history.length,
-                      itemBuilder: (_, i) {
-                        final h = _history[i];
-                        final platform = h['platform_type'] as String? ?? 'wechat';
-                        final topic = h['topic'] as String? ?? '';
-                        final preview = h['content_preview'] as String? ?? '';
-                        final model = h['model'] as String? ?? '';
-                        final createdAt = h['created_at'] as String? ?? '';
-                        final dt = createdAt.isNotEmpty
-                            ? DateTime.tryParse(createdAt)?.toLocal()
-                            : null;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _viewHistoryDetail(h),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                          children: [
+      ),
+      Expanded(
+        child: _loadingHistory
+                ? const Center(child: CircularProgressIndicator())
+                : _historyError != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, size: 40, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Text('加载失败: $_historyError',
+                              style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton(onPressed: _loadHistory, child: const Text('重试')),
+                          ],
+                        ),
+                      )
+                    : _history.isEmpty
+                        ? Center(
+                            child: Text('暂无生成记录',
+                              style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _history.length,
+                            itemBuilder: (_, i) {
+                              final h = _history[i];
+                              final platform = h['platform_type'] as String? ?? 'wechat';
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () => _viewHistoryDetail(h),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(children: [
                                             Expanded(
-                                              child: Text(topic, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                              child: Text(h['topic'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                                             ),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -706,27 +702,20 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
                                               child: Text(_platformNames[platform] ?? platform,
                                                 style: const TextStyle(fontSize: 11, color: AppTheme.purple, fontWeight: FontWeight.w600)),
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          preview.replaceAll('\n', ' '),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(fontSize: 13, height: 1.5, color: theme.colorScheme.onSurface.withAlpha(150)),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          children: [
+                                          ]),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            (h['content_preview'] as String? ?? '').replaceAll('\n', ' '),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(fontSize: 13, height: 1.5, color: theme.colorScheme.onSurface.withAlpha(150)),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(children: [
                                             Icon(Icons.auto_awesome_rounded, size: 12, color: theme.colorScheme.onSurface.withAlpha(80)),
                                             const SizedBox(width: 4),
-                                            Text(model,
+                                            Text(h['model'] ?? '',
                                               style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(100))),
-                                            if (dt != null) ...[
-                                              const SizedBox(width: 12),
-                                              Text('${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
-                                                style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(100))),
-                                            ],
                                             const Spacer(),
                                             GestureDetector(
                                               onTap: () => _editHistory(h),
@@ -751,19 +740,17 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
                                                 child: const Icon(Icons.delete_outline_rounded, size: 15, color: AppTheme.red),
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ],
+                                          ]),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-          ),
-        ],
-      );
+                              );
+                            },
+                          ),
+      ),
+    ]);
   }
 
   Widget _buildFieldLabel(String text) {
@@ -884,17 +871,19 @@ class _HtmlViewState extends State<_HtmlView> {
   @override
   void initState() {
     super.initState();
+    _initWebView();
+  }
+
+  Future<void> _initWebView() async {
     if (!kIsWeb) {
-      _ctrl = WebviewController();
-      _ctrl!.loadStringContent(widget.html).then((_) {
+      try {
+        _ctrl = WebviewController();
+        await _ctrl!.initialize();
+        await _ctrl!.loadStringContent(widget.html);
         if (mounted) setState(() => _ready = true);
-      }).catchError((e) {
+      } catch (e) {
         if (mounted) setState(() { _ready = true; _error = e.toString(); });
-      });
-      // timeout fallback after 5s
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted && !_ready) setState(() => _ready = true);
-      });
+      }
     } else {
       _frame.onClose = widget.onClose;
       _frame.show(widget.html);
