@@ -1,16 +1,17 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File as FastAPIFile
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, PmProject, VisitLog, Courseware, ProjectReport
+from app.models import User, File, PmProject, VisitLog, Courseware, ProjectReport
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
+from app.services.storage import upload_file
 
 router = APIRouter(prefix="/pm", tags=["pm"])
 
@@ -373,6 +374,49 @@ async def create_courseware(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "courseware_create", "courseware", c.id, c.title, request=request)
+    return _courseware_row(c)
+
+
+@router.post("/coursewares/upload")
+async def upload_courseware(
+    file: UploadFile = FastAPIFile(...),
+    title: str = Form(""),
+    type: str = Form("document"),
+    project_id: str = Form(""),
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    content_bytes = await file.read()
+    storage_path = f"coursewares/{uuid.uuid4()}/{file.filename}"
+
+    await upload_file(storage_path, content_bytes, file.content_type or "application/octet-stream")
+
+    file_record = File(
+        name=file.filename,
+        is_folder=False,
+        mime_type=file.content_type or "application/octet-stream",
+        size_bytes=len(content_bytes),
+        storage_path=storage_path,
+        uploaded_by=user.id,
+    )
+    db.add(file_record)
+    await db.commit()
+    await db.refresh(file_record)
+
+    c = Courseware(
+        project_id=uuid.UUID(project_id) if project_id else None,
+        title=title.strip() or file.filename,
+        type=type,
+        content="",
+        file_id=file_record.id,
+        department_id=user.department_id,
+        created_by=user.id,
+    )
+    db.add(c)
+    await db.commit()
+    await db.refresh(c)
+    await audit_log(db, user, "courseware_upload", "courseware", c.id, c.title, request=request)
     return _courseware_row(c)
 
 

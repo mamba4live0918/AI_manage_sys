@@ -165,6 +165,20 @@ def main():
 
     test("GET /pm/coursewares?project_id= — filter by project", filter_coursewares_by_project)
 
+    def _pdf_bytes():
+        # minimal valid PDF
+        return b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 0>>endobj xref\n0 2\n0000000000 65535 f \n0000000009 00000 n \ntrailer<</Size 2/Root 1 0 R>>startxref\n%%EOF"
+
+    def upload_courseware():
+        nonlocal courseware_id
+        r = requests.post(f"{BASE}/pm/coursewares/upload", files={
+            'file': ('test_cw.pdf', _pdf_bytes(), 'application/pdf')
+        }, data={'title': '上传测试课件', 'type': 'slides'}, headers=h)
+        assert r.status_code == 200, f"Upload courseware failed: {r.text}"
+        assert r.json()['file_id'] is not None
+
+    test("POST /pm/coursewares/upload — upload PDF courseware", upload_courseware)
+
     # ═══════════════════════════════════════════
     # HR
     # ═══════════════════════════════════════════
@@ -435,6 +449,15 @@ def main():
         assert r.status_code == 200
 
     test("GET /finance/vouchers?settlement_id= — filter", filter_vouchers_by_settlement)
+
+    def upload_voucher():
+        r = requests.post(f"{BASE}/finance/vouchers/upload", files={
+            'file': ('inv.pdf', _pdf_bytes(), 'application/pdf')
+        }, data={'type': 'receipt', 'description': '上传测试凭证'}, headers=h)
+        assert r.status_code == 200, f"Upload voucher failed: {r.text}"
+        assert r.json()['file_id'] is not None
+
+    test("POST /finance/vouchers/upload — upload PDF voucher", upload_voucher)
 
     # ═══════════════════════════════════════════
     # CLEANUP

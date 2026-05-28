@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File as FastAPIFile
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, Settlement, Expense, Voucher
+from app.models import User, File, Settlement, Expense, Voucher
 from app.security import get_current_user
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
@@ -341,39 +341,44 @@ async def create_voucher(
 
 @router.post("/vouchers/upload")
 async def upload_voucher(
-    settlement_id: str = "",
     file: UploadFile = FastAPIFile(...),
+    type: str = Form("invoice"),
+    description: str = Form(""),
+    settlement_id: str = Form(""),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     content_bytes = await file.read()
-    storage_path = await upload_file(file.filename, content_bytes, file.content_type or "application/octet-stream")
+    storage_path = f"vouchers/{uuid.uuid4()}/{file.filename}"
 
-    from app.models import File as FileModel
-    f = FileModel(
+    await upload_file(storage_path, content_bytes, file.content_type or "application/octet-stream")
+
+    file_record = File(
         name=file.filename,
-        mime_type=file.content_type or "",
+        is_folder=False,
+        mime_type=file.content_type or "application/pdf",
         size_bytes=len(content_bytes),
         storage_path=storage_path,
         uploaded_by=user.id,
     )
-    db.add(f)
-    await db.flush()
+    db.add(file_record)
+    await db.commit()
+    await db.refresh(file_record)
 
     sid = uuid.UUID(settlement_id) if settlement_id else None
     v = Voucher(
         settlement_id=sid,
-        file_id=f.id,
-        type="invoice",
-        description=file.filename,
+        file_id=file_record.id,
+        type=type,
+        description=description.strip() or file.filename,
         department_id=user.department_id,
         created_by=user.id,
     )
     db.add(v)
     await db.commit()
     await db.refresh(v)
-    await audit_log(db, user, "voucher_upload", "voucher", v.id, file.filename, request=request)
+    await audit_log(db, user, "voucher_upload", "voucher", v.id, v.description, request=request)
     return _voucher_row(v)
 
 

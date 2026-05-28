@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
+import '../preview/preview_page.dart';
 
 class FinanceVoucherTab extends StatefulWidget {
   const FinanceVoucherTab({super.key});
@@ -33,17 +36,38 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
     }
   }
 
-  Future<void> _create() async {
-    final descCtrl = TextEditingController();
+  Future<void> _upload() async {
     String type = 'invoice';
+    final descCtrl = TextEditingController();
 
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final picked = result.files.first;
+    if (picked.bytes == null) return;
+
+    descCtrl.text = picked.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (_, setDlg) => AlertDialog(
-          title: const Text('新建凭证'),
+          title: const Text('上传凭证'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(children: [
+                const Icon(Icons.insert_drive_file_rounded, size: 20, color: AppTheme.green),
+                const SizedBox(width: 8),
+                Expanded(child: Text(picked.name, overflow: TextOverflow.ellipsis)),
+                Text('${(picked.size / 1024).toStringAsFixed(0)} KB',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ]),
+              const SizedBox(height: 12),
               InputDecorator(
                 decoration: const InputDecoration(labelText: '类型'),
                 child: DropdownButtonHideUnderline(
@@ -60,23 +84,35 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
+              TextField(controller: descCtrl, maxLines: 2,
+                  decoration: const InputDecoration(labelText: '描述')),
             ]),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('创建')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('上传')),
           ],
         ),
       ),
     );
     if (ok != true) return;
 
-    await _api.dio.post('/finance/vouchers', data: {
-      'type': type,
-      'description': descCtrl.text.trim(),
-    });
-    _load();
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(picked.bytes!, filename: picked.name),
+        'type': type,
+        'description': descCtrl.text.trim(),
+      });
+      await _api.dio.post('/finance/vouchers/upload', data: formData);
+      _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('凭证上传成功')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+      }
+    }
   }
 
   Future<void> _delete(String id) async {
@@ -87,7 +123,8 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
         content: const Text('确定要删除此凭证吗？'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除', style: TextStyle(color: AppTheme.red))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('删除', style: TextStyle(color: AppTheme.red))),
         ],
       ),
     );
@@ -100,21 +137,23 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const typeNames = {'invoice': '发票', 'receipt': '收据', 'contract': '合同', 'other': '其他'};
 
     return Column(children: [
       Padding(
         padding: const EdgeInsets.all(12),
         child: SizedBox(height: 40, child: ElevatedButton.icon(
-          onPressed: _create,
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('新建凭证'),
+          onPressed: _upload,
+          icon: const Icon(Icons.upload_file_rounded, size: 18),
+          label: const Text('上传凭证 (PDF/图片)'),
         )),
       ),
       Expanded(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
-                ? Center(child: Text('暂无凭证', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
+                ? Center(child: Text('暂无凭证',
+                    style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: _items.length,
@@ -123,25 +162,38 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                       final id = v['id'] as String;
                       final type = v['type'] as String? ?? 'invoice';
                       final desc = v['description'] as String? ?? '';
+                      final fileId = v['file_id'] as String?;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFFE8F5E9),
-                            child: Icon(Icons.attach_file_rounded, color: AppTheme.green, size: 20),
+                          leading: CircleAvatar(
+                            backgroundColor: fileId != null ? const Color(0xFFE8F5E9) : const Color(0xFFECEFF1),
+                            child: Icon(
+                              fileId != null ? Icons.picture_as_pdf_rounded : Icons.attach_file_rounded,
+                              color: AppTheme.green, size: 20,
+                            ),
                           ),
-                          title: Text(type, maxLines: 1),
+                          title: Text(typeNames[type] ?? type, maxLines: 1),
                           subtitle: Text(desc, maxLines: 2),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            if (v['file_id'] != null)
-                              Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.green.withAlpha(180)),
+                            if (fileId != null)
+                              IconButton(
+                                icon: const Icon(Icons.visibility_rounded, size: 18, color: AppTheme.blue),
+                                onPressed: () {
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => PreviewPage(fileId: fileId),
+                                  ));
+                                },
+                                tooltip: '预览凭证',
+                              ),
                             PopupMenuButton<String>(
                               icon: const Icon(Icons.more_vert_rounded, size: 18),
                               onSelected: (action) {
                                 if (action == 'delete') _delete(id);
                               },
                               itemBuilder: (_) => [
-                                const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
+                                const PopupMenuItem(value: 'delete',
+                                    child: Text('删除', style: TextStyle(color: AppTheme.red))),
                               ],
                             ),
                           ]),
