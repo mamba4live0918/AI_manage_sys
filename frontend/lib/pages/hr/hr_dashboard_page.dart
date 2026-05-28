@@ -463,7 +463,7 @@ class _RecentActivities extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(_timeAgo(a.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(_timeAgo(a.createdAt), style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ]),
           );
         }),
@@ -514,7 +514,7 @@ class _UpcomingInterviews extends StatelessWidget {
                 ]),
               ),
               if (dateStr.isNotEmpty)
-                Text(dateStr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.blue)),
+                Text(dateStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.blue)),
             ]),
           );
         }),
