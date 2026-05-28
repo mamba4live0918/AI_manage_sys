@@ -371,13 +371,21 @@ class _ApprovalOverview extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
+  void _navigate(BuildContext context, Widget page) {
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+      transitionDuration: const Duration(milliseconds: 200),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final actions = [
-      ('员工管理', Icons.people_rounded, const Color(0xFF667eea), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HrEmployeeListPage()))),
-      ('简历管理', Icons.article_rounded, const Color(0xFFf5576c), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HrResumePage()))),
-      ('审批管理', Icons.fact_check_rounded, const Color(0xFF4facfe), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HrApprovalPage()))),
-      ('面试安排', Icons.event_available_rounded, const Color(0xFF43e97b), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HrInterviewPage()))),
+      ('员工管理', Icons.people_rounded, const Color(0xFF667eea), const HrEmployeeListPage()),
+      ('简历管理', Icons.article_rounded, const Color(0xFFf5576c), const HrResumePage()),
+      ('审批管理', Icons.fact_check_rounded, const Color(0xFF4facfe), const HrApprovalPage()),
+      ('面试安排', Icons.event_available_rounded, const Color(0xFF43e97b), const HrInterviewPage()),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -387,22 +395,25 @@ class _QuickActions extends StatelessWidget {
       ),
       Row(
         children: actions.map((a) {
-          final (label, icon, color, onTap) = a;
+          final (label, icon, color, page) = a;
           return Expanded(
-            child: GestureDetector(
-              onTap: onTap,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Material(
+                color: color.withAlpha(20),
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  color: color.withAlpha(20),
+                  onTap: () => _navigate(context, page),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(children: [
+                      Icon(icon, color: color, size: 28),
+                      const SizedBox(height: 8),
+                      Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+                    ]),
+                  ),
                 ),
-                child: Column(children: [
-                  Icon(icon, color: color, size: 28),
-                  const SizedBox(height: 8),
-                  Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
-                ]),
               ),
             ),
           );
