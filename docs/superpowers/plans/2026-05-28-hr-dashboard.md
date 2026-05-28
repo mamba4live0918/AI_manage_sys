@@ -1,3 +1,393 @@
+# HR Dashboard Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace HR TabBar page with a full dashboard (KPI cards, charts, quick actions, recent activity) + standalone sub-pages.
+
+**Architecture:** New `/hr/dashboard` backend endpoint aggregates data from users/resumes/approvals/interviews/audit_logs. Frontend uses Riverpod provider + fl_chart PieChart, matching PM overview tab patterns. Quick actions navigate to standalone Scaffold pages wrapping existing tab widgets.
+
+**Tech Stack:** FastAPI + SQLAlchemy (backend), Flutter + Riverpod + fl_chart (frontend)
+
+---
+
+### File Map
+
+| File | Action | Responsibility |
+|------|--------|----------------|
+| `backend/app/api/hr.py` | Modify | Add `GET /hr/dashboard` endpoint |
+| `frontend/lib/models/hr_dashboard.dart` | Create | Dashboard data model + fromJson |
+| `frontend/lib/providers/hr_dashboard_provider.dart` | Create | Riverpod StateNotifier for dashboard state |
+| `frontend/lib/pages/hr/hr_dashboard_page.dart` | Rewrite | Full dashboard UI (no TabBar) |
+| `frontend/lib/pages/hr/hr_employee_list_page.dart` | Create | Standalone employee mgmt page |
+| `frontend/lib/pages/hr/hr_resume_page.dart` | Create | Standalone resume page |
+| `frontend/lib/pages/hr/hr_approval_page.dart` | Create | Standalone approval page |
+| `frontend/lib/pages/hr/hr_interview_page.dart` | Create | Standalone interview page |
+
+---
+
+### Task 1: Backend — Add `GET /hr/dashboard` endpoint
+
+**Files:**
+- Modify: `backend/app/api/hr.py`
+
+- [ ] **Step 1: Add dashboard endpoint to hr.py**
+
+Append to `backend/app/api/hr.py`:
+
+```python
+# ── Dashboard ──
+
+@router.get("/dashboard")
+async def get_hr_dashboard(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Aggregated HR dashboard data."""
+    if user.role not in ("admin", "hr"):
+        raise HTTPException(403, "仅HR/管理员可访问")
+
+    dept_filter = []
+    if user.role != "admin" and user.department_id:
+        dept_filter.append(User.department_id == user.department_id)
+
+    # Employee stats
+    emp_base = select(User).where(User.role == "general")
+    for f in dept_filter:
+        emp_base = emp_base.where(f)
+
+    emp_result = await db.execute(emp_base)
+    employees = emp_result.scalars().all()
+    total = len(employees)
+    active = sum(1 for e in employees if e.emp_status == "active")
+    probation = sum(1 for e in employees if e.emp_status == "probation")
+    resigned = sum(1 for e in employees if e.emp_status == "resigned")
+    this_month = sum(1 for e in employees if e.hire_date and e.hire_date.month == _now().month and e.hire_date.year == _now().year)
+
+    dept_counts: dict[str, int] = {}
+    for e in employees:
+        d = e.department or "未分配"
+        dept_counts[d] = dept_counts.get(d, 0) + 1
+    employees_by_department = [{"department": k, "count": v} for k, v in dept_counts.items()]
+
+    employees_by_status = [
+        {"status": "active", "count": active},
+        {"status": "probation", "count": probation},
+        {"status": "resigned", "count": resigned},
+    ]
+
+    # Resume stats
+    resume_base = select(Resume)
+    if user.role != "admin" and user.department_id:
+        resume_base = resume_base.where(Resume.department_id == user.department_id)
+    resume_result = await db.execute(resume_base)
+    resumes = resume_result.scalars().all()
+
+    pending_resumes = sum(1 for r in resumes if r.status == "new")
+    today_resumes = sum(1 for r in resumes if r.created_at and r.created_at.date() == _now().date())
+
+    resume_status_counts: dict[str, int] = {}
+    for r in resumes:
+        s = r.status or "new"
+        resume_status_counts[s] = resume_status_counts.get(s, 0) + 1
+    resumes_by_status = [{"status": k, "count": v} for k, v in resume_status_counts.items()]
+
+    # Approval stats
+    approval_base = select(Approval)
+    if user.role != "admin" and user.department_id:
+        approval_base = approval_base.where(Approval.department_id == user.department_id)
+    approval_result = await db.execute(approval_base)
+    approvals = approval_result.scalars().all()
+
+    pending_approvals = sum(1 for a in approvals if a.status == "pending")
+    approval_type_counts: dict[str, int] = {}
+    for a in approvals:
+        approval_type_counts[a.approval_type] = approval_type_counts.get(a.approval_type, 0) + 1
+    approvals_by_type = [{"type": k, "count": v} for k, v in approval_type_counts.items()]
+
+    # Interview stats
+    interview_base = select(Interview)
+    if user.role != "admin" and user.department_id:
+        interview_base = interview_base.where(Interview.department_id == user.department_id)
+    interview_result = await db.execute(interview_base)
+    interviews = interview_result.scalars().all()
+
+    today_date = _now().date()
+    today_interviews = sum(1 for i in interviews if i.scheduled_at and i.scheduled_at.date() == today_date)
+    week_start = today_date - __import__("datetime").timedelta(days=today_date.weekday())
+    week_end = week_start + __import__("datetime").timedelta(days=6)
+    week_interviews = sum(1 for i in interviews if i.scheduled_at and week_start <= i.scheduled_at.date() <= week_end)
+
+    upcoming = sorted(
+        [i for i in interviews if i.scheduled_at and i.scheduled_at >= _now()],
+        key=lambda x: x.scheduled_at,
+    )[:5]
+    upcoming_interviews = [_interview_row(i) for i in upcoming]
+
+    # Recent HR activities
+    hr_actions = [
+        "resume_create", "resume_upload", "resume_match", "resume_update", "resume_delete",
+        "approval_create", "approval_approved", "approval_rejected",
+        "approval_step_approved", "approval_step_rejected",
+        "interview_create", "interview_update", "interview_delete",
+        "employee_update",
+    ]
+    audit_query = select(AuditLog).where(AuditLog.action.in_(hr_actions)).order_by(AuditLog.created_at.desc()).limit(20)
+    if user.role != "admin" and user.department_id:
+        audit_query = audit_query.where(AuditLog.user_id.in_(
+            select(User.id).where(User.department_id == user.department_id)
+        ))
+    audit_result = await db.execute(audit_query)
+    recent_activities = []
+    for a in audit_result.scalars().all():
+        recent_activities.append({
+            "id": str(a.id),
+            "username": a.username,
+            "action": a.action,
+            "resource_type": a.resource_type,
+            "resource_name": a.resource_name,
+            "detail": a.detail,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        })
+
+    return {
+        "total_employees": total,
+        "active_employees": active,
+        "new_hires_this_month": this_month,
+        "employees_by_department": employees_by_department,
+        "employees_by_status": employees_by_status,
+        "pending_resumes": pending_resumes,
+        "new_resumes_today": today_resumes,
+        "resumes_by_status": resumes_by_status,
+        "pending_approvals": pending_approvals,
+        "approvals_by_type": approvals_by_type,
+        "today_interviews": today_interviews,
+        "week_interviews": week_interviews,
+        "upcoming_interviews": upcoming_interviews,
+        "recent_activities": recent_activities,
+    }
+```
+
+Note: Add `from app.models import AuditLog` if not already imported (check existing imports at top of file — AuditLog may need to be added to the import line).
+
+- [ ] **Step 2: Verify the endpoint returns 200**
+
+```bash
+curl -X GET http://localhost:8001/hr/dashboard -H "Authorization: Bearer <token>"
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/app/api/hr.py
+git commit -m "feat: add GET /hr/dashboard aggregated endpoint"
+```
+
+---
+
+### Task 2: Frontend — Dashboard data model
+
+**Files:**
+- Create: `frontend/lib/models/hr_dashboard.dart`
+
+- [ ] **Step 1: Create the model**
+
+```dart
+class HrDashboardData {
+  final int totalEmployees;
+  final int activeEmployees;
+  final int newHiresThisMonth;
+  final List<DeptCount> employeesByDepartment;
+  final List<StatusCount> employeesByStatus;
+  final int pendingResumes;
+  final int newResumesToday;
+  final List<StatusCount> resumesByStatus;
+  final int pendingApprovals;
+  final List<TypeCount> approvalsByType;
+  final int todayInterviews;
+  final int weekInterviews;
+  final List<UpcomingInterview> upcomingInterviews;
+  final List<Activity> recentActivities;
+
+  HrDashboardData({
+    required this.totalEmployees,
+    required this.activeEmployees,
+    required this.newHiresThisMonth,
+    required this.employeesByDepartment,
+    required this.employeesByStatus,
+    required this.pendingResumes,
+    required this.newResumesToday,
+    required this.resumesByStatus,
+    required this.pendingApprovals,
+    required this.approvalsByType,
+    required this.todayInterviews,
+    required this.weekInterviews,
+    required this.upcomingInterviews,
+    required this.recentActivities,
+  });
+
+  factory HrDashboardData.fromJson(Map<String, dynamic> json) {
+    return HrDashboardData(
+      totalEmployees: json['total_employees'] ?? 0,
+      activeEmployees: json['active_employees'] ?? 0,
+      newHiresThisMonth: json['new_hires_this_month'] ?? 0,
+      employeesByDepartment: (json['employees_by_department'] as List<dynamic>?)
+              ?.map((e) => DeptCount.fromJson(e))
+              .toList() ?? [],
+      employeesByStatus: (json['employees_by_status'] as List<dynamic>?)
+              ?.map((e) => StatusCount.fromJson(e))
+              .toList() ?? [],
+      pendingResumes: json['pending_resumes'] ?? 0,
+      newResumesToday: json['new_resumes_today'] ?? 0,
+      resumesByStatus: (json['resumes_by_status'] as List<dynamic>?)
+              ?.map((e) => StatusCount.fromJson(e))
+              .toList() ?? [],
+      pendingApprovals: json['pending_approvals'] ?? 0,
+      approvalsByType: (json['approvals_by_type'] as List<dynamic>?)
+              ?.map((e) => TypeCount.fromJson(e))
+              .toList() ?? [],
+      todayInterviews: json['today_interviews'] ?? 0,
+      weekInterviews: json['week_interviews'] ?? 0,
+      upcomingInterviews: (json['upcoming_interviews'] as List<dynamic>?)
+              ?.map((e) => UpcomingInterview.fromJson(e))
+              .toList() ?? [],
+      recentActivities: (json['recent_activities'] as List<dynamic>?)
+              ?.map((e) => Activity.fromJson(e))
+              .toList() ?? [],
+    );
+  }
+}
+
+class DeptCount {
+  final String department;
+  final int count;
+  DeptCount({required this.department, required this.count});
+  factory DeptCount.fromJson(Map<String, dynamic> json) =>
+      DeptCount(department: json['department'] ?? '', count: json['count'] ?? 0);
+}
+
+class StatusCount {
+  final String status;
+  final int count;
+  StatusCount({required this.status, required this.count});
+  factory StatusCount.fromJson(Map<String, dynamic> json) =>
+      StatusCount(status: json['status'] ?? '', count: json['count'] ?? 0);
+}
+
+class TypeCount {
+  final String type;
+  final int count;
+  TypeCount({required this.type, required this.count});
+  factory TypeCount.fromJson(Map<String, dynamic> json) =>
+      TypeCount(type: json['type'] ?? '', count: json['count'] ?? 0);
+}
+
+class UpcomingInterview {
+  final String candidateName;
+  final String position;
+  final String? scheduledAt;
+  UpcomingInterview({required this.candidateName, required this.position, this.scheduledAt});
+  factory UpcomingInterview.fromJson(Map<String, dynamic> json) =>
+      UpcomingInterview(
+        candidateName: json['candidate_name'] ?? '',
+        position: json['position'] ?? '',
+        scheduledAt: json['scheduled_at'],
+      );
+}
+
+class Activity {
+  final String username;
+  final String action;
+  final String resourceName;
+  final String? createdAt;
+  Activity({required this.username, required this.action, required this.resourceName, this.createdAt});
+  factory Activity.fromJson(Map<String, dynamic> json) =>
+      Activity(
+        username: json['username'] ?? '',
+        action: json['action'] ?? '',
+        resourceName: json['resource_name'] ?? '',
+        createdAt: json['created_at'],
+      );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add frontend/lib/models/hr_dashboard.dart
+git commit -m "feat: add HR dashboard data model"
+```
+
+---
+
+### Task 3: Frontend — Dashboard provider
+
+**Files:**
+- Create: `frontend/lib/providers/hr_dashboard_provider.dart`
+
+- [ ] **Step 1: Create the provider**
+
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/hr_dashboard.dart';
+import '../services/api_client.dart';
+
+class HrDashboardState {
+  final HrDashboardData? data;
+  final bool loading;
+  final String? error;
+
+  HrDashboardState({this.data, this.loading = false, this.error});
+
+  HrDashboardState copyWith({HrDashboardData? data, bool? loading, String? error}) {
+    return HrDashboardState(
+      data: data ?? this.data,
+      loading: loading ?? this.loading,
+      error: error,
+    );
+  }
+}
+
+class HrDashboardNotifier extends StateNotifier<HrDashboardState> {
+  final ApiClient _api = ApiClient();
+
+  HrDashboardNotifier() : super(HrDashboardState(loading: true));
+
+  Future<void> load() async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final resp = await _api.dio.get('/hr/dashboard');
+      final data = HrDashboardData.fromJson(resp.data);
+      state = state.copyWith(data: data, loading: false);
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+}
+
+final hrDashboardProvider = StateNotifierProvider<HrDashboardNotifier, HrDashboardState>((ref) {
+  return HrDashboardNotifier();
+});
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add frontend/lib/providers/hr_dashboard_provider.dart
+git commit -m "feat: add HR dashboard Riverpod provider"
+```
+
+---
+
+### Task 4: Frontend — Rewrite dashboard page
+
+**Files:**
+- Modify: `frontend/lib/pages/hr/hr_dashboard_page.dart`
+
+- [ ] **Step 1: Replace entire file with dashboard implementation**
+
+Replace the entire content of `hr_dashboard_page.dart` with:
+
+```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -157,8 +547,8 @@ class _KpiCards extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              border: isDark ? Border.all(color: lightGrad[0].withAlpha(40), width: 1) : null,
-              boxShadow: isDark ? [] : [BoxShadow(color: lightGrad[0].withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
+              border: isDark ? Border.all(color: (lightGrad[0] as Color).withAlpha(40), width: 1) : null,
+              boxShadow: isDark ? [] : [BoxShadow(color: (lightGrad[0] as Color).withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,3 +912,108 @@ class _UpcomingInterviews extends StatelessWidget {
     );
   }
 }
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add frontend/lib/pages/hr/hr_dashboard_page.dart
+git commit -m "feat: rewrite HR page as full dashboard with charts + quick actions"
+```
+
+---
+
+### Task 5: Frontend — Create standalone sub-pages (4 files)
+
+**Files:**
+- Create: `frontend/lib/pages/hr/hr_employee_list_page.dart`
+- Create: `frontend/lib/pages/hr/hr_resume_page.dart`
+- Create: `frontend/lib/pages/hr/hr_approval_page.dart`
+- Create: `frontend/lib/pages/hr/hr_interview_page.dart`
+
+- [ ] **Step 1: Create hr_employee_list_page.dart**
+
+```dart
+import 'package:flutter/material.dart';
+import 'hr_user_management_tab.dart';
+
+class HrEmployeeListPage extends StatelessWidget {
+  const HrEmployeeListPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: const Text('员工管理')),
+      body: const HrUserManagementTab(),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create hr_resume_page.dart**
+
+```dart
+import 'package:flutter/material.dart';
+import 'hr_resume_tab.dart';
+
+class HrResumePage extends StatelessWidget {
+  const HrResumePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: const Text('简历管理')),
+      body: const HrResumeTab(),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create hr_approval_page.dart**
+
+```dart
+import 'package:flutter/material.dart';
+import 'hr_approval_tab.dart';
+
+class HrApprovalPage extends StatelessWidget {
+  const HrApprovalPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: const Text('审批管理')),
+      body: const HrApprovalTab(),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Create hr_interview_page.dart**
+
+```dart
+import 'package:flutter/material.dart';
+import 'hr_interview_tab.dart';
+
+class HrInterviewPage extends StatelessWidget {
+  const HrInterviewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: const Text('面试安排')),
+      body: const HrInterviewTab(),
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add frontend/lib/pages/hr/hr_employee_list_page.dart frontend/lib/pages/hr/hr_resume_page.dart frontend/lib/pages/hr/hr_approval_page.dart frontend/lib/pages/hr/hr_interview_page.dart
+git commit -m "feat: add standalone HR sub-pages wrapping existing tabs"
+```

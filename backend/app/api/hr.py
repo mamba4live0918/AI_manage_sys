@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File as FastAPIFile
 from pydantic import BaseModel
@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, File, Resume, Approval, ApprovalStep, Interview
+from app.models import User, File, Resume, Approval, ApprovalStep, Interview, AuditLog
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
@@ -113,7 +113,8 @@ def _step_row(s: ApprovalStep) -> dict:
     }
 
 
-def _approval_row(a: Approval, steps: list[ApprovalStep] | None = None) -> dict:
+def _approval_row(a: Approval, steps: list[ApprovalStep] | None = None,
+                   applicant: User | None = None) -> dict:
     row = {
         "id": str(a.id),
         "approval_type": a.approval_type,
@@ -126,6 +127,14 @@ def _approval_row(a: Approval, steps: list[ApprovalStep] | None = None) -> dict:
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "updated_at": a.updated_at.isoformat() if a.updated_at else None,
     }
+    if applicant:
+        row["applicant"] = {
+            "username": applicant.username,
+            "email": applicant.email,
+            "department": applicant.department or "",
+            "position": applicant.position or "",
+            "emp_status": applicant.emp_status or "active",
+        }
     if steps is not None:
         row["steps"] = [_step_row(s) for s in steps]
     return row
@@ -147,8 +156,6 @@ def _interview_row(i: Interview) -> dict:
         "updated_at": i.updated_at.isoformat() if i.updated_at else None,
     }
 
-
-_WORKFLOW_LEVELS = {"leave": 2, "expense": 3, "regularization": 2}
 
 
 # ── Employee (now merged into users) ──
@@ -336,38 +343,48 @@ async def match_resume(
     if not r.content:
         raise HTTPException(400, "简历无内容可分析")
 
-    prompt = f"""请分析以下简历，返回严格JSON格式（不要Markdown，不要```代码块）。
+    prompt = f"""请严格分析以下简历，返回JSON格式（不要Markdown，不要```代码块）。
 
 简历内容:
 {r.content}
 
-请返回如下JSON结构:
+评分标准（1-10分，正态分布，大多数人落在4-7分）:
+- 1-3分：初级 — 缺乏相关经验或技能，仅满足最低要求
+- 4-6分：合格 — 具备基本能力和一定经验，能满足岗位需求
+- 7-8分：优秀 — 经验丰富、有突出成果，超出多数同类候选人
+- 9-10分：卓越 — 行业顶尖水平，有显著成就和影响力（极少使用）
+
+请返回如下JSON结构，每项评分必须附带简短证据:
 {{
   "scores": {{
-    "专业技能": 8,
-    "工作经验": 7,
-    "项目经验": 8,
-    "教育背景": 6,
-    "沟通协作": 7,
-    "学习能力": 7
+    "专业技能": {{"score": 5, "evidence": "掌握Python/Java，但无大规模分布式系统经验"}},
+    "工作经验": {{"score": 4, "evidence": "3年工作经验，无团队管理经历"}},
+    "项目经验": {{"score": 6, "evidence": "参与过2个中型项目，独立负责过核心模块"}},
+    "教育背景": {{"score": 5, "evidence": "本科计算机专业，无知名院校背景"}},
+    "沟通协作": {{"score": 5, "evidence": "有跨部门协作经验，但未担任过项目负责人"}},
+    "学习能力": {{"score": 5, "evidence": "自学过新技术但无公开发表或开源贡献"}}
   }},
-  "strengths": "候选人的核心优势描述，2-3句话",
+  "strengths": "候选人的核心优势，2-3句话，要具体不空泛",
+  "weaknesses": "候选人的明显短板或风险点，2-3句话",
+  "summary": "综合评价2-3句话，概述候选人整体匹配度与核心结论",
   "department_matches": [
-    {{"department": "技术部", "score": 85, "reason": "匹配理由一句话"}},
-    {{"department": "市场部", "score": 60, "reason": "匹配理由一句话"}}
+    {{"department": "技术部", "score": 65, "reason": "技术栈匹配度较高，但架构能力不足"}},
+    {{"department": "市场部", "score": 35, "reason": "无市场相关经验"}}
   ],
-  "recommended_salary": "15k-20k/月",
-  "summary": "综合评价2-3句话，包含总体评分（0-100分）"
+  "recommended_salary": "基于市场行情和候选人水平的薪资建议（如'12k-18k/月'）",
+  "overall_score": 55
 }}
 
 注意:
-- scores中每项1-10分
-- department_matches列出2-3个最匹配的部门，score为0-100匹配度
-- recommended_salary基于经验和能力给出薪资建议
+- scores中每项评分必须附带evidence，说明评分依据
+- 整体评分请客观，不要随便给高分
+- overall_score为0-100的综合评分，要与各维度评分一致（大致为各维度均分×10）
+- department_matches列出2-3个部门，score为0-100匹配度，70以上才算匹配
+- recommended_salary要实事求是，不要虚高
 - 只返回JSON，不要其他内容"""
 
     llm = get_llm()
-    resp = await llm.generate(system_prompt="你是一个专业的HR招聘顾问。请严格按JSON格式返回分析结果，不要任何Markdown标记。", user_prompt=prompt)
+    resp = await llm.generate(system_prompt="你是一个严谨专业的HR招聘顾问。请客观评估，依据简历事实打分，避免虚高。多数候选人应在4-7分区间。严格按JSON格式返回分析结果，不要Markdown标记。", user_prompt=prompt)
     result_text = resp.content.strip()
     if result_text.startswith("```"):
         result_text = result_text.split("\n", 1)[-1].rsplit("\n```", 1)[0] if "\n```" in result_text else result_text.split("```", 1)[-1].rsplit("```", 1)[0]
@@ -379,14 +396,27 @@ async def match_resume(
         analysis = json.loads(result_text)
         scores = analysis.get("scores", {})
         if scores:
-            score = sum(scores.values()) / len(scores) * 10.0
-        summary = analysis.get("summary", "")
-        import re
-        nums = re.findall(r"(\d+)", summary)
-        if nums:
-            score = float(nums[0]) if 0 < float(nums[0]) <= 100 else score
+            score_values = []
+            for v in scores.values():
+                if isinstance(v, dict):
+                    score_values.append(v.get("score", 5))
+                elif isinstance(v, (int, float)):
+                    score_values.append(v)
+            if score_values:
+                score = sum(score_values) / len(score_values) * 10.0
+        if "overall_score" in analysis:
+            overall = analysis["overall_score"]
+            if isinstance(overall, (int, float)) and 0 < overall <= 100:
+                score = float(overall)
+        elif "summary" in analysis:
+            import re
+            nums = re.findall(r"(\d+)", analysis["summary"])
+            if nums:
+                s = float(nums[0])
+                if 0 < s <= 100:
+                    score = s
     except Exception:
-        analysis = {"scores": {}, "strengths": "", "department_matches": [], "recommended_salary": "", "summary": result_text}
+        analysis = {"scores": {}, "strengths": "", "weaknesses": "", "department_matches": [], "recommended_salary": "", "summary": result_text}
 
     r.match_score = score
     r.match_result = result_text
@@ -432,10 +462,16 @@ async def list_approvals(
         query = query.where(Approval.status == status)
     result = await db.execute(query.offset(offset).limit(limit))
     approvals = result.scalars().all()
+
+    applicant_ids = [a.applicant_id for a in approvals if a.applicant_id]
+    applicant_map: dict[uuid.UUID, User] = {}
+    if applicant_ids:
+        user_result = await db.execute(select(User).where(User.id.in_(applicant_ids)))
+        applicant_map = {u.id: u for u in user_result.scalars().all()}
+
     items = []
     for a in approvals:
-        steps = await _load_steps(a.id, db)
-        items.append(_approval_row(a, steps))
+        items.append(_approval_row(a, None, applicant=applicant_map.get(a.applicant_id)))
     return {"items": items}
 
 
@@ -454,15 +490,8 @@ async def create_approval(
         department_id=user.department_id,
     )
     db.add(a)
-    await db.flush()
-
-    num_levels = _WORKFLOW_LEVELS.get(body.approval_type, 1)
-    for level in range(1, num_levels + 1):
-        db.add(ApprovalStep(approval_id=a.id, level=level))
-
     await db.commit()
     await db.refresh(a)
-    steps = await _load_steps(a.id, db)
     await audit_log(db, user, "approval_create", "approval", a.id, a.approval_type, request=request)
     return _approval_row(a, steps)
 
@@ -489,7 +518,6 @@ async def handle_approval(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Legacy endpoint — approves/rejects the first pending step."""
     result = await db.execute(select(Approval).where(Approval.id == approval_id))
     a = result.scalar_one_or_none()
     if not a:
@@ -497,34 +525,14 @@ async def handle_approval(
     if body.status not in ("approved", "rejected"):
         raise HTTPException(400, "状态必须是 approved 或 rejected")
 
-    if a.status != "pending":
-        raise HTTPException(400, "审批已处理，无法重复操作")
-
-    steps = await _load_steps(a.id, db)
-    current_step = next((s for s in steps if s.status == "pending"), None)
-    if not current_step:
-        raise HTTPException(400, "没有待处理的审批步骤")
-
-    current_step.status = body.status
-    current_step.comment = body.comment
-    current_step.approver_id = user.id
-    current_step.updated_at = _now()
-
-    if body.status == "rejected":
-        a.status = "rejected"
-    else:
-        next_step = next((s for s in steps if s.level > current_step.level and s.status == "pending"), None)
-        if next_step is None:
-            a.status = "approved"
-
-    a.approver_id = user.id
+    a.status = body.status
     a.comment = body.comment
+    a.approver_id = user.id
     a.updated_at = _now()
     await db.commit()
     await db.refresh(a)
-    steps = await _load_steps(a.id, db)
     await audit_log(db, user, f"approval_{body.status}", "approval", a.id, a.approval_type, request=request)
-    return _approval_row(a, steps)
+    return _approval_row(a, None)
 
 
 @router.put("/approvals/{approval_id}/steps/{step_id}")
@@ -705,3 +713,134 @@ async def delete_interview(
     await db.commit()
     await audit_log(db, user, "interview_delete", "interview", i.id, i.candidate_name, request=request)
     return {"ok": True}
+
+
+# ── Dashboard ──
+
+@router.get("/dashboard")
+async def get_hr_dashboard(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role not in ("admin", "hr"):
+        raise HTTPException(403, "仅HR/管理员可访问")
+
+    dept_filter = []
+    if user.role != "admin" and user.department_id:
+        dept_filter.append(User.department_id == user.department_id)
+
+    # Employee stats
+    emp_base = select(User).where(User.role == "general")
+    for f in dept_filter:
+        emp_base = emp_base.where(f)
+
+    emp_result = await db.execute(emp_base)
+    employees = emp_result.scalars().all()
+    total = len(employees)
+    active = sum(1 for e in employees if e.emp_status == "active")
+    probation = sum(1 for e in employees if e.emp_status == "probation")
+    resigned = sum(1 for e in employees if e.emp_status == "resigned")
+    this_month = sum(1 for e in employees if e.hire_date and e.hire_date.month == _now().month and e.hire_date.year == _now().year)
+
+    dept_counts: dict[str, int] = {}
+    for e in employees:
+        d = e.department or "未分配"
+        dept_counts[d] = dept_counts.get(d, 0) + 1
+    employees_by_department = [{"department": k, "count": v} for k, v in dept_counts.items()]
+
+    employees_by_status = [
+        {"status": "active", "count": active},
+        {"status": "probation", "count": probation},
+        {"status": "resigned", "count": resigned},
+    ]
+
+    # Resume stats
+    resume_base = select(Resume)
+    if user.role != "admin" and user.department_id:
+        resume_base = resume_base.where(Resume.department_id == user.department_id)
+    resume_result = await db.execute(resume_base)
+    resumes = resume_result.scalars().all()
+
+    pending_resumes = sum(1 for r in resumes if r.status == "new")
+    today_resumes = sum(1 for r in resumes if r.created_at and r.created_at.date() == _now().date())
+
+    resume_status_counts: dict[str, int] = {}
+    for r in resumes:
+        s = r.status or "new"
+        resume_status_counts[s] = resume_status_counts.get(s, 0) + 1
+    resumes_by_status = [{"status": k, "count": v} for k, v in resume_status_counts.items()]
+
+    # Approval stats
+    approval_base = select(Approval)
+    if user.role != "admin" and user.department_id:
+        approval_base = approval_base.where(Approval.department_id == user.department_id)
+    approval_result = await db.execute(approval_base)
+    approvals = approval_result.scalars().all()
+
+    pending_approvals = sum(1 for a in approvals if a.status == "pending")
+    approval_type_counts: dict[str, int] = {}
+    for a in approvals:
+        approval_type_counts[a.approval_type] = approval_type_counts.get(a.approval_type, 0) + 1
+    approvals_by_type = [{"type": k, "count": v} for k, v in approval_type_counts.items()]
+
+    # Interview stats
+    interview_base = select(Interview)
+    if user.role != "admin" and user.department_id:
+        interview_base = interview_base.where(Interview.department_id == user.department_id)
+    interview_result = await db.execute(interview_base)
+    interviews = interview_result.scalars().all()
+
+    today_date = _now().date()
+    today_interviews = sum(1 for i in interviews if i.scheduled_at and i.scheduled_at.date() == today_date)
+    week_start = today_date - timedelta(days=today_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    week_interviews = sum(1 for i in interviews if i.scheduled_at and week_start <= i.scheduled_at.date() <= week_end)
+
+    upcoming = sorted(
+        [i for i in interviews if i.scheduled_at and i.scheduled_at >= _now()],
+        key=lambda x: x.scheduled_at,
+    )[:5]
+    upcoming_interviews = [_interview_row(i) for i in upcoming]
+
+    # Recent HR activities
+    hr_actions = [
+        "resume_create", "resume_upload", "resume_match", "resume_update", "resume_delete",
+        "approval_create", "approval_approved", "approval_rejected",
+        "approval_step_approved", "approval_step_rejected",
+        "interview_create", "interview_update", "interview_delete",
+        "employee_update",
+    ]
+    audit_query = select(AuditLog).where(AuditLog.action.in_(hr_actions)).order_by(AuditLog.created_at.desc()).limit(20)
+    if user.role != "admin" and user.department_id:
+        audit_query = audit_query.where(AuditLog.user_id.in_(
+            select(User.id).where(User.department_id == user.department_id)
+        ))
+    audit_result = await db.execute(audit_query)
+    recent_activities = []
+    for a in audit_result.scalars().all():
+        recent_activities.append({
+            "id": str(a.id),
+            "username": a.username,
+            "action": a.action,
+            "resource_type": a.resource_type,
+            "resource_name": a.resource_name,
+            "detail": a.detail,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        })
+
+    return {
+        "total_employees": total,
+        "active_employees": active,
+        "new_hires_this_month": this_month,
+        "employees_by_department": employees_by_department,
+        "employees_by_status": employees_by_status,
+        "pending_resumes": pending_resumes,
+        "new_resumes_today": today_resumes,
+        "resumes_by_status": resumes_by_status,
+        "pending_approvals": pending_approvals,
+        "approvals_by_type": approvals_by_type,
+        "today_interviews": today_interviews,
+        "week_interviews": week_interviews,
+        "upcoming_interviews": upcoming_interviews,
+        "recent_activities": recent_activities,
+    }
