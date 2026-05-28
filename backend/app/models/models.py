@@ -539,6 +539,25 @@ class ApprovalStep(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
 
 
+# ── Phase 4: Interview Scheduling ──
+
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    position: Mapped[str] = mapped_column(String(128), default="")
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    status: Mapped[str] = mapped_column(String(32), default="scheduled")
+    interviewer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
+
+
 # ── Phase 4: Finance ──
 
 class Settlement(Base):

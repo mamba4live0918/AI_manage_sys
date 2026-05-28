@@ -585,6 +585,66 @@ def main():
     test("DELETE /hr/approvals/{id}", delete_approval)
 
     # ═══════════════════════════════════════════
+    # HR: Interview Scheduling
+    # ═══════════════════════════════════════════
+    print("\n--- HR: Interviews ---")
+
+    def create_interview():
+        r = requests.post(f"{BASE}/hr/interviews", json={
+            "candidate_name": "Zhang San",
+            "position": "Frontend Engineer",
+            "scheduled_at": "2026-06-01T10:00:00",
+            "duration_minutes": 45,
+            "notes": "Technical interview",
+        }, headers=h)
+        assert r.status_code == 200, f"Status {r.status_code}: {r.text[:200]}"
+        data = r.json()
+        CREATED["interview_id"] = data["id"]
+        assert data["status"] == "scheduled"
+
+    test("POST /hr/interviews — create", create_interview)
+
+    def list_interviews():
+        r = requests.get(f"{BASE}/hr/interviews", headers=h)
+        assert r.status_code == 200
+        assert len(r.json()["items"]) >= 1
+
+    test("GET /hr/interviews — list", list_interviews)
+
+    def get_interview():
+        iid = CREATED.get("interview_id")
+        r = requests.get(f"{BASE}/hr/interviews/{iid}", headers=h)
+        assert r.status_code == 200
+        assert r.json()["candidate_name"] == "Zhang San"
+
+    test("GET /hr/interviews/{id} — get", get_interview)
+
+    def update_interview():
+        iid = CREATED.get("interview_id")
+        r = requests.put(f"{BASE}/hr/interviews/{iid}", json={
+            "candidate_name": "Zhang San Updated",
+            "status": "completed",
+        }, headers=h)
+        assert r.status_code == 200
+        assert r.json()["status"] == "completed"
+
+    test("PUT /hr/interviews/{id} — update", update_interview)
+
+    def filter_interviews():
+        r = requests.get(f"{BASE}/hr/interviews", params={"status": "completed"}, headers=h)
+        assert r.status_code == 200
+        assert len(r.json()["items"]) >= 1
+
+    test("GET /hr/interviews?status=completed — filter", filter_interviews)
+
+    def delete_interview():
+        iid = CREATED.get("interview_id")
+        r = requests.delete(f"{BASE}/hr/interviews/{iid}", headers=h)
+        assert r.status_code == 200
+
+    test("DELETE /hr/interviews/{id} — delete", delete_interview)
+
+    # ═══════════════════════════════════════════
     # Search API
     # ═══════════════════════════════════════════
     print("\n--- Search API ---")

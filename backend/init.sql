@@ -227,6 +227,25 @@ CREATE TABLE IF NOT EXISTS approval_steps (
 );
 CREATE INDEX IF NOT EXISTS idx_approval_steps_approval ON approval_steps(approval_id);
 
+-- ── Phase 4: Interview Scheduling ──
+
+CREATE TABLE IF NOT EXISTS interviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    candidate_name VARCHAR(128) NOT NULL,
+    position VARCHAR(128) DEFAULT '',
+    scheduled_at TIMESTAMPTZ,
+    duration_minutes INTEGER DEFAULT 30,
+    status VARCHAR(32) DEFAULT 'scheduled',
+    interviewer_id UUID REFERENCES users(id),
+    notes TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_interview_dept ON interviews(department_id);
+CREATE INDEX IF NOT EXISTS idx_interview_scheduled ON interviews(scheduled_at);
+
 -- ── Phase 4: Finance ──
 
 CREATE TABLE IF NOT EXISTS settlements (

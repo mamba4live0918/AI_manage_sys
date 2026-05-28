@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, Employee, File, Resume, Approval, ApprovalStep
+from app.models import User, Employee, File, Resume, Approval, ApprovalStep, Interview
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
@@ -70,6 +70,25 @@ class ApprovalAction(BaseModel):
 class ApprovalStepAction(BaseModel):
     status: str  # approved or rejected
     comment: str = ""
+
+
+class InterviewCreate(BaseModel):
+    candidate_name: str
+    position: str = ""
+    scheduled_at: str | None = None
+    duration_minutes: int = 30
+    interviewer_id: str | None = None
+    notes: str = ""
+
+
+class InterviewUpdate(BaseModel):
+    candidate_name: str | None = None
+    position: str | None = None
+    scheduled_at: str | None = None
+    duration_minutes: int | None = None
+    status: str | None = None
+    interviewer_id: str | None = None
+    notes: str | None = None
 
 
 # ── Row Serializers ──
@@ -135,6 +154,23 @@ def _approval_row(a: Approval, steps: list[ApprovalStep] | None = None) -> dict:
     if steps is not None:
         row["steps"] = [_step_row(s) for s in steps]
     return row
+
+
+def _interview_row(i: Interview) -> dict:
+    return {
+        "id": str(i.id),
+        "candidate_name": i.candidate_name,
+        "position": i.position,
+        "scheduled_at": i.scheduled_at.isoformat() if i.scheduled_at else None,
+        "duration_minutes": i.duration_minutes,
+        "status": i.status,
+        "interviewer_id": str(i.interviewer_id) if i.interviewer_id else None,
+        "notes": i.notes,
+        "department_id": str(i.department_id) if i.department_id else None,
+        "created_by": str(i.created_by) if i.created_by else None,
+        "created_at": i.created_at.isoformat() if i.created_at else None,
+        "updated_at": i.updated_at.isoformat() if i.updated_at else None,
+    }
 
 
 _WORKFLOW_LEVELS = {"leave": 2, "expense": 3, "regularization": 2}
@@ -631,4 +667,112 @@ async def delete_approval(
     await db.delete(a)
     await db.commit()
     await audit_log(db, user, "approval_delete", "approval", a.id, a.approval_type, request=request)
+    return {"ok": True}
+
+
+# ── Interviews ──
+
+@router.get("/interviews")
+async def list_interviews(
+    status: str = "",
+    from_date: str = "",
+    to_date: str = "",
+    offset: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    query = select(Interview)
+    if user.role != "admin":
+        query = query.where(Interview.department_id == user.department_id)
+    if status:
+        query = query.where(Interview.status == status)
+    if from_date:
+        query = query.where(Interview.scheduled_at >= datetime.fromisoformat(from_date))
+    if to_date:
+        query = query.where(Interview.scheduled_at <= datetime.fromisoformat(to_date))
+    query = query.order_by(Interview.scheduled_at.is_(None), Interview.scheduled_at.asc(), Interview.created_at.desc())
+    result = await db.execute(query.offset(offset).limit(limit))
+    return {"items": [_interview_row(i) for i in result.scalars().all()]}
+
+
+@router.post("/interviews")
+async def create_interview(
+    body: InterviewCreate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    scheduled = datetime.fromisoformat(body.scheduled_at) if body.scheduled_at else None
+    interviewer_id = uuid.UUID(body.interviewer_id) if body.interviewer_id else None
+    i = Interview(
+        candidate_name=body.candidate_name,
+        position=body.position,
+        scheduled_at=scheduled,
+        duration_minutes=body.duration_minutes,
+        interviewer_id=interviewer_id,
+        notes=body.notes,
+        department_id=user.department_id,
+        created_by=user.id,
+    )
+    db.add(i)
+    await db.commit()
+    await db.refresh(i)
+    await audit_log(db, user, "interview_create", "interview", i.id, i.candidate_name, request=request)
+    return _interview_row(i)
+
+
+@router.get("/interviews/{interview_id}")
+async def get_interview(
+    interview_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Interview).where(Interview.id == interview_id))
+    i = result.scalar_one_or_none()
+    if not i:
+        raise HTTPException(404, "面试不存在")
+    return _interview_row(i)
+
+
+@router.put("/interviews/{interview_id}")
+async def update_interview(
+    interview_id: str,
+    body: InterviewUpdate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Interview).where(Interview.id == interview_id))
+    i = result.scalar_one_or_none()
+    if not i:
+        raise HTTPException(404, "面试不存在")
+    for k, v in body.model_dump(exclude_none=True).items():
+        if k == "scheduled_at" and v is not None:
+            setattr(i, k, datetime.fromisoformat(v) if v else None)
+        elif k == "interviewer_id" and v is not None:
+            setattr(i, k, uuid.UUID(v) if v else None)
+        elif v is not None:
+            setattr(i, k, v)
+    i.updated_at = _now()
+    await db.commit()
+    await db.refresh(i)
+    await audit_log(db, user, "interview_update", "interview", i.id, i.candidate_name, request=request)
+    return _interview_row(i)
+
+
+@router.delete("/interviews/{interview_id}")
+async def delete_interview(
+    interview_id: str,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Interview).where(Interview.id == interview_id))
+    i = result.scalar_one_or_none()
+    if not i:
+        raise HTTPException(404, "面试不存在")
+    await db.delete(i)
+    await db.commit()
+    await audit_log(db, user, "interview_delete", "interview", i.id, i.candidate_name, request=request)
     return {"ok": True}

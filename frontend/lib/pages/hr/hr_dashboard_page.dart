@@ -5,6 +5,7 @@ import '../../widgets/watermark.dart';
 import 'hr_employee_list_tab.dart';
 import 'hr_resume_tab.dart';
 import 'hr_approval_tab.dart';
+import 'hr_interview_tab.dart';
 
 class HrDashboardPage extends ConsumerStatefulWidget {
   const HrDashboardPage({super.key});
@@ -20,7 +21,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -47,6 +48,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage>
               Tab(text: '员工'),
               Tab(text: '简历'),
               Tab(text: '审批'),
+              Tab(text: '面试'),
             ],
           ),
         ),
@@ -56,6 +58,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage>
             HrEmployeeListTab(),
             HrResumeTab(),
             HrApprovalTab(),
+            HrInterviewTab(),
           ],
         ),
       ),

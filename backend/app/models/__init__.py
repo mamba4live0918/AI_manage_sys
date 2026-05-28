@@ -15,6 +15,8 @@ from app.models.models import (
     PmProject, VisitLog, Courseware, ProjectReport,
     # Phase 4: HR
     Employee, Resume, Approval, ApprovalStep,
+    # Phase 4: Interview
+    Interview,
     # Phase 4: Finance
     Settlement, Expense, Voucher,
 )
@@ -31,5 +33,6 @@ __all__ = [
     "BiddingProcess", "Supplier", "Instructor",
     "PmProject", "VisitLog", "Courseware", "ProjectReport",
     "Employee", "Resume", "Approval", "ApprovalStep",
+    "Interview",
     "Settlement", "Expense", "Voucher",
 ]
