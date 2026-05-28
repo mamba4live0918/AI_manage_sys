@@ -265,40 +265,51 @@ class _ChartsRow extends StatelessWidget {
               const SizedBox(height: 16),
               SizedBox(
                 height: 205,
-                child: PieChart(
-                  PieChartData(
-                    sections: data.employeesByStatus.asMap().entries.map((e) {
-                      final color = _statusColor[e.key] ?? AppTheme.blue;
-                      final total = data.employeesByStatus.fold<int>(0, (s, st) => s + st.count);
-                      final pct = total > 0 ? e.value.count / total : 0.0;
-                      return PieChartSectionData(
-                        value: e.value.count.toDouble(),
-                        color: color,
-                        title: pct > 0.1 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
-                        radius: 45,
-                        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
-                      );
-                    }).toList(),
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 25,
+                child: Row(children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sections: data.employeesByStatus.asMap().entries.map((e) {
+                          final color = _statusColor[e.key] ?? AppTheme.blue;
+                          final total = data.employeesByStatus.fold<int>(0, (s, st) => s + st.count);
+                          final pct = total > 0 ? e.value.count / total : 0.0;
+                          return PieChartSectionData(
+                            value: e.value.count.toDouble(),
+                            color: color,
+                            title: pct > 0.1 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
+                            radius: 40,
+                            titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                          );
+                        }).toList(),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 22,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: data.employeesByStatus.asMap().entries.map((e) {
+                        final color = _statusColor[e.key] ?? AppTheme.blue;
+                        final label = _statusLabel[e.value.status] ?? e.value.status;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(children: [
+                            Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+                            const SizedBox(width: 6),
+                            Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
+                            const Spacer(),
+                            Text('${e.value.count}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+                          ]),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ]),
               ),
-              const SizedBox(height: 8),
-              ...data.employeesByStatus.asMap().entries.map((e) {
-                final color = _statusColor[e.key] ?? AppTheme.blue;
-                final label = _statusLabel[e.value.status] ?? e.value.status;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(children: [
-                    Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-                    const SizedBox(width: 6),
-                    Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
-                    const Spacer(),
-                    Text('${e.value.count}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
-                  ]),
-                );
-              }),
             ]),
           ),
         ),
