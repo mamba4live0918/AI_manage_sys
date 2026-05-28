@@ -18,6 +18,7 @@ from app.services.llm.base import LLMConfig
 from app.services.file_extractor import extract_text
 from app.services.storage import upload_file, get_presigned_url, delete_file
 from app.services.audit import log as audit_log
+from app.services.search import index_document as es_index, delete_document as es_delete
 
 router = APIRouter(prefix="/marketing", tags=["marketing"])
 
@@ -224,6 +225,7 @@ async def create_customer(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "customer_create", "customer", c.id, c.name, "success", request=request)
+    await es_index(str(c.id), "customers", c.name, c.notes or "", extra=c.industry or "", department_id=str(user.department_id) if user.department_id else None)
     return _customer_row(c)
 
 
@@ -251,6 +253,7 @@ async def update_customer(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "customer_update", "customer", c.id, c.name, "success", request=request)
+    await es_index(str(c.id), "customers", c.name, c.notes or "", extra=c.industry or "", department_id=str(user.department_id) if user.department_id else None)
     return _customer_row(c)
 
 
@@ -265,6 +268,7 @@ async def delete_customer(
     await db.delete(c)
     await db.commit()
     await audit_log(db, user, "customer_delete", "customer", c.id, c.name, "success", request=request)
+    await es_delete(str(c.id), "customers")
     return {"message": "已删除"}
 
 
@@ -756,6 +760,7 @@ async def generate_proposal(
     await db.refresh(p)
 
     await audit_log(db, user, "proposal_generate", "marketing_proposal", p.id, p.title, "success", f"model={resp.model}", request=request)
+    await es_index(str(p.id), "proposals", p.title, p.content or "", extra=p.status or "", department_id=str(user.department_id) if user.department_id else None)
     return {
         "id": str(p.id),
         "title": p.title,
@@ -814,6 +819,7 @@ async def update_proposal(
     await db.commit()
     await db.refresh(p)
     await audit_log(db, user, "proposal_update", "marketing_proposal", p.id, p.title, "success", request=request)
+    await es_index(str(p.id), "proposals", p.title, p.content or "", extra=p.status or "", department_id=str(p.department_id) if p.department_id else None)
     return {"message": "已更新"}
 
 
@@ -833,6 +839,7 @@ async def delete_proposal(
     await db.delete(p)
     await db.commit()
     await audit_log(db, user, "proposal_delete", "marketing_proposal", p.id, p.title, "success", request=request)
+    await es_delete(str(p.id), "proposals")
     return {"message": "已删除"}
 
 
@@ -1215,6 +1222,7 @@ async def create_knowledge(
     await db.commit()
     await db.refresh(k)
     await audit_log(db, user, "knowledge_create", "knowledge_entry", k.id, k.title, "success", request=request)
+    await es_index(str(k.id), "marketing_knowledge", k.title, k.content or "", extra=", ".join(k.tags) if k.tags else "", department_id=str(user.department_id) if user.department_id else None)
     return _knowledge_row(k)
 
 
@@ -1261,6 +1269,7 @@ async def upload_knowledge(
     await db.refresh(k)
 
     await audit_log(db, user, "knowledge_upload", "knowledge_entry", k.id, k.title, "success", f"file={file.filename}", request=request)
+    await es_index(str(k.id), "marketing_knowledge", k.title, k.content or "", extra=", ".join(k.tags) if k.tags else "", department_id=str(user.department_id) if user.department_id else None)
     return _knowledge_row(k)
 
 
@@ -1323,6 +1332,7 @@ async def update_knowledge(
     await db.commit()
     await db.refresh(k)
     await audit_log(db, user, "knowledge_update", "knowledge_entry", k.id, k.title, "success", request=request)
+    await es_index(str(k.id), "marketing_knowledge", k.title, k.content or "", extra=", ".join(k.tags) if k.tags else "", department_id=str(user.department_id) if user.department_id else None)
     return _knowledge_row(k)
 
 
@@ -1340,6 +1350,7 @@ async def delete_knowledge(
     await db.delete(k)
     await db.commit()
     await audit_log(db, user, "knowledge_delete", "knowledge_entry", k.id, k.title, "success", request=request)
+    await es_delete(str(k.id), "marketing_knowledge")
     return {"message": "已删除"}
 
 

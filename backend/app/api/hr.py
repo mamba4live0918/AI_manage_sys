@@ -11,6 +11,7 @@ from app.models import User, Employee, File, Resume, Approval, ApprovalStep
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
+from app.services.search import index_document as es_index, delete_document as es_delete
 from app.services.file_extractor import extract_text
 from app.services.storage import upload_file
 
@@ -184,6 +185,7 @@ async def create_employee(
     await db.commit()
     await db.refresh(e)
     await audit_log(db, user, "employee_create", "employee", e.id, e.name, request=request)
+    await es_index(str(e.id), "employees", e.name, e.notes or "", extra=e.position or "", department_id=str(user.department_id) if user.department_id else None)
     return _employee_row(e)
 
 
@@ -221,6 +223,7 @@ async def update_employee(
     await db.commit()
     await db.refresh(e)
     await audit_log(db, user, "employee_update", "employee", e.id, e.name, request=request)
+    await es_index(str(e.id), "employees", e.name, e.notes or "", extra=e.position or "", department_id=str(user.department_id) if user.department_id else None)
     return _employee_row(e)
 
 
@@ -238,6 +241,7 @@ async def delete_employee(
     await db.delete(e)
     await db.commit()
     await audit_log(db, user, "employee_delete", "employee", e.id, e.name, request=request)
+    await es_delete(str(e.id), "employees")
     return {"ok": True}
 
 
@@ -282,6 +286,7 @@ async def create_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_create", "resume", r.id, r.name, request=request)
+    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -323,6 +328,7 @@ async def upload_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_upload", "resume", r.id, r.name, request=request)
+    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -357,6 +363,7 @@ async def update_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_update", "resume", r.id, r.name, request=request)
+    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -374,6 +381,7 @@ async def delete_resume(
     await db.delete(r)
     await db.commit()
     await audit_log(db, user, "resume_delete", "resume", r.id, r.name, request=request)
+    await es_delete(str(r.id), "resumes")
     return {"ok": True}
 
 

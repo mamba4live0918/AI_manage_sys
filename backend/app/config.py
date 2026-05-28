@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "ai-manage-files"
     MINIO_SECURE: bool = False
 
+    # ── Elasticsearch ──
+    ES_URL: str = "http://localhost:9200"
+
     # ── 权限 ──
     ROLE_CLEARANCE: dict = {
         "admin": 3,

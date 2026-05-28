@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import 'search_dialog.dart';
 
 const _moduleConfig = <String, _NavItem>{
   'dashboard': (Icons.home_rounded, Icons.home_outlined, '首页', '/dashboard'),
@@ -112,6 +113,15 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                       ),
                       if (!collapsed) ...[
                         const SizedBox(height: 8),
+                        _SidebarAction(
+                          icon: Icons.search_rounded,
+                          label: '搜索',
+                          onTap: () => showDialog(
+                            context: context,
+                            builder: (_) => const SearchDialog(),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
                         _SidebarAction(
                           icon: isDark
                               ? Icons.light_mode_rounded

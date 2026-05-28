@@ -20,6 +20,7 @@ from app.services.llm.base import LLMConfig
 from app.services.audit import log as audit_log
 from app.services.file_extractor import extract_text
 from app.services.storage import upload_file, get_presigned_url, delete_file
+from app.services.search import index_document as es_index, delete_document as es_delete
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
 
@@ -374,6 +375,7 @@ async def generate_contract(
     await db.commit()
 
     await audit_log(db, user, "contract_generate", "contract", c.id, c.title, "success", f"model={resp.model}", request=request)
+    await es_index(str(c.id), "contracts", c.title, resp.content or "", extra=c.status or "", department_id=str(user.department_id) if user.department_id else None)
     return {
         "id": str(c.id),
         "title": c.title,
@@ -420,6 +422,7 @@ async def update_contract(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "contract_update", "contract", c.id, c.title, "success", request=request)
+    await es_index(str(c.id), "contracts", c.title, "", extra=c.status or "", department_id=str(user.department_id) if user.department_id else None)
     return _contract_row(c)
 
 
@@ -434,6 +437,7 @@ async def delete_contract(
     await db.delete(c)
     await db.commit()
     await audit_log(db, user, "contract_delete", "contract", c.id, c.title, "success", request=request)
+    await es_delete(str(c.id), "contracts")
     return {"message": "已删除"}
 
 
@@ -690,6 +694,9 @@ async def upload_knowledge_doc(
     await db.refresh(d)
 
     await audit_log(db, user, "knowledge_doc_upload", "bidding_knowledge_doc", d.id, d.title, "success", f"file={file.filename}", request=request)
+    await es_index(str(d.id), "bidding_knowledge", d.title, d.content or "",
+                   extra=", ".join(d.tags) if d.tags else "",
+                   department_id=str(user.department_id) if user.department_id else None)
     return {
         "id": str(d.id),
         "dir_id": str(d.dir_id) if d.dir_id else None,
@@ -945,6 +952,7 @@ async def delete_knowledge_doc(
     await db.delete(d)
     await db.commit()
     await audit_log(db, user, "knowledge_doc_delete", "bidding_knowledge_doc", d.id, d.title, "success", request=request)
+    await es_delete(str(d.id), "bidding_knowledge")
     return {"message": "已删除"}
 
 

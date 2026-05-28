@@ -585,6 +585,34 @@ def main():
     test("DELETE /hr/approvals/{id}", delete_approval)
 
     # ═══════════════════════════════════════════
+    # Search API
+    # ═══════════════════════════════════════════
+    print("\n--- Search API ---")
+
+    def search_all():
+        r = requests.get(f"{BASE}/search", params={"q": "项目"}, headers=h)
+        assert r.status_code == 200, f"Status {r.status_code}"
+        data = r.json()
+        assert "items" in data
+        assert "total" in data
+        assert "took_ms" in data
+
+    test("GET /search?q=项目", search_all)
+
+    def search_by_module():
+        r = requests.get(f"{BASE}/search", params={"q": "知识", "module": "bidding_knowledge"}, headers=h)
+        assert r.status_code == 200
+
+    test("GET /search?q=知识&module=bidding_knowledge", search_by_module)
+
+    def search_empty():
+        r = requests.get(f"{BASE}/search", params={"q": "xyznotexist999"}, headers=h)
+        assert r.status_code == 200
+        assert r.json()["total"] == 0
+
+    test("GET /search?q=xyznotexist999 (no results)", search_empty)
+
+    # ═══════════════════════════════════════════
     print(f"\n{'='*50}")
     print(f"Results: {PASSED} passed, {FAILED} failed (total {PASSED + FAILED})")
     print(f"{'='*50}")

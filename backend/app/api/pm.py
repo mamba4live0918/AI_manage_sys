@@ -11,6 +11,7 @@ from app.models import User, File, PmProject, VisitLog, Courseware, ProjectRepor
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
+from app.services.search import index_document as es_index, delete_document as es_delete
 from app.services.storage import upload_file
 
 router = APIRouter(prefix="/pm", tags=["pm"])
@@ -176,6 +177,7 @@ async def create_project(
     await db.commit()
     await db.refresh(p)
     await audit_log(db, user, "project_create", "pm_project", p.id, p.name, request=request)
+    await es_index(str(p.id), "projects", p.name, p.description or "", extra=p.stage or "", department_id=str(user.department_id) if user.department_id else None)
     return _project_row(p)
 
 
@@ -215,6 +217,7 @@ async def update_project(
     await db.commit()
     await db.refresh(p)
     await audit_log(db, user, "project_update", "pm_project", p.id, p.name, request=request)
+    await es_index(str(p.id), "projects", p.name, p.description or "", extra=p.stage or "", department_id=str(user.department_id) if user.department_id else None)
     return _project_row(p)
 
 
@@ -232,6 +235,7 @@ async def delete_project(
     await db.delete(p)
     await db.commit()
     await audit_log(db, user, "project_delete", "pm_project", p.id, p.name, request=request)
+    await es_delete(str(p.id), "projects")
     return {"ok": True}
 
 
@@ -374,6 +378,7 @@ async def create_courseware(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "courseware_create", "courseware", c.id, c.title, request=request)
+    await es_index(str(c.id), "coursewares", c.title, c.content or "", extra=c.type or "", department_id=str(user.department_id) if user.department_id else None)
     return _courseware_row(c)
 
 
@@ -417,6 +422,7 @@ async def upload_courseware(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "courseware_upload", "courseware", c.id, c.title, request=request)
+    await es_index(str(c.id), "coursewares", c.title, c.content or "", extra=c.type or "", department_id=str(user.department_id) if user.department_id else None)
     return _courseware_row(c)
 
 
@@ -454,6 +460,7 @@ async def update_courseware(
     await db.commit()
     await db.refresh(c)
     await audit_log(db, user, "courseware_update", "courseware", c.id, c.title, request=request)
+    await es_index(str(c.id), "coursewares", c.title, c.content or "", extra=c.type or "", department_id=str(user.department_id) if user.department_id else None)
     return _courseware_row(c)
 
 
@@ -471,6 +478,7 @@ async def delete_courseware(
     await db.delete(c)
     await db.commit()
     await audit_log(db, user, "courseware_delete", "courseware", c.id, c.title, request=request)
+    await es_delete(str(c.id), "coursewares")
     return {"ok": True}
 
 

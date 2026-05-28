@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import auth, files, preview, permissions, audit, copywriting, dashboard, department, marketing, bidding, pm, hr, finance
+from app.api import auth, files, preview, permissions, audit, copywriting, dashboard, department, marketing, bidding, pm, hr, finance, search
 from app.database import engine
 from app.models.models import Base
 
@@ -41,6 +41,7 @@ app.include_router(bidding.router, prefix=settings.API_PREFIX)
 app.include_router(pm.router, prefix=settings.API_PREFIX)
 app.include_router(hr.router, prefix=settings.API_PREFIX)
 app.include_router(finance.router, prefix=settings.API_PREFIX)
+app.include_router(search.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/health")
