@@ -215,6 +215,18 @@ CREATE TABLE IF NOT EXISTS approvals (
 );
 CREATE INDEX IF NOT EXISTS idx_approval_applicant ON approvals(applicant_id);
 
+CREATE TABLE IF NOT EXISTS approval_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    approval_id UUID REFERENCES approvals(id) ON DELETE CASCADE NOT NULL,
+    level INTEGER DEFAULT 1,
+    approver_id UUID REFERENCES users(id),
+    status VARCHAR(32) DEFAULT 'pending',
+    comment TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_approval_steps_approval ON approval_steps(approval_id);
+
 -- ── Phase 4: Finance ──
 
 CREATE TABLE IF NOT EXISTS settlements (

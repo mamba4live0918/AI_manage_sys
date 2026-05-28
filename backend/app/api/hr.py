@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, Employee, File, Resume, Approval
+from app.models import User, Employee, File, Resume, Approval, ApprovalStep
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
@@ -66,6 +66,11 @@ class ApprovalAction(BaseModel):
     comment: str = ""
 
 
+class ApprovalStepAction(BaseModel):
+    status: str  # approved or rejected
+    comment: str = ""
+
+
 # ── Row Serializers ──
 
 def _employee_row(e: Employee) -> dict:
@@ -101,8 +106,20 @@ def _resume_row(r: Resume) -> dict:
     }
 
 
-def _approval_row(a: Approval) -> dict:
+def _step_row(s: ApprovalStep) -> dict:
     return {
+        "id": str(s.id),
+        "level": s.level,
+        "approver_id": str(s.approver_id) if s.approver_id else None,
+        "status": s.status,
+        "comment": s.comment,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+def _approval_row(a: Approval, steps: list[ApprovalStep] | None = None) -> dict:
+    row = {
         "id": str(a.id),
         "approval_type": a.approval_type,
         "applicant_id": str(a.applicant_id) if a.applicant_id else None,
@@ -114,6 +131,12 @@ def _approval_row(a: Approval) -> dict:
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "updated_at": a.updated_at.isoformat() if a.updated_at else None,
     }
+    if steps is not None:
+        row["steps"] = [_step_row(s) for s in steps]
+    return row
+
+
+_WORKFLOW_LEVELS = {"leave": 2, "expense": 3, "regularization": 2}
 
 
 # ── Employees ──
@@ -406,6 +429,13 @@ async def match_resume(
 
 # ── Approvals ──
 
+async def _load_steps(approval_id: uuid.UUID, db: AsyncSession) -> list[ApprovalStep]:
+    result = await db.execute(
+        select(ApprovalStep).where(ApprovalStep.approval_id == approval_id).order_by(ApprovalStep.level)
+    )
+    return list(result.scalars().all())
+
+
 @router.get("/approvals")
 async def list_approvals(
     approval_type: str = "",
@@ -428,7 +458,12 @@ async def list_approvals(
     if status:
         query = query.where(Approval.status == status)
     result = await db.execute(query.offset(offset).limit(limit))
-    return {"items": [_approval_row(a) for a in result.scalars().all()]}
+    approvals = result.scalars().all()
+    items = []
+    for a in approvals:
+        steps = await _load_steps(a.id, db)
+        items.append(_approval_row(a, steps))
+    return {"items": items}
 
 
 @router.post("/approvals")
@@ -446,10 +481,31 @@ async def create_approval(
         department_id=user.department_id,
     )
     db.add(a)
+    await db.flush()
+
+    num_levels = _WORKFLOW_LEVELS.get(body.approval_type, 1)
+    for level in range(1, num_levels + 1):
+        db.add(ApprovalStep(approval_id=a.id, level=level))
+
     await db.commit()
     await db.refresh(a)
+    steps = await _load_steps(a.id, db)
     await audit_log(db, user, "approval_create", "approval", a.id, a.approval_type, request=request)
-    return _approval_row(a)
+    return _approval_row(a, steps)
+
+
+@router.get("/approvals/{approval_id}")
+async def get_approval(
+    approval_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Approval).where(Approval.id == approval_id))
+    a = result.scalar_one_or_none()
+    if not a:
+        raise HTTPException(404, "审批不存在")
+    steps = await _load_steps(a.id, db)
+    return _approval_row(a, steps)
 
 
 @router.put("/approvals/{approval_id}")
@@ -460,20 +516,97 @@ async def handle_approval(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Legacy endpoint — approves/rejects the first pending step."""
     result = await db.execute(select(Approval).where(Approval.id == approval_id))
     a = result.scalar_one_or_none()
     if not a:
         raise HTTPException(404, "审批不存在")
     if body.status not in ("approved", "rejected"):
         raise HTTPException(400, "状态必须是 approved 或 rejected")
-    a.status = body.status
-    a.comment = body.comment
+
+    if a.status != "pending":
+        raise HTTPException(400, "审批已处理，无法重复操作")
+
+    steps = await _load_steps(a.id, db)
+    current_step = next((s for s in steps if s.status == "pending"), None)
+    if not current_step:
+        raise HTTPException(400, "没有待处理的审批步骤")
+
+    current_step.status = body.status
+    current_step.comment = body.comment
+    current_step.approver_id = user.id
+    current_step.updated_at = _now()
+
+    if body.status == "rejected":
+        a.status = "rejected"
+    else:
+        next_step = next((s for s in steps if s.level > current_step.level and s.status == "pending"), None)
+        if next_step is None:
+            a.status = "approved"
+
     a.approver_id = user.id
+    a.comment = body.comment
     a.updated_at = _now()
     await db.commit()
     await db.refresh(a)
+    steps = await _load_steps(a.id, db)
     await audit_log(db, user, f"approval_{body.status}", "approval", a.id, a.approval_type, request=request)
-    return _approval_row(a)
+    return _approval_row(a, steps)
+
+
+@router.put("/approvals/{approval_id}/steps/{step_id}")
+async def handle_approval_step(
+    approval_id: str,
+    step_id: str,
+    body: ApprovalStepAction,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Approve or reject a specific step in a multi-level approval."""
+    result = await db.execute(select(Approval).where(Approval.id == approval_id))
+    a = result.scalar_one_or_none()
+    if not a:
+        raise HTTPException(404, "审批不存在")
+    if a.status != "pending":
+        raise HTTPException(400, "审批已处理，无法重复操作")
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "状态必须是 approved 或 rejected")
+
+    step_result = await db.execute(
+        select(ApprovalStep).where(ApprovalStep.id == step_id, ApprovalStep.approval_id == uuid.UUID(approval_id))
+    )
+    step = step_result.scalar_one_or_none()
+    if not step:
+        raise HTTPException(404, "审批步骤不存在")
+    if step.status != "pending":
+        raise HTTPException(400, "该步骤已处理")
+
+    steps = await _load_steps(a.id, db)
+    prev_steps = [s for s in steps if s.level < step.level]
+    if any(s.status != "approved" for s in prev_steps):
+        raise HTTPException(400, "请先完成前置步骤的审批")
+
+    step.status = body.status
+    step.comment = body.comment
+    step.approver_id = user.id
+    step.updated_at = _now()
+
+    if body.status == "rejected":
+        a.status = "rejected"
+    else:
+        remaining = [s for s in steps if s.level > step.level and s.status == "pending"]
+        if not remaining:
+            a.status = "approved"
+
+    a.approver_id = user.id
+    a.comment = body.comment
+    a.updated_at = _now()
+    await db.commit()
+    await db.refresh(a)
+    steps = await _load_steps(a.id, db)
+    await audit_log(db, user, f"approval_step_{body.status}", "approval_step", step.id, body.comment, request=request)
+    return _approval_row(a, steps)
 
 
 @router.delete("/approvals/{approval_id}")

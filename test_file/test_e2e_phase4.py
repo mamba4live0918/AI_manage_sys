@@ -310,27 +310,54 @@ def main():
             "content": "年假申请，5天"
         }, headers=h)
         assert r.status_code == 200, f"Create approval failed: {r.text}"
-        approval_id = r.json()["id"]
+        data = r.json()
+        approval_id = data["id"]
         CREATED["approval"] = approval_id
+        steps = data.get("steps", [])
+        assert len(steps) == 2, f"Expected 2 steps for leave, got {len(steps)}"
+        assert all(s["status"] == "pending" for s in steps)
 
-    test("POST /hr/approvals — create approval", create_approval)
+    test("POST /hr/approvals — create with 2 auto-steps", create_approval)
 
     def list_approvals():
         r = requests.get(f"{BASE}/hr/approvals", params={"limit": 10}, headers=h)
         assert r.status_code == 200
-        assert len(r.json()["items"]) > 0
+        items = r.json()["items"]
+        assert len(items) > 0
+        assert "steps" in items[0]
 
-    test("GET /hr/approvals — list approvals", list_approvals)
+    test("GET /hr/approvals — list with steps", list_approvals)
 
-    def approve():
-        r = requests.put(f"{BASE}/hr/approvals/{approval_id}", json={
-            "status": "approved",
-            "comment": "同意"
-        }, headers=h)
+    def get_approval_detail():
+        r = requests.get(f"{BASE}/hr/approvals/{approval_id}", headers=h)
         assert r.status_code == 200
-        assert r.json()["status"] == "approved"
+        assert "steps" in r.json()
 
-    test("PUT /hr/approvals/{id} — approve", approve)
+    test("GET /hr/approvals/{id} — detail with steps", get_approval_detail)
+
+    def approve_first_step():
+        r = requests.get(f"{BASE}/hr/approvals/{approval_id}", headers=h)
+        steps = r.json()["steps"]
+        step1 = steps[0]
+        r2 = requests.put(f"{BASE}/hr/approvals/{approval_id}/steps/{step1['id']}", json={
+            "status": "approved", "comment": "一级同意"
+        }, headers=h)
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "pending"  # still pending because step2 not done
+
+    test("PUT /hr/approvals/{id}/steps/{step_id} — approve step 1", approve_first_step)
+
+    def approve_second_step():
+        r = requests.get(f"{BASE}/hr/approvals/{approval_id}", headers=h)
+        steps = r.json()["steps"]
+        step2 = steps[1]
+        r2 = requests.put(f"{BASE}/hr/approvals/{approval_id}/steps/{step2['id']}", json={
+            "status": "approved", "comment": "二级同意"
+        }, headers=h)
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "approved"  # all steps done
+
+    test("PUT /hr/approvals/{id}/steps/{step_id} — approve step 2 completes", approve_second_step)
 
     def filter_approvals_by_status():
         r = requests.get(f"{BASE}/hr/approvals", params={"status": "approved"}, headers=h)
@@ -343,6 +370,35 @@ def main():
         assert r.status_code == 200
 
     test("GET /hr/approvals?approval_type=leave — filter by type", filter_approvals_by_type)
+
+    # Test rejection flow
+    approval_id2 = None
+
+    def create_and_reject():
+        nonlocal approval_id2
+        r = requests.post(f"{BASE}/hr/approvals", json={
+            "approval_type": "expense",
+            "content": "差旅费报销，3000元"
+        }, headers=h)
+        assert r.status_code == 200
+        data = r.json()
+        approval_id2 = data["id"]
+        steps = data.get("steps", [])
+        assert len(steps) == 3, f"Expected 3 steps for expense, got {len(steps)}"
+        step1 = steps[0]
+        r2 = requests.put(f"{BASE}/hr/approvals/{approval_id2}/steps/{step1['id']}", json={
+            "status": "rejected", "comment": "金额超限"
+        }, headers=h)
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "rejected"
+
+    test("POST + PUT steps — expense 3-level rejection cascade", create_and_reject)
+
+    def delete_approval2():
+        r = requests.delete(f"{BASE}/hr/approvals/{approval_id2}", headers=h)
+        assert r.status_code == 200
+
+    test("DELETE /hr/approvals/{id} — cleanup rejected", delete_approval2)
 
     # ═══════════════════════════════════════════
     # FINANCE
