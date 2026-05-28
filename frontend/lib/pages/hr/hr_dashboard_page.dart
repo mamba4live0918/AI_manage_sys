@@ -264,7 +264,7 @@ class _ChartsRow extends StatelessWidget {
               Text('员工状态', style: theme.textTheme.titleMedium),
               const SizedBox(height: 16),
               SizedBox(
-                height: 180,
+                height: 205,
                 child: PieChart(
                   PieChartData(
                     sections: data.employeesByStatus.asMap().entries.map((e) {
