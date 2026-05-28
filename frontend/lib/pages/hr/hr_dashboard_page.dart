@@ -204,7 +204,7 @@ class _ChartsRow extends StatelessWidget {
               Text('部门人员分布', style: theme.textTheme.titleMedium),
               const SizedBox(height: 16),
               SizedBox(
-                height: 180,
+                height: 205,
                 child: Row(children: [
                   Expanded(
                     flex: 2,
