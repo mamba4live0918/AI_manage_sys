@@ -82,6 +82,22 @@ def main():
 
     test("GET /pm/projects?stage=planning — filter", filter_by_stage)
 
+    # ── PM Stats ──
+    print("\n===== PM: Stats =====")
+
+    def get_pm_stats():
+        r = requests.get(f"{BASE}/pm/stats", headers=h)
+        assert r.status_code == 200, f"Get PM stats failed: {r.text}"
+        data = r.json()
+        assert "total_projects" in data
+        assert "total_budget" in data
+        assert "stages" in data
+        assert "projects_budget" in data
+        assert "calendar_events" in data
+        assert data["total_projects"] >= 1
+
+    test("GET /pm/stats — charts/calendar data", get_pm_stats)
+
     # ── Visit Logs ──
     print("\n===== PM: Visit Logs =====")
     log_id = None

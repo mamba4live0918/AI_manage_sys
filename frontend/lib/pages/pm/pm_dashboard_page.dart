@@ -6,6 +6,7 @@ import 'pm_project_list_tab.dart';
 import 'pm_project_detail_page.dart';
 import 'pm_visit_log_tab.dart';
 import 'pm_courseware_tab.dart';
+import 'pm_overview_tab.dart';
 
 class PmDashboardPage extends ConsumerStatefulWidget {
   const PmDashboardPage({super.key});
@@ -21,7 +22,7 @@ class _PmDashboardPageState extends ConsumerState<PmDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -45,6 +46,7 @@ class _PmDashboardPageState extends ConsumerState<PmDashboardPage>
             controller: _tabCtrl,
             isScrollable: true,
             tabs: const [
+              Tab(text: '概览'),
               Tab(text: '项目'),
               Tab(text: '走访日志'),
               Tab(text: '课件'),
@@ -54,6 +56,7 @@ class _PmDashboardPageState extends ConsumerState<PmDashboardPage>
         body: TabBarView(
           controller: _tabCtrl,
           children: [
+            const PmOverviewTab(),
             PmProjectListTab(onProjectSelected: (id) {
               Navigator.push(context, MaterialPageRoute(
                 builder: (_) => PmProjectDetailPage(projectId: id),

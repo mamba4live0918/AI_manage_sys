@@ -472,3 +472,85 @@ async def delete_courseware(
     await db.commit()
     await audit_log(db, user, "courseware_delete", "courseware", c.id, c.title, request=request)
     return {"ok": True}
+
+
+# ── PM Stats (charts + calendar) ──
+
+@router.get("/stats")
+async def get_pm_stats(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    base_filter = []
+    if user.role != "admin":
+        if user.department_id:
+            base_filter.append(PmProject.department_id == user.department_id)
+        else:
+            base_filter.append(PmProject.created_by == user.id)
+
+    stage_query = select(PmProject.stage, func.count(PmProject.id))
+    budget_query = select(func.coalesce(func.sum(PmProject.budget), 0))
+    proj_query = select(PmProject).order_by(PmProject.start_date.asc().nulls_last())
+    logs_query = (
+        select(VisitLog, PmProject.name)
+        .join(PmProject, VisitLog.project_id == PmProject.id, isouter=True)
+        .order_by(VisitLog.visited_at.desc())
+        .limit(50)
+    )
+
+    for f in base_filter:
+        stage_query = stage_query.where(f)
+        budget_query = budget_query.where(f)
+        proj_query = proj_query.where(f)
+        logs_query = logs_query.where(PmProject.department_id == user.department_id) if user.role != "admin" and user.department_id else logs_query
+
+    stage_result = await db.execute(stage_query.group_by(PmProject.stage))
+    stages = [{"stage": row[0], "count": row[1]} for row in stage_result.all()]
+
+    budget_result = await db.execute(budget_query)
+    total_budget = float(budget_result.scalar() or 0)
+
+    proj_result = await db.execute(proj_query.limit(10))
+    projects_budget = [
+        {"id": str(p.id), "name": p.name, "budget": p.budget, "stage": p.stage}
+        for p in proj_result.scalars().all()
+    ]
+
+    proj_result_all = await db.execute(proj_query)
+    all_projects = proj_result_all.scalars().all()
+
+    calendar_events = []
+    for p in all_projects:
+        if p.start_date:
+            calendar_events.append({
+                "date": p.start_date.strftime("%Y-%m-%d"),
+                "title": f"启动: {p.name}",
+                "type": "project_start",
+                "project_id": str(p.id),
+            })
+        if p.end_date:
+            calendar_events.append({
+                "date": p.end_date.strftime("%Y-%m-%d"),
+                "title": f"截止: {p.name}",
+                "type": "project_end",
+                "project_id": str(p.id),
+            })
+
+    logs_result = await db.execute(logs_query)
+    for row in logs_result.all():
+        v, proj_name = row
+        if v.visited_at:
+            calendar_events.append({
+                "date": v.visited_at.strftime("%Y-%m-%d"),
+                "title": f"{proj_name or ''}: {v.location or v.content[:30]}",
+                "type": "visit_log",
+                "project_id": str(v.project_id) if v.project_id else None,
+            })
+
+    return {
+        "total_projects": len(all_projects),
+        "total_budget": total_budget,
+        "stages": stages,
+        "projects_budget": projects_budget,
+        "calendar_events": calendar_events,
+    }
