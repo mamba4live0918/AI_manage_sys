@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
-import 'hr_employee_list_tab.dart';
 import 'hr_resume_tab.dart';
 import 'hr_approval_tab.dart';
 import 'hr_interview_tab.dart';
+import 'hr_user_management_tab.dart';
 
 class HrDashboardPage extends ConsumerStatefulWidget {
   const HrDashboardPage({super.key});
@@ -45,7 +45,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage>
             controller: _tabCtrl,
             isScrollable: true,
             tabs: const [
-              Tab(text: '员工'),
+              Tab(text: '员工管理'),
               Tab(text: '简历'),
               Tab(text: '审批'),
               Tab(text: '面试'),
@@ -55,7 +55,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage>
         body: TabBarView(
           controller: _tabCtrl,
           children: const [
-            HrEmployeeListTab(),
+            HrUserManagementTab(),
             HrResumeTab(),
             HrApprovalTab(),
             HrInterviewTab(),

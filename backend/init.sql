@@ -180,7 +180,12 @@ CREATE TABLE IF NOT EXISTS employees (
     status VARCHAR(32) DEFAULT 'active',
     phone VARCHAR(64) DEFAULT '',
     email VARCHAR(256) DEFAULT '',
+    salary INTEGER DEFAULT 0,
+    contract_start TIMESTAMPTZ,
+    contract_end TIMESTAMPTZ,
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
     notes TEXT DEFAULT '',
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL UNIQUE,
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -280,6 +285,7 @@ CREATE INDEX IF NOT EXISTS idx_expense_dept ON expenses(department_id);
 CREATE TABLE IF NOT EXISTS vouchers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     settlement_id UUID REFERENCES settlements(id) ON DELETE SET NULL,
+    expense_id UUID REFERENCES expenses(id) ON DELETE SET NULL,
     file_id UUID REFERENCES files(id) ON DELETE SET NULL,
     type VARCHAR(64) DEFAULT 'invoice',
     description TEXT DEFAULT '',
@@ -288,6 +294,7 @@ CREATE TABLE IF NOT EXISTS vouchers (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_voucher_settlement ON vouchers(settlement_id);
+CREATE INDEX IF NOT EXISTS idx_voucher_expense ON vouchers(expense_id);
 
 -- 默认管理员
 INSERT INTO users (username, email, hashed_password, role, department)
@@ -296,3 +303,16 @@ VALUES ('admin', 'admin@company.local',
         'admin', '技术部')
 ON CONFLICT (username) DO NOTHING;
 -- 密码: admin123
+
+-- Phase 4 migration: add expense_id to vouchers
+ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS expense_id UUID REFERENCES expenses(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_voucher_expense ON vouchers(expense_id);
+
+-- Phase 4 migration: add employee salary/contract/file fields
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary INTEGER DEFAULT 0;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_start TIMESTAMPTZ;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_end TIMESTAMPTZ;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS file_id UUID REFERENCES files(id) ON DELETE SET NULL;
+
+-- Phase 4.5 migration: link employee to system user
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL UNIQUE;

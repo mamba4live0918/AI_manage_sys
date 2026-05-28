@@ -8,7 +8,7 @@ import 'services/api_client.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/files/file_list_page.dart';
 import 'pages/preview/preview_page.dart';
-import 'pages/permissions/users_page.dart';
+
 import 'pages/audit/audit_log_page.dart';
 import 'pages/ip/ip_dashboard_page.dart';
 import 'pages/marketing/marketing_dashboard_page.dart';
@@ -41,7 +41,6 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
     if (location.startsWith('/files')) return 'files';
     if (location.startsWith('/ip')) return 'ip';
     if (location.startsWith('/audit')) return 'audit';
-    if (location.startsWith('/users')) return 'users';
     if (location.startsWith('/marketing')) return 'marketing';
     if (location.startsWith('/bidding')) return 'bidding';
     if (location.startsWith('/pm')) return 'pm';
@@ -63,6 +62,7 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
         }
         if (!auth.isLoggedIn && loc != '/login') return '/login';
         if (auth.isLoggedIn && loc == '/login') return '/dashboard';
+        if (loc == '/users') return '/hr';
 
         // module access check
         if (auth.isLoggedIn && auth.user != null && !auth.user!.isAdmin) {
@@ -120,13 +120,6 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
                   ),
                 ),
               ],
-            ),
-            GoRoute(
-              path: '/users',
-              pageBuilder: (context, state) => NoTransitionPage(
-                key: state.pageKey,
-                child: const UsersPage(),
-              ),
             ),
             GoRoute(
               path: '/ip',

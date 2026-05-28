@@ -113,25 +113,19 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段四已完成 → 进入阶段五**
+**阶段五进行中**
 
 ### 阶段一 ✅ · 阶段二 ✅ (2.1 文案，2.2/2.3 跳过)
 ### 阶段三 ✅ — 17模型 + 34端点 + 20页面，E2E 54/54
 ### 阶段四 ✅ — 10模型 + 36端点 + 14页面，E2E 48/48，回归 54/54
+### 阶段五 ✅ — User-Employee 表合并、审批流引擎、面试排期、图表/日历、ES 全文检索、课件/凭证附件
 
-### 阶段五待开始
+### 阶段五进行中
 - 全模块联调 + 权限一致性校验
 - 性能压测 + 安全审计
 - Android .apk 编译验证
 - Windows 安装包 + 签名
 - 私有化部署（Docker Compose Prod + Nginx + SSL）
-
-### 已知待补功能
-- 课件/凭证支持文件上传附件
-- 图表组件（fl_chart）+ 日历组件（TableCalendar）
-- 审批流引擎（多级流转）
-- 面试排期
-- Elasticsearch 全文检索
 
 ## 已知问题 & 注意事项
 
@@ -141,6 +135,7 @@ AI_manage_sys/
 4. **VS BuildTools**：需要安装 "C++ ATL for v142" + "Windows 10 SDK 10.0.22621+" 才能编译 Windows
 5. **Android 编译待配置**：需要 Android Studio 或 cmdline-tools
 6. **LibreOffice 必须安装**：Office 文件预览依赖 LibreOffice headless 转 PDF，安装 `winget install TheDocumentFoundation.LibreOffice`
+7. **User-Employee 已合并**：员工字段（position、hire_date、emp_status、phone、salary 等）已移入 users 表，employees 表已删除。API: `PUT /hr/users/{user_id}/employee`
 
 ## 关键约束
 

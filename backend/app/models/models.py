@@ -38,6 +38,16 @@ class User(Base):
     department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     extra_modules: Mapped[list] = mapped_column(JSON, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Employee fields (merged from employees table)
+    position: Mapped[str] = mapped_column(String(128), default="")
+    hire_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    emp_status: Mapped[str] = mapped_column(String(32), default="active")
+    phone: Mapped[str] = mapped_column(String(64), default="")
+    salary: Mapped[int] = mapped_column(Integer, default=0)
+    contract_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    contract_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    emp_file_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
+    emp_notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
 
@@ -478,23 +488,6 @@ class ProjectReport(Base):
 
 # ── Phase 4: HR ──
 
-class Employee(Base):
-    __tablename__ = "employees"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    position: Mapped[str] = mapped_column(String(128), default="")
-    department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
-    hire_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="active")
-    phone: Mapped[str] = mapped_column(String(64), default="")
-    email: Mapped[str] = mapped_column(String(256), default="")
-    notes: Mapped[str] = mapped_column(Text, default="")
-    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
-
-
 class Resume(Base):
     __tablename__ = "resumes"
 
@@ -596,6 +589,7 @@ class Voucher(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     settlement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("settlements.id", ondelete="SET NULL"), nullable=True)
+    expense_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True)
     file_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
     type: Mapped[str] = mapped_column(String(64), default="invoice")
     description: Mapped[str] = mapped_column(Text, default="")

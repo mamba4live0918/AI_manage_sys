@@ -12,7 +12,6 @@ const _moduleConfig = <String, _NavItem>{
   'files': (Icons.folder_rounded, Icons.folder_outlined, '文件', '/files'),
   'ip': (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP', '/ip'),
   'audit': (Icons.schedule_rounded, Icons.schedule_outlined, '审计', '/audit'),
-  'users': (Icons.people_rounded, Icons.people_outline_rounded, '用户管理', '/users'),
   'marketing': (Icons.campaign_rounded, Icons.campaign_outlined, '市场部', '/marketing'),
   'bidding': (Icons.gavel_rounded, Icons.gavel_outlined, '招投标', '/bidding'),
   'pm': (Icons.engineering_rounded, Icons.engineering_outlined, '项目管理', '/pm'),

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User, File, Settlement, Expense, Voucher
-from app.security import get_current_user
+from app.security import get_current_user, require_module
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
 
@@ -17,6 +17,14 @@ router = APIRouter(prefix="/finance", tags=["finance"])
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+async def _check_department(db: AsyncSession, user: User, target_department_id, action: str):
+    """非admin用户只能操作本部门数据"""
+    if user.role == "admin":
+        return
+    if target_department_id is not None and user.department_id != target_department_id:
+        raise HTTPException(403, f"不能{action}其他部门的财务记录")
 
 
 # ── Pydantic Schemas ──
@@ -53,6 +61,7 @@ class ExpenseApprove(BaseModel):
 
 class VoucherCreate(BaseModel):
     settlement_id: str | None = None
+    expense_id: str | None = None
     type: str = "invoice"
     description: str = ""
 
@@ -94,6 +103,7 @@ def _voucher_row(v: Voucher) -> dict:
     return {
         "id": str(v.id),
         "settlement_id": str(v.settlement_id) if v.settlement_id else None,
+        "expense_id": str(v.expense_id) if v.expense_id else None,
         "file_id": str(v.file_id) if v.file_id else None,
         "type": v.type,
         "description": v.description,
@@ -112,6 +122,7 @@ async def list_settlements(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     query = select(Settlement).order_by(Settlement.updated_at.desc())
     if user.role != "admin":
@@ -131,6 +142,7 @@ async def create_settlement(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
     settlement_date = datetime.fromisoformat(body.settlement_date) if body.settlement_date else None
@@ -156,6 +168,7 @@ async def get_settlement(
     settlement_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Settlement).where(Settlement.id == settlement_id))
     s = result.scalar_one_or_none()
@@ -171,11 +184,13 @@ async def update_settlement(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Settlement).where(Settlement.id == settlement_id))
     s = result.scalar_one_or_none()
     if not s:
         raise HTTPException(404, "结算不存在")
+    await _check_department(db, user, s.department_id, "编辑")
     for k, v in body.model_dump(exclude_none=True).items():
         if k == "project_id" and v is not None:
             setattr(s, k, uuid.UUID(v) if v else None)
@@ -196,11 +211,13 @@ async def delete_settlement(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Settlement).where(Settlement.id == settlement_id))
     s = result.scalar_one_or_none()
     if not s:
         raise HTTPException(404, "结算不存在")
+    await _check_department(db, user, s.department_id, "删除")
     await db.delete(s)
     await db.commit()
     await audit_log(db, user, "settlement_delete", "settlement", s.id, s.invoice_no, request=request)
@@ -217,6 +234,7 @@ async def list_expenses(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     query = select(Expense).order_by(Expense.updated_at.desc())
     if user.role != "admin":
@@ -238,6 +256,7 @@ async def create_expense(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
     submitted_by = uuid.UUID(body.submitted_by) if body.submitted_by else user.id
@@ -263,11 +282,13 @@ async def approve_expense(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Expense).where(Expense.id == expense_id))
     e = result.scalar_one_or_none()
     if not e:
         raise HTTPException(404, "报销不存在")
+    await _check_department(db, user, e.department_id, "审批")
     if body.status not in ("approved", "rejected"):
         raise HTTPException(400, "状态必须是 approved 或 rejected")
     e.status = body.status
@@ -284,11 +305,13 @@ async def delete_expense(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Expense).where(Expense.id == expense_id))
     e = result.scalar_one_or_none()
     if not e:
         raise HTTPException(404, "报销不存在")
+    await _check_department(db, user, e.department_id, "删除")
     await db.delete(e)
     await db.commit()
     await audit_log(db, user, "expense_delete", "expense", e.id, e.category, request=request)
@@ -300,10 +323,12 @@ async def delete_expense(
 @router.get("/vouchers")
 async def list_vouchers(
     settlement_id: str = "",
+    expense_id: str = "",
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     query = select(Voucher).order_by(Voucher.created_at.desc())
     if user.role != "admin":
@@ -313,6 +338,8 @@ async def list_vouchers(
             query = query.where(Voucher.created_by == user.id)
     if settlement_id:
         query = query.where(Voucher.settlement_id == settlement_id)
+    if expense_id:
+        query = query.where(Voucher.expense_id == expense_id)
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_voucher_row(v) for v in result.scalars().all()]}
 
@@ -323,10 +350,13 @@ async def create_voucher(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     settlement_id = uuid.UUID(body.settlement_id) if body.settlement_id else None
+    expense_id = uuid.UUID(body.expense_id) if body.expense_id else None
     v = Voucher(
         settlement_id=settlement_id,
+        expense_id=expense_id,
         type=body.type,
         description=body.description,
         department_id=user.department_id,
@@ -345,9 +375,11 @@ async def upload_voucher(
     type: str = Form("invoice"),
     description: str = Form(""),
     settlement_id: str = Form(""),
+    expense_id: str = Form(""),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     content_bytes = await file.read()
     storage_path = f"vouchers/{uuid.uuid4()}/{file.filename}"
@@ -367,8 +399,10 @@ async def upload_voucher(
     await db.refresh(file_record)
 
     sid = uuid.UUID(settlement_id) if settlement_id else None
+    eid = uuid.UUID(expense_id) if expense_id else None
     v = Voucher(
         settlement_id=sid,
+        expense_id=eid,
         file_id=file_record.id,
         type=type,
         description=description.strip() or file.filename,
@@ -388,11 +422,13 @@ async def delete_voucher(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
 ):
     result = await db.execute(select(Voucher).where(Voucher.id == voucher_id))
     v = result.scalar_one_or_none()
     if not v:
         raise HTTPException(404, "凭证不存在")
+    await _check_department(db, user, v.department_id, "删除")
     await db.delete(v)
     await db.commit()
     await audit_log(db, user, "voucher_delete", "voucher", v.id, v.description, request=request)

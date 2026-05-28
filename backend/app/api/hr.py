@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, Employee, File, Resume, Approval, ApprovalStep, Interview
+from app.models import User, File, Resume, Approval, ApprovalStep, Interview
 from app.security import get_current_user
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
@@ -24,24 +24,16 @@ def _now():
 
 # ── Pydantic Schemas ──
 
-class EmployeeCreate(BaseModel):
-    name: str
-    position: str = ""
-    hire_date: str | None = None
-    status: str = "active"
-    phone: str = ""
-    email: str = ""
-    notes: str = ""
-
-
-class EmployeeUpdate(BaseModel):
-    name: str | None = None
+class UserEmployeeUpdate(BaseModel):
     position: str | None = None
     hire_date: str | None = None
-    status: str | None = None
+    emp_status: str | None = None
     phone: str | None = None
-    email: str | None = None
-    notes: str | None = None
+    salary: int | None = None
+    contract_start: str | None = None
+    contract_end: str | None = None
+    file_id: str | None = None
+    emp_notes: str | None = None
 
 
 class ResumeCreate(BaseModel):
@@ -92,23 +84,6 @@ class InterviewUpdate(BaseModel):
 
 
 # ── Row Serializers ──
-
-def _employee_row(e: Employee) -> dict:
-    return {
-        "id": str(e.id),
-        "name": e.name,
-        "position": e.position,
-        "department_id": str(e.department_id) if e.department_id else None,
-        "hire_date": e.hire_date.isoformat() if e.hire_date else None,
-        "status": e.status,
-        "phone": e.phone,
-        "email": e.email,
-        "notes": e.notes,
-        "created_by": str(e.created_by) if e.created_by else None,
-        "created_at": e.created_at.isoformat() if e.created_at else None,
-        "updated_at": e.updated_at.isoformat() if e.updated_at else None,
-    }
-
 
 def _resume_row(r: Resume) -> dict:
     return {
@@ -176,108 +151,34 @@ def _interview_row(i: Interview) -> dict:
 _WORKFLOW_LEVELS = {"leave": 2, "expense": 3, "regularization": 2}
 
 
-# ── Employees ──
+# ── Employee (now merged into users) ──
 
-@router.get("/employees")
-async def list_employees(
-    status: str = "",
-    limit: int = 50,
-    offset: int = 0,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    query = select(Employee).order_by(Employee.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Employee.department_id == user.department_id)
-        else:
-            query = query.where(Employee.created_by == user.id)
-    if status:
-        query = query.where(Employee.status == status)
-    result = await db.execute(query.offset(offset).limit(limit))
-    return {"items": [_employee_row(e) for e in result.scalars().all()]}
-
-
-@router.post("/employees")
-async def create_employee(
-    body: EmployeeCreate,
+@router.put("/users/{user_id}/employee")
+async def update_user_employee(
+    user_id: str,
+    body: UserEmployeeUpdate,
     request: Request = None,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    hire_date = datetime.fromisoformat(body.hire_date) if body.hire_date else None
-    e = Employee(
-        name=body.name,
-        position=body.position,
-        department_id=user.department_id,
-        hire_date=hire_date,
-        status=body.status,
-        phone=body.phone,
-        email=body.email,
-        notes=body.notes,
-        created_by=user.id,
-    )
-    db.add(e)
-    await db.commit()
-    await db.refresh(e)
-    await audit_log(db, user, "employee_create", "employee", e.id, e.name, request=request)
-    await es_index(str(e.id), "employees", e.name, e.notes or "", extra=e.position or "", department_id=str(user.department_id) if user.department_id else None)
-    return _employee_row(e)
-
-
-@router.get("/employees/{employee_id}")
-async def get_employee(
-    employee_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    result = await db.execute(select(Employee).where(Employee.id == employee_id))
-    e = result.scalar_one_or_none()
-    if not e:
-        raise HTTPException(404, "员工不存在")
-    return _employee_row(e)
-
-
-@router.put("/employees/{employee_id}")
-async def update_employee(
-    employee_id: str,
-    body: EmployeeUpdate,
-    request: Request = None,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    result = await db.execute(select(Employee).where(Employee.id == employee_id))
-    e = result.scalar_one_or_none()
-    if not e:
-        raise HTTPException(404, "员工不存在")
+    if current_user.role != "admin":
+        raise HTTPException(403, "仅管理员可操作")
+    result = await db.execute(select(User).where(User.id == user_id))
+    u = result.scalar_one_or_none()
+    if not u:
+        raise HTTPException(404, "用户不存在")
+    date_fields = {"hire_date", "contract_start", "contract_end"}
     for k, v in body.model_dump(exclude_none=True).items():
-        if k == "hire_date" and v is not None:
-            setattr(e, k, datetime.fromisoformat(v) if v else None)
+        if k in date_fields and v is not None:
+            setattr(u, k, datetime.fromisoformat(v) if v else None)
+        elif k == "file_id" and v is not None:
+            setattr(u, "emp_file_id", uuid.UUID(v) if v else None)
         elif v is not None:
-            setattr(e, k, v)
-    e.updated_at = _now()
+            setattr(u, k, v)
+    u.updated_at = _now()
     await db.commit()
-    await db.refresh(e)
-    await audit_log(db, user, "employee_update", "employee", e.id, e.name, request=request)
-    await es_index(str(e.id), "employees", e.name, e.notes or "", extra=e.position or "", department_id=str(user.department_id) if user.department_id else None)
-    return _employee_row(e)
-
-
-@router.delete("/employees/{employee_id}")
-async def delete_employee(
-    employee_id: str,
-    request: Request = None,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    result = await db.execute(select(Employee).where(Employee.id == employee_id))
-    e = result.scalar_one_or_none()
-    if not e:
-        raise HTTPException(404, "员工不存在")
-    await db.delete(e)
-    await db.commit()
-    await audit_log(db, user, "employee_delete", "employee", e.id, e.name, request=request)
-    await es_delete(str(e.id), "employees")
+    await db.refresh(u)
+    await audit_log(db, current_user, "employee_update", "user", u.id, u.username, request=request)
     return {"ok": True}
 
 
@@ -435,31 +336,57 @@ async def match_resume(
     if not r.content:
         raise HTTPException(400, "简历无内容可分析")
 
-    prompt = f"""请分析以下简历，评估候选人的综合能力。
+    prompt = f"""请分析以下简历，返回严格JSON格式（不要Markdown，不要```代码块）。
 
 简历内容:
 {r.content}
 
-请从以下维度评估（每项1-10分）并给出总结：
-1. 专业技能匹配度
-2. 工作经验年限
-3. 项目经验质量
-4. 教育背景
-5. 综合推荐度
+请返回如下JSON结构:
+{{
+  "scores": {{
+    "专业技能": 8,
+    "工作经验": 7,
+    "项目经验": 8,
+    "教育背景": 6,
+    "沟通协作": 7,
+    "学习能力": 7
+  }},
+  "strengths": "候选人的核心优势描述，2-3句话",
+  "department_matches": [
+    {{"department": "技术部", "score": 85, "reason": "匹配理由一句话"}},
+    {{"department": "市场部", "score": 60, "reason": "匹配理由一句话"}}
+  ],
+  "recommended_salary": "15k-20k/月",
+  "summary": "综合评价2-3句话，包含总体评分（0-100分）"
+}}
 
-最后给出一个综合评分（0-100分）和推荐意见。用Markdown格式输出。"""
+注意:
+- scores中每项1-10分
+- department_matches列出2-3个最匹配的部门，score为0-100匹配度
+- recommended_salary基于经验和能力给出薪资建议
+- 只返回JSON，不要其他内容"""
 
     llm = get_llm()
-    resp = await llm.generate(system_prompt="你是一个专业的HR招聘顾问，请对简历进行专业分析评估。", user_prompt=prompt)
-    result_text = resp.content
+    resp = await llm.generate(system_prompt="你是一个专业的HR招聘顾问。请严格按JSON格式返回分析结果，不要任何Markdown标记。", user_prompt=prompt)
+    result_text = resp.content.strip()
+    if result_text.startswith("```"):
+        result_text = result_text.split("\n", 1)[-1].rsplit("\n```", 1)[0] if "\n```" in result_text else result_text.split("```", 1)[-1].rsplit("```", 1)[0]
 
+    analysis = None
     score = 50.0
-    for line in result_text.split("\n"):
-        if "综合评分" in line or "总分" in line:
-            import re
-            nums = re.findall(r"(\d+)", line)
-            if nums:
-                score = float(nums[0])
+    try:
+        import json
+        analysis = json.loads(result_text)
+        scores = analysis.get("scores", {})
+        if scores:
+            score = sum(scores.values()) / len(scores) * 10.0
+        summary = analysis.get("summary", "")
+        import re
+        nums = re.findall(r"(\d+)", summary)
+        if nums:
+            score = float(nums[0]) if 0 < float(nums[0]) <= 100 else score
+    except Exception:
+        analysis = {"scores": {}, "strengths": "", "department_matches": [], "recommended_salary": "", "summary": result_text}
 
     r.match_score = score
     r.match_result = result_text
@@ -468,7 +395,9 @@ async def match_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_match", "resume", r.id, r.name, detail=f"score={score}", request=request)
-    return _resume_row(r)
+    result_dict = _resume_row(r)
+    result_dict["analysis"] = analysis
+    return result_dict
 
 
 # ── Approvals ──

@@ -78,6 +78,15 @@ def _user_dict(r: User) -> dict:
         "department_id": str(r.department_id) if r.department_id else None,
         "extra_modules": r.extra_modules or [],
         "is_active": r.is_active,
+        "position": r.position or "",
+        "hire_date": r.hire_date.isoformat() if r.hire_date else None,
+        "emp_status": r.emp_status or "active",
+        "phone": r.phone or "",
+        "salary": r.salary or 0,
+        "contract_start": r.contract_start.isoformat() if r.contract_start else None,
+        "contract_end": r.contract_end.isoformat() if r.contract_end else None,
+        "emp_file_id": str(r.emp_file_id) if r.emp_file_id else None,
+        "emp_notes": r.emp_notes or "",
         "created_at": r.created_at.isoformat() if r.created_at else None,
     }
 
@@ -129,6 +138,15 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             "department": user.department,
             "department_id": str(user.department_id) if user.department_id else None,
             "accessible_modules": _get_accessible_modules(user, dept),
+            "position": user.position or "",
+            "hire_date": user.hire_date.isoformat() if user.hire_date else None,
+            "emp_status": user.emp_status or "active",
+            "phone": user.phone or "",
+            "salary": user.salary or 0,
+            "contract_start": user.contract_start.isoformat() if user.contract_start else None,
+            "contract_end": user.contract_end.isoformat() if user.contract_end else None,
+            "emp_file_id": str(user.emp_file_id) if user.emp_file_id else None,
+            "emp_notes": user.emp_notes or "",
         },
     )
 
@@ -151,6 +169,15 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
         "department_id": str(user.department_id) if user.department_id else None,
         "accessible_modules": _get_accessible_modules(user, dept),
         "is_active": user.is_active,
+        "position": user.position or "",
+        "hire_date": user.hire_date.isoformat() if user.hire_date else None,
+        "emp_status": user.emp_status or "active",
+        "phone": user.phone or "",
+        "salary": user.salary or 0,
+        "contract_start": user.contract_start.isoformat() if user.contract_start else None,
+        "contract_end": user.contract_end.isoformat() if user.contract_end else None,
+        "emp_file_id": str(user.emp_file_id) if user.emp_file_id else None,
+        "emp_notes": user.emp_notes or "",
     }
 
 

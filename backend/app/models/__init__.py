@@ -14,7 +14,7 @@ from app.models.models import (
     # Phase 4: PM
     PmProject, VisitLog, Courseware, ProjectReport,
     # Phase 4: HR
-    Employee, Resume, Approval, ApprovalStep,
+    Resume, Approval, ApprovalStep,
     # Phase 4: Interview
     Interview,
     # Phase 4: Finance
@@ -32,7 +32,7 @@ __all__ = [
     "BiddingKnowledgeDir", "BiddingKnowledgeDoc",
     "BiddingProcess", "Supplier", "Instructor",
     "PmProject", "VisitLog", "Courseware", "ProjectReport",
-    "Employee", "Resume", "Approval", "ApprovalStep",
+    "Resume", "Approval", "ApprovalStep",
     "Interview",
     "Settlement", "Expense", "Voucher",
 ]

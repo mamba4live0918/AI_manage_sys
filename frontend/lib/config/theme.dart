@@ -36,8 +36,7 @@ class AppTheme {
         primary: accent,
       ),
       scaffoldBackgroundColor: lightBg,
-      fontFamily: '.SF UI Display',
-      appBarTheme: const AppBarTheme(
+            appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -133,9 +132,9 @@ class AppTheme {
         space: 0,
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -0.6, height: 1.15),
-        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, height: 1.2),
-        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.4),
+        headlineLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.15),
+        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.2),
+        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: 0),
         titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.3),
         bodyLarge: TextStyle(fontSize: 17, height: 1.45, letterSpacing: -0.2),
         bodyMedium: TextStyle(fontSize: 15, height: 1.4, letterSpacing: -0.15),
@@ -156,8 +155,7 @@ class AppTheme {
         primary: accent,
       ),
       scaffoldBackgroundColor: darkBg,
-      fontFamily: '.SF UI Display',
-      appBarTheme: const AppBarTheme(
+            appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -253,9 +251,9 @@ class AppTheme {
         space: 0,
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -0.6, height: 1.15, color: Colors.white),
-        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, height: 1.2, color: Colors.white),
-        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.4, color: Colors.white),
+        headlineLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.15, color: Colors.white),
+        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.2, color: Colors.white),
+        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: 0, color: Colors.white),
         titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: Colors.white),
         bodyLarge: TextStyle(fontSize: 17, height: 1.45, letterSpacing: -0.2, color: Colors.white),
         bodyMedium: TextStyle(fontSize: 15, height: 1.4, letterSpacing: -0.15, color: Colors.white),

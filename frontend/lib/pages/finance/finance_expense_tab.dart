@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
 
@@ -47,6 +50,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String category = 'other';
+    PlatformFile? pickedFile;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -69,6 +73,25 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
               ),
               const SizedBox(height: 8),
               TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: Icon(pickedFile != null ? Icons.check_circle : Icons.attach_file_rounded, size: 18,
+                    color: pickedFile != null ? AppTheme.green : null),
+                label: Text(pickedFile?.name ?? '上传凭证 (可选)'),
+                onPressed: () async {
+                  final result = await FilePicker.platform.pickFiles(
+                    withData: false, allowMultiple: false,
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    final f = result.files.first;
+                    if (f.path != null || f.bytes != null) {
+                      setDlg(() => pickedFile = f);
+                    }
+                  }
+                },
+              ),
             ]),
           ),
           actions: [
@@ -80,11 +103,24 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     );
     if (ok != true || amountCtrl.text.trim().isEmpty) return;
 
-    await _api.dio.post('/finance/expenses', data: {
+    final resp = await _api.dio.post('/finance/expenses', data: {
       'amount': double.tryParse(amountCtrl.text) ?? 0.0,
       'category': category,
       'description': descCtrl.text.trim(),
     });
+    final expenseId = resp.data['id'] as String;
+
+    if (pickedFile != null) {
+      final fileBytes = pickedFile!.path != null ? await File(pickedFile!.path!).readAsBytes() : pickedFile!.bytes;
+      if (fileBytes == null) { _load(); return; }
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(fileBytes, filename: pickedFile!.name),
+        'type': category == 'travel' ? 'receipt' : 'invoice',
+        'description': descCtrl.text.trim().isNotEmpty ? descCtrl.text.trim() : pickedFile!.name,
+        'expense_id': expenseId,
+      });
+      await _api.dio.post('/finance/vouchers/upload', data: formData);
+    }
     _load();
   }
 
