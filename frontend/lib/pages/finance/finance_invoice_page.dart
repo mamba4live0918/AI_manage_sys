@@ -1049,10 +1049,19 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
         FilledButton.icon(
           icon: const Icon(Icons.download, size: 18),
-          label: const Text('打开下载'),
-          onPressed: () {
+          label: const Text('下载'),
+          onPressed: () async {
             Navigator.pop(ctx);
-            Process.run('cmd', ['/c', 'start', '', fileUrl!]);
+            try {
+              final dir = Directory.systemTemp;
+              final savePath = '${dir.path}${Platform.pathSeparator}${fileName ?? 'file'}';
+              await _api.dio.download(fileUrl!, savePath);
+              await Process.run('cmd', ['/c', 'start', '', savePath]);
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('下载失败')));
+              }
+            }
           },
         ),
       ],
