@@ -2,6 +2,7 @@
 import logging
 from elasticsearch import AsyncElasticsearch, NotFoundError, ConnectionError as ESConnectionError
 from app.config import settings
+from app.services.embedding import get_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -73,16 +74,28 @@ async def _ensure_index():
 async def index_document(
     doc_id: str, module: str, title: str,
     content: str = "", extra: str = "", department_id: str | None = None,
+    embedding_text: str = "",
 ):
     es = await get_es()
     if es is None:
         return
+
+    # Generate embedding vector
+    emb_input = embedding_text.strip() if embedding_text.strip() else f"{title} {content}"[:8000]
+    vector = await get_embedding(emb_input)
+
+    doc_body = {
+        "doc_id": doc_id, "module": module, "title": title,
+        "content": content, "extra": extra,
+        "department_id": department_id or "", "updated_at": "now",
+    }
+    if vector:
+        doc_body["embedding"] = vector
+
     try:
         await es.index(
             index=ES_INDEX, id=f"{module}_{doc_id}",
-            body={"doc_id": doc_id, "module": module, "title": title,
-                  "content": content, "extra": extra,
-                  "department_id": department_id or "", "updated_at": "now"},
+            body=doc_body,
             refresh=True,
         )
     except Exception as e:
