@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -927,7 +928,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           if (fileId != null) {
-            _showVoucherPreview(ctx, v, isDark);
+            _downloadVoucher(context, v);
           }
         },
         child: Padding(
@@ -1016,50 +1017,45 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     }
   }
 
-  void _showVoucherPreview(
-      BuildContext context, Map<String, dynamic> voucher, bool isDark) async {
+  void _downloadVoucher(BuildContext context, Map<String, dynamic> voucher) async {
     final fileId = voucher['file_id'] as String?;
     if (fileId == null) return;
 
-    // Show loading on root navigator
     showDialog(context: context, barrierDismissible: false, useRootNavigator: true,
       builder: (_) => const Center(child: CircularProgressIndicator()));
 
-    String? fileUrl, mimeType, fileName, errorMsg;
+    String? fileUrl, fileName;
     try {
       final resp = await _api.dio.get('/preview/file/$fileId');
       fileUrl = resp.data['url'] as String?;
-      mimeType = resp.data['mime_type'] as String?;
       fileName = resp.data['name'] as String?;
-    } catch (e) {
-      errorMsg = '加载失败';
+    } catch (_) {}
+
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+    if (fileUrl == null || !context.mounted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('获取文件失败')));
+      }
+      return;
     }
 
-    // Dismiss loading (use root navigator since showDialog uses it by default)
-    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-    await Future.delayed(const Duration(milliseconds: 150));
-
-    if (!context.mounted) return;
-
-    final isImage = (mimeType ?? '').startsWith('image/');
     final desc = (voucher['description'] as String?) ?? '';
-    final authToken = await _api.loadToken();
-
-    if (!context.mounted) return;
 
     showDialog(context: context, useRootNavigator: true, builder: (ctx) => AlertDialog(
-      title: Text(desc.isNotEmpty ? desc : '凭证详情'),
-      content: SizedBox(width: 350, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (fileName != null) Text('文件: $fileName', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54)),
-        const SizedBox(height: 12),
-        if (errorMsg != null)
-          Text(errorMsg, style: const TextStyle(color: Colors.red, fontSize: 13))
-        else if (isImage && fileUrl != null)
-          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(fileUrl, fit: BoxFit.contain, headers: authToken != null ? {'Authorization': 'Bearer $authToken'} : {}))
-        else
-          Text(fileName ?? '未知文件', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54)),
-      ])),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+      title: Text(desc.isNotEmpty ? desc : '下载凭证'),
+      content: Text(fileName ?? '文件'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton.icon(
+          icon: const Icon(Icons.download, size: 18),
+          label: const Text('打开下载'),
+          onPressed: () {
+            Navigator.pop(ctx);
+            Process.run('cmd', ['/c', 'start', '', fileUrl!]);
+          },
+        ),
+      ],
     ));
   }
 
