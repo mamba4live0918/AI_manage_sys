@@ -273,7 +273,7 @@ async def _recalc_budget_usage(db: AsyncSession):
     budgets = budgets_result.scalars().all()
     for b in budgets:
         ym_start, ym_end = _budget_date_range(b)
-        conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
+        conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
         if b.project_id:
             conditions.append(Expense.project_id == b.project_id)
         if ym_start:
@@ -302,7 +302,7 @@ async def _recalc_budget_usage(db: AsyncSession):
         for item in items_result.scalars().all():
             item_conditions = [
                 Expense.department_id == b.department_id,
-                Expense.status == "approved",
+                Expense.status.in_(["approved", "paid"]),
                 Expense.category == item.category,
             ]
             if b.project_id:
@@ -1028,7 +1028,7 @@ async def budget_consumption(
     # Expenses by category
     exp_conditions = [
         Expense.department_id == b.department_id,
-        Expense.status == "approved",
+        Expense.status.in_(["approved", "paid"]),
     ]
     if b.project_id:
         exp_conditions.append(Expense.project_id == b.project_id)
@@ -1063,7 +1063,7 @@ async def budget_consumption(
     budget_items = items_result.scalars().all()
 
     # Recent expense items
-    exp_items_conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
+    exp_items_conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
     if b.project_id:
         exp_items_conditions.append(Expense.project_id == b.project_id)
     if b.year:
