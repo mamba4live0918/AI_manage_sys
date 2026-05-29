@@ -710,9 +710,11 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
           return AlertDialog(
             title: const Text('编辑预算'),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+              child: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                   TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称')),
                   TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
@@ -820,6 +822,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 ]),
               ),
             ),
+            ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
               FilledButton(onPressed: () async {
@@ -874,32 +877,35 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('调整预算'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('当前总额: ${_fmt(budget.totalAmount)}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-              Text('已使用: ${_fmt(budget.usedAmount)}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: true, label: Text('追加', style: TextStyle(fontSize: 13))),
-                      ButtonSegment(value: false, label: Text('调减', style: TextStyle(fontSize: 13))),
-                    ],
-                    selected: {isAdd},
-                    onSelectionChanged: (v) => setDialogState(() => isAdd = v.first),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('当前总额: ${_fmt(budget.totalAmount)}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                Text('已使用: ${_fmt(budget.usedAmount)}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: true, label: Text('追加', style: TextStyle(fontSize: 13))),
+                        ButtonSegment(value: false, label: Text('调减', style: TextStyle(fontSize: 13))),
+                      ],
+                      selected: {isAdd},
+                      onSelectionChanged: (v) => setDialogState(() => isAdd = v.first),
+                    ),
                   ),
+                ]),
+                TextField(
+                  controller: adjustCtrl,
+                  decoration: InputDecoration(
+                    labelText: isAdd ? '追加金额' : '调减金额',
+                    errorText: errorMsg,
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
               ]),
-              TextField(
-                controller: adjustCtrl,
-                decoration: InputDecoration(
-                  labelText: isAdd ? '追加金额' : '调减金额',
-                  errorText: errorMsg,
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ]),
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
@@ -961,9 +967,11 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
           return AlertDialog(
             title: const Text('创建预算'),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+              child: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                   TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称')),
                   TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
@@ -1090,6 +1098,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   ),
                 ]),
               ),
+            ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
