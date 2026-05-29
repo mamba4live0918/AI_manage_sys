@@ -39,12 +39,13 @@ class FinanceInvoiceNotifier extends StateNotifier<FinanceInvoiceState> {
   final ApiClient _api = ApiClient();
   FinanceInvoiceNotifier() : super(const FinanceInvoiceState());
 
-  Future<void> load({String projectId = '', String status = ''}) async {
+  Future<void> load({String projectId = '', String status = '', String search = ''}) async {
     state = const FinanceInvoiceState(loading: true);
     try {
       final params = <String, String>{};
       if (projectId.isNotEmpty) params['project_id'] = projectId;
       if (status.isNotEmpty) params['status'] = status;
+      if (search.isNotEmpty) params['search'] = search;
       final resp = await _api.dio.get('/finance/invoices', queryParameters: params.isNotEmpty ? params : null);
       final items = (resp.data['items'] as List).map((j) => InvoiceData.fromJson(j)).toList();
       state = FinanceInvoiceState(items: items);

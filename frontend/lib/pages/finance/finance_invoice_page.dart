@@ -23,17 +23,17 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final Map<String, double> _paymentTotals = {};
   final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingPayments = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
-  static const _statusOptions = ['', 'draft', 'issued', 'partial', 'paid'];
+  static const _statusOptions = ['', 'issued', 'partial', 'paid'];
   static const _statusLabels = {
     '': '全部',
-    'draft': '草稿',
     'issued': '已开票',
     'partial': '部分收款',
     'paid': '已收款',
   };
   static const _statusColors = {
-    'draft': Colors.grey,
     'issued': Colors.orange,
     'partial': Colors.blue,
     'paid': Colors.green,
@@ -52,6 +52,12 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       ref.read(financeInvoiceProvider.notifier).load();
       _loadAllPayments();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAllPayments() async {
@@ -108,6 +114,31 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: '搜索发票号或备注',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                        ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
+                      })
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              onChanged: (v) {
+                setState(() => _searchQuery = v);
+              },
+              onSubmitted: (v) {
+                ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
+              },
+            ),
+          ),
           _buildFilterBar(theme, isDark),
           const Divider(height: 1),
           Expanded(

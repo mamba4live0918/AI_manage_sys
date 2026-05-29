@@ -583,6 +583,7 @@ async def delete_voucher(
 async def list_invoices(
     project_id: str = "",
     status: str = "",
+    search: str = "",
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -599,6 +600,11 @@ async def list_invoices(
         query = query.where(Invoice.project_id == project_id)
     if status:
         query = query.where(Invoice.status == status)
+    if search:
+        query = query.where(
+            Invoice.invoice_no.ilike(f"%{search}%")
+            | Invoice.notes.ilike(f"%{search}%")
+        )
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_invoice_row(i) for i in result.scalars().all()]}
 
