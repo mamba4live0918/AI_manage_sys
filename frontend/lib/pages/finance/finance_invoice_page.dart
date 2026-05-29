@@ -1073,7 +1073,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 onPressed: () async {
                   try {
                     await _api.dio.delete('/finance/vouchers/${v['id']}');
-                    if (ctx.mounted) Navigator.pop(ctx);
+                    Navigator.pop(ctx); // close confirm dialog
+                    Navigator.of(context).pop(); // close detail sheet
                     await _loadAllPayments();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
