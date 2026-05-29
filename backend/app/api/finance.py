@@ -251,17 +251,34 @@ async def _budget_row(b: Budget, db: AsyncSession) -> dict:
     }
 
 
+def _budget_date_range(b):
+    """Return (start, end) datetime range for a budget based on year+quarter. Returns (None, None) if no year."""
+    if not b.year:
+        return None, None
+    if b.quarter:
+        q = b.quarter - 1
+        start_month = q * 3 + 1
+        start = datetime(b.year, start_month, 1)
+        if q < 3:
+            end = datetime(b.year, start_month + 3, 1)
+        else:
+            end = datetime(b.year + 1, 1, 1)
+        return start, end
+    return datetime(b.year, 1, 1), datetime(b.year + 1, 1, 1)
+
+
 async def _recalc_budget_usage(db: AsyncSession):
     """Recalculate used_amount for all active budgets and their items."""
     budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
     budgets = budgets_result.scalars().all()
     for b in budgets:
+        ym_start, ym_end = _budget_date_range(b)
         conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
         if b.project_id:
             conditions.append(Expense.project_id == b.project_id)
-        if b.year:
-            conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-            conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+        if ym_start:
+            conditions.append(Expense.created_at >= ym_start)
+            conditions.append(Expense.created_at < ym_end)
         exp_result = await db.execute(
             select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*conditions)
         )
@@ -270,9 +287,9 @@ async def _recalc_budget_usage(db: AsyncSession):
         stl_conditions = [Settlement.department_id == b.department_id, Settlement.status.in_(["completed", "settled"])]
         if b.project_id:
             stl_conditions.append(Settlement.project_id == b.project_id)
-        if b.year:
-            stl_conditions.append(Settlement.created_at >= datetime(b.year, 1, 1))
-            stl_conditions.append(Settlement.created_at < datetime(b.year + 1, 1, 1))
+        if ym_start:
+            stl_conditions.append(Settlement.created_at >= ym_start)
+            stl_conditions.append(Settlement.created_at < ym_end)
         stl_result = await db.execute(
             select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
         )
@@ -290,9 +307,9 @@ async def _recalc_budget_usage(db: AsyncSession):
             ]
             if b.project_id:
                 item_conditions.append(Expense.project_id == b.project_id)
-            if b.year:
-                item_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-                item_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+            if ym_start:
+                item_conditions.append(Expense.created_at >= ym_start)
+                item_conditions.append(Expense.created_at < ym_end)
             item_exp = await db.execute(
                 select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_conditions)
             )
