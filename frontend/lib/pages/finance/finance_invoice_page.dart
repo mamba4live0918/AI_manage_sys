@@ -546,7 +546,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'seller_tax_id': sellerTaxIdCtrl.text,
                       'buyer_name': buyerNameCtrl.text,
                       'buyer_tax_id': buyerTaxIdCtrl.text,
-                      'status': 'issued',
+                      'status': 'draft',
                     };
                     if (projectIdCtrl.text.isNotEmpty) {
                       body['project_id'] = projectIdCtrl.text;

@@ -248,21 +248,11 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
             final segments = <Widget>[];
             double usedW = 0;
             for (final item in sorted) {
-              final segW = (item.amount / displayTotal) * totalW;
-              if (segW < 2) continue;
-              usedW += segW;
-              final fillRatio = item.amount > 0 ? (item.usedAmount / item.amount).clamp(0.0, 1.0) : 0.0;
-              final fillW = segW * fillRatio;
-              final color = _itemColor(item);
-              segments.add(SizedBox(
-                width: segW,
-                child: Row(children: [
-                  if (fillW >= 1)
-                    SizedBox(width: fillW, child: Container(color: color)),
-                  if (segW - fillW >= 1)
-                    SizedBox(width: segW - fillW, child: Container(color: color.withAlpha(40))),
-                ]),
-              ));
+              final w = (item.amount / displayTotal) * totalW;
+              if (w >= 2) {
+                usedW += w;
+                segments.add(SizedBox(width: w, child: Container(color: _itemColor(item))));
+              }
             }
             // Unallocated amount in grey
             final unallocated = b.totalAmount - itemSum;
