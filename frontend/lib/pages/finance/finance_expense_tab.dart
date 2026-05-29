@@ -1197,6 +1197,21 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                   ],
                 ),
               ],
+              if (isReimbursement && status == 'approved') ...[
+                const SizedBox(height: 10),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton.icon(
+                    onPressed: () => _approve(id, 'paid'),
+                    icon: const Icon(Icons.payment, size: 16, color: AppTheme.green),
+                    label: const Text('标记已支付', style: TextStyle(color: AppTheme.green, fontSize: 13)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ]),
+              ],
 
               if (!isReimbursement) ...[
                 const SizedBox(height: 10),

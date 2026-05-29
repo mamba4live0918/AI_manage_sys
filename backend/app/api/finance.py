@@ -487,8 +487,8 @@ async def approve_expense(
     if not e:
         raise HTTPException(404, "报销不存在")
     await _check_department(db, user, e.department_id, "审批")
-    if body.status not in ("approved", "rejected"):
-        raise HTTPException(400, "状态必须是 approved 或 rejected")
+    if body.status not in ("approved", "rejected", "paid"):
+        raise HTTPException(400, "状态必须是 approved、rejected 或 paid")
     e.status = body.status
     e.updated_at = _now()
     await db.commit()
