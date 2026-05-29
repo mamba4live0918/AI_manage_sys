@@ -809,12 +809,12 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '合计: ${_fmt(itemTotal)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.blue),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -1086,12 +1086,12 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '合计: ${_fmt(itemTotal)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.blue),
                       textAlign: TextAlign.center,
                     ),
                   ),
