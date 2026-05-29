@@ -877,7 +877,20 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           _detailRow('方式', _paymentMethodLabels[p.paymentMethod] ?? p.paymentMethod, labelColor, textColor),
           _detailRow('流水号', p.refNo.isNotEmpty ? p.refNo : '无', labelColor, textColor),
           _detailRow('备注', p.notes.isNotEmpty ? p.notes : '无', labelColor, textColor),
-          const SizedBox(height: 16),
+          // Vouchers for this invoice
+          Builder(builder: (_) {
+            final vouchers = p.invoiceId != null ? (_voucherCache[p.invoiceId!] ?? []) : <Map<String, dynamic>>[];
+            if (vouchers.isEmpty) return const SizedBox.shrink();
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SizedBox(height: 8),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text('凭证 (${vouchers.length})', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+              const SizedBox(height: 8),
+              ...vouchers.map((v) => _buildVoucherItem(v, isDark, textColor, labelColor, ctx)),
+            ]);
+          }),
+          const SizedBox(height: 8),
         ]),
       ),
     );
