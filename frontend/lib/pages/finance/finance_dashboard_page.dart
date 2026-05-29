@@ -129,7 +129,7 @@ class _KpiCards extends StatelessWidget {
       (
         '待处理',
         '$pendingTotal',
-        '${data.pendingInvoices} 发票 / ${data.pendingPayments} 付款 / ${data.pendingExpenses} 报销',
+        '${data.pendingInvoices} 票据 / ${data.pendingPayments} 待收款 / ${data.pendingExpenses} 报销',
         [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
         [const Color(0xFF43e97b).withAlpha(50), const Color(0xFF38f9d7).withAlpha(50)],
       ),
