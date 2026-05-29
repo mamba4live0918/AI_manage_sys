@@ -1152,7 +1152,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   Widget _colorPickerRow(String currentColor, ValueChanged<String> onChanged) {
     final presets = ['#FF0000', '#FF5722', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#607D8B'];
-    return Row(children: [
+    return SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
       ...presets.map((c) => GestureDetector(
         onTap: () => onChanged(c),
         child: Container(
@@ -1176,7 +1176,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
           child: const Icon(Icons.colorize, size: 14, color: Colors.white),
         ),
       ),
-    ]);
+    ]));
   }
 
   void _showColorPickerDialog(BuildContext context, String currentColor, ValueChanged<String> onChanged) {
