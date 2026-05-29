@@ -294,78 +294,11 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         color: isDark ? Colors.white54 : Colors.black45),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onSelected: (v) async {
-                      if (v == 'delete') {
-                        _confirmDelete(context, inv.id);
-                      } else {
-                        try {
-                          await _api.dio.put(
-                              '/finance/invoices/${inv.id}',
-                              data: {'status': v});
-                          ref
-                              .read(financeInvoiceProvider.notifier)
-                              .load(status: _selectedStatus);
-                          await _loadAllPayments();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(
-                                    '状态已更新为${_statusLabels[v]}')));
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('状态更新失败: $e')));
-                          }
-                        }
-                      }
+                    onSelected: (v) {
+                      if (v == 'delete') _confirmDelete(context, inv.id);
                     },
-                    itemBuilder: (_) {
-                      final items = <PopupMenuEntry<String>>[];
-                      if (inv.status != 'draft') {
-                        items.add(const PopupMenuItem(
-                          value: 'draft',
-                          child: Row(children: [
-                            Icon(Icons.edit_note, color: Colors.grey, size: 20),
-                            SizedBox(width: 8),
-                            Text('标记为草稿'),
-                          ]),
-                        ));
-                      }
-                      if (inv.status != 'issued') {
-                        items.add(const PopupMenuItem(
-                          value: 'issued',
-                          child: Row(children: [
-                            Icon(Icons.description_outlined,
-                                color: Colors.orange, size: 20),
-                            SizedBox(width: 8),
-                            Text('标记为已开票'),
-                          ]),
-                        ));
-                      }
-                      if (inv.status != 'partial') {
-                        items.add(const PopupMenuItem(
-                          value: 'partial',
-                          child: Row(children: [
-                            Icon(Icons.hourglass_bottom,
-                                color: Colors.blue, size: 20),
-                            SizedBox(width: 8),
-                            Text('标记为部分收款'),
-                          ]),
-                        ));
-                      }
-                      if (inv.status != 'paid') {
-                        items.add(const PopupMenuItem(
-                          value: 'paid',
-                          child: Row(children: [
-                            Icon(Icons.check_circle_outline,
-                                color: Colors.green, size: 20),
-                            SizedBox(width: 8),
-                            Text('标记为已收款'),
-                          ]),
-                        ));
-                      }
-                      items.add(const PopupMenuDivider());
-                      items.add(const PopupMenuItem(
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
                         value: 'delete',
                         child: Row(children: [
                           Icon(Icons.delete_outline,
@@ -373,9 +306,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                           SizedBox(width: 8),
                           Text('删除'),
                         ]),
-                      ));
-                      return items;
-                    },
+                      ),
+                    ],
                   ),
                 ],
               ),
