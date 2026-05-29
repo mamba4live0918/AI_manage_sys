@@ -666,4 +666,5 @@ class BudgetItem(Base):
     name: Mapped[str] = mapped_column(String(128), default="")
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     used_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    color: Mapped[str] = mapped_column(String(32), default="#FF0000")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

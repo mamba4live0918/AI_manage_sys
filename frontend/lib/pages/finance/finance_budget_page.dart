@@ -252,7 +252,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 if (w < 2) return const SizedBox.shrink();
                 return SizedBox(
                   width: w,
-                  child: Container(color: _catColor(item.category)),
+                  child: Container(color: _itemColor(item)),
                 );
               }).toList(),
             );
@@ -396,7 +396,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                           ...b.items.map((item) {
                             final itemPct = b.totalAmount > 0 ? (item.amount / b.totalAmount * 100).clamp(0.0, 100.0) : 0.0;
                             final usedPct = item.amount > 0 ? (item.usedAmount / item.amount * 100).clamp(0.0, 100.0) : 0.0;
-                            final catColor = _catColor(item.category);
+                            final catColor = _itemColor(item);
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -606,6 +606,14 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     }
   }
 
+  Color _itemColor(BudgetItemData item) {
+    try {
+      return Color(int.parse(item.color.replaceFirst('#', '0xff')));
+    } catch (_) {
+      return _catColor(item.category);
+    }
+  }
+
   IconData _catIcon(String cat) {
     switch (cat) {
       case 'travel': return Icons.flight;
@@ -630,7 +638,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
     // Pre-fill existing items
     final List<Map<String, dynamic>> items = budget.items.isNotEmpty
-        ? budget.items.map((item) => _newItemEntry(item.category, item.name, item.amount.toStringAsFixed(0))).toList()
+        ? budget.items.map((item) => _newItemEntry(item.category, item.name, item.amount.toStringAsFixed(0), color: item.color)).toList()
         : [_newItemEntry('other', '', '0')];
 
     showDialog(
@@ -729,6 +737,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                                 onPressed: () => setDialogState(() => items.removeAt(i)),
                               ),
                           ]),
+                          const SizedBox(height: 4),
+                          _colorPickerRow(item['color'] as String, (c) => setDialogState(() => items[i]['color'] = c)),
                         ]),
                       ),
                     );
@@ -762,6 +772,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     'category': item['cat'] as String,
                     'name': (item['nameCtrl'] as TextEditingController).text,
                     'amount': double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0,
+                    'color': item['color'] as String,
                   }).toList();
                   await _api.dio.put('/finance/budgets/${budget.id}', data: {
                     'name': nameCtrl.text,
@@ -994,6 +1005,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                                 onPressed: () => setDialogState(() => items.removeAt(i)),
                               ),
                           ]),
+                          const SizedBox(height: 4),
+                          _colorPickerRow(item['color'] as String, (c) => setDialogState(() => items[i]['color'] = c)),
                         ]),
                       ),
                     );
@@ -1027,6 +1040,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     'category': item['cat'] as String,
                     'name': (item['nameCtrl'] as TextEditingController).text,
                     'amount': double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0,
+                    'color': item['color'] as String,
                   }).toList();
                   final data = <String, dynamic>{
                     'name': nameCtrl.text,
@@ -1053,12 +1067,39 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     );
   }
 
-  Map<String, dynamic> _newItemEntry(String cat, String name, String amount) {
+  Map<String, dynamic> _newItemEntry(String cat, String name, String amount, {String color = '#FF0000'}) {
     return {
       'cat': cat,
       'nameCtrl': TextEditingController(text: name),
       'amountCtrl': TextEditingController(text: amount),
+      'color': color,
     };
+  }
+
+  static const _colorOptions = ['#FF0000', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#9E9E9E'];
+
+  Widget _colorPickerRow(String currentColor, ValueChanged<String> onChanged) {
+    return Row(
+      children: _colorOptions.map((c) {
+        final isSelected = currentColor == c;
+        return GestureDetector(
+          onTap: () => onChanged(c),
+          child: Container(
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+              shape: BoxShape.circle,
+              border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+              boxShadow: isSelected
+                  ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(100), blurRadius: 4)]
+                  : [],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   // ── Delete Confirmation ──

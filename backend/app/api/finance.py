@@ -109,6 +109,7 @@ class BudgetItemCreate(BaseModel):
     category: str = "other"
     name: str = ""
     amount: float = 0.0
+    color: str = "#FF0000"
 
 
 class BudgetCreate(BaseModel):
@@ -222,6 +223,7 @@ def _budget_item_row(item: BudgetItem) -> dict:
         "name": item.name,
         "amount": item.amount,
         "used_amount": item.used_amount,
+        "color": item.color,
     }
 
 
@@ -904,6 +906,7 @@ async def create_budget(
             category=item_data.category,
             name=item_data.name,
             amount=item_data.amount,
+            color=item_data.color,
         )
         db.add(item)
     if body.items:
@@ -950,6 +953,7 @@ async def update_budget(
                 category=item_data["category"],
                 name=item_data.get("name", ""),
                 amount=item_data.get("amount", 0.0),
+                color=item_data.get("color", "#FF0000"),
             )
             db.add(item)
             total += item_data.get("amount", 0.0)

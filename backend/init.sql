@@ -382,8 +382,12 @@ CREATE TABLE IF NOT EXISTS budget_items (
     name VARCHAR(128) DEFAULT '',
     amount FLOAT DEFAULT 0.0,
     used_amount FLOAT DEFAULT 0.0,
+    color VARCHAR(32) DEFAULT '#FF0000',
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration: add color to budget_items
+ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS color VARCHAR(32) DEFAULT '#FF0000';
 
 -- 2026-05-29: add seller/buyer info to invoices
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_name VARCHAR(128) DEFAULT '';
