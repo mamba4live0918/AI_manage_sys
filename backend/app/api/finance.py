@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, File, Settlement, Expense, Voucher
+from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment, Budget
 from app.security import get_current_user, require_module
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
@@ -66,6 +66,36 @@ class VoucherCreate(BaseModel):
     description: str = ""
 
 
+class InvoiceCreate(BaseModel):
+    project_id: str | None = None
+    invoice_no: str = ""
+    amount: float = 0.0
+    tax_amount: float = 0.0
+    tax_rate: float = 0.13
+    status: str = "draft"
+    issue_date: str | None = None
+    due_date: str | None = None
+    notes: str = ""
+
+class InvoiceUpdate(BaseModel):
+    invoice_no: str | None = None
+    amount: float | None = None
+    tax_amount: float | None = None
+    tax_rate: float | None = None
+    status: str | None = None
+    issue_date: str | None = None
+    due_date: str | None = None
+    notes: str | None = None
+
+class PaymentCreate(BaseModel):
+    invoice_id: str | None = None
+    amount: float = 0.0
+    payment_date: str | None = None
+    payment_method: str = "bank_transfer"
+    ref_no: str = ""
+    notes: str = ""
+
+
 # ── Row Serializers ──
 
 def _settlement_row(s: Settlement) -> dict:
@@ -110,6 +140,37 @@ def _voucher_row(v: Voucher) -> dict:
         "department_id": str(v.department_id) if v.department_id else None,
         "created_by": str(v.created_by) if v.created_by else None,
         "created_at": v.created_at.isoformat() if v.created_at else None,
+    }
+
+
+def _invoice_row(inv: Invoice) -> dict:
+    return {
+        "id": str(inv.id),
+        "project_id": str(inv.project_id) if inv.project_id else None,
+        "invoice_no": inv.invoice_no,
+        "amount": inv.amount,
+        "tax_amount": inv.tax_amount,
+        "tax_rate": inv.tax_rate,
+        "status": inv.status,
+        "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
+        "due_date": inv.due_date.isoformat() if inv.due_date else None,
+        "notes": inv.notes,
+        "department_id": str(inv.department_id) if inv.department_id else None,
+        "created_at": inv.created_at.isoformat() if inv.created_at else None,
+        "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
+    }
+
+def _payment_row(p: Payment) -> dict:
+    return {
+        "id": str(p.id),
+        "invoice_id": str(p.invoice_id) if p.invoice_id else None,
+        "amount": p.amount,
+        "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+        "payment_method": p.payment_method,
+        "ref_no": p.ref_no,
+        "notes": p.notes,
+        "department_id": str(p.department_id) if p.department_id else None,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
     }
 
 
@@ -432,4 +493,179 @@ async def delete_voucher(
     await db.delete(v)
     await db.commit()
     await audit_log(db, user, "voucher_delete", "voucher", v.id, v.description, request=request)
+    return {"ok": True}
+
+
+# ── Invoices ──
+
+@router.get("/invoices")
+async def list_invoices(
+    project_id: str = "",
+    status: str = "",
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    query = select(Invoice).order_by(Invoice.updated_at.desc())
+    if user.role != "admin":
+        if user.department_id:
+            query = query.where(Invoice.department_id == user.department_id)
+        else:
+            query = query.where(Invoice.created_by == user.id)
+    if project_id:
+        query = query.where(Invoice.project_id == project_id)
+    if status:
+        query = query.where(Invoice.status == status)
+    result = await db.execute(query.offset(offset).limit(limit))
+    return {"items": [_invoice_row(i) for i in result.scalars().all()]}
+
+
+@router.post("/invoices")
+async def create_invoice(
+    body: InvoiceCreate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    project_id = uuid.UUID(body.project_id) if body.project_id else None
+    issue_date = datetime.fromisoformat(body.issue_date) if body.issue_date else None
+    due_date = datetime.fromisoformat(body.due_date) if body.due_date else None
+    i = Invoice(
+        project_id=project_id, invoice_no=body.invoice_no, amount=body.amount,
+        tax_amount=body.tax_amount, tax_rate=body.tax_rate, status=body.status,
+        issue_date=issue_date, due_date=due_date, notes=body.notes,
+        department_id=user.department_id, created_by=user.id,
+    )
+    db.add(i)
+    await db.commit()
+    await db.refresh(i)
+    await audit_log(db, user, "invoice_create", "invoice", i.id, i.invoice_no, request=request)
+    return _invoice_row(i)
+
+
+@router.put("/invoices/{invoice_id}")
+async def update_invoice(
+    invoice_id: str,
+    body: InvoiceUpdate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    i = result.scalar_one_or_none()
+    if not i:
+        raise HTTPException(404, "发票不存在")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        if k in ("issue_date", "due_date") and v is not None:
+            setattr(i, k, datetime.fromisoformat(v))
+        elif v is not None and k not in ("issue_date", "due_date"):
+            setattr(i, k, v)
+    await db.commit()
+    await db.refresh(i)
+    await audit_log(db, user, "invoice_update", "invoice", i.id, i.invoice_no, request=request)
+    return _invoice_row(i)
+
+
+@router.delete("/invoices/{invoice_id}")
+async def delete_invoice(
+    invoice_id: str,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    i = result.scalar_one_or_none()
+    if not i:
+        raise HTTPException(404, "发票不存在")
+    await db.delete(i)
+    await db.commit()
+    await audit_log(db, user, "invoice_delete", "invoice", i.id, i.invoice_no, request=request)
+    return {"ok": True}
+
+
+# ── Payments ──
+
+async def _sync_invoice_status(invoice_id: uuid.UUID, db: AsyncSession):
+    """Update invoice status based on total payments."""
+    result = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0.0)).where(Payment.invoice_id == invoice_id)
+    )
+    paid = result.scalar() or 0.0
+    inv = (await db.execute(select(Invoice).where(Invoice.id == invoice_id))).scalar_one_or_none()
+    if inv:
+        if paid >= inv.amount and inv.amount > 0:
+            inv.status = "paid"
+        elif paid > 0:
+            inv.status = "partial"
+        await db.commit()
+
+
+@router.get("/payments")
+async def list_payments(
+    invoice_id: str = "",
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    query = select(Payment).order_by(Payment.created_at.desc())
+    if user.role != "admin":
+        if user.department_id:
+            query = query.where(Payment.department_id == user.department_id)
+        else:
+            query = query.where(Payment.created_by == user.id)
+    if invoice_id:
+        query = query.where(Payment.invoice_id == invoice_id)
+    result = await db.execute(query.offset(offset).limit(limit))
+    return {"items": [_payment_row(p) for p in result.scalars().all()]}
+
+
+@router.post("/payments")
+async def create_payment(
+    body: PaymentCreate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    invoice_id = uuid.UUID(body.invoice_id) if body.invoice_id else None
+    payment_date = datetime.fromisoformat(body.payment_date) if body.payment_date else None
+    p = Payment(
+        invoice_id=invoice_id, amount=body.amount, payment_date=payment_date,
+        payment_method=body.payment_method, ref_no=body.ref_no, notes=body.notes,
+        department_id=user.department_id, created_by=user.id,
+    )
+    db.add(p)
+    await db.commit()
+    await db.refresh(p)
+    if invoice_id:
+        await _sync_invoice_status(invoice_id, db)
+    await audit_log(db, user, "payment_create", "payment", p.id, f"¥{p.amount}", request=request)
+    return _payment_row(p)
+
+
+@router.delete("/payments/{payment_id}")
+async def delete_payment(
+    payment_id: str,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(404, "收款不存在")
+    inv_id = p.invoice_id
+    await db.delete(p)
+    await db.commit()
+    if inv_id:
+        await _sync_invoice_status(inv_id, db)
+    await audit_log(db, user, "payment_delete", "payment", p.id, f"¥{p.amount}", request=request)
     return {"ok": True}
