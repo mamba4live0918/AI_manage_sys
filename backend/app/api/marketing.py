@@ -190,10 +190,14 @@ async def list_customers(
         else:
             query = query.where(Customer.created_by == user.id)
     if search:
-        query = query.where(
-            Customer.name.ilike(f"%{search}%")
-            | Customer.industry.ilike(f"%{search}%")
-        )
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="customers", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            query = query.where(Customer.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": [], "total": 0}
     if status:
         query = query.where(Customer.status == status)
     result = await db.execute(query.offset(offset).limit(limit))
@@ -1194,10 +1198,14 @@ async def list_knowledge(
     if category:
         query = query.where(KnowledgeEntry.category == category)
     if search:
-        query = query.where(
-            KnowledgeEntry.title.ilike(f"%{search}%")
-            | KnowledgeEntry.content.ilike(f"%{search}%")
-        )
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="marketing_knowledge", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            query = query.where(KnowledgeEntry.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": []}
     result = await db.execute(query.offset(offset).limit(limit))
     rows = result.scalars().all()
     return {"items": [_knowledge_row(k) for k in rows]}
