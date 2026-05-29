@@ -132,6 +132,17 @@ async def search(
     body["from"] = offset
     body["size"] = size
 
+    # Hybrid: add knn vector search with RRF fusion
+    query_vector = await get_embedding(query)
+    if query_vector:
+        body["knn"] = {
+            "field": "embedding",
+            "query_vector": query_vector,
+            "k": 100,
+            "num_candidates": 200,
+        }
+        body["rank"] = {"rrf": {}}
+
     try:
         resp = await es.search(index=ES_INDEX, body=body)
         hits = resp["hits"]
