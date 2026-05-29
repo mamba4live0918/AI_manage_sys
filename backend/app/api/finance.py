@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment
+from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment, Budget
 from app.security import get_current_user, require_module
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
@@ -19,12 +19,12 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-async def _check_department(db: AsyncSession, user: User, target_department_id, action: str):
+async def _check_department(db: AsyncSession, user: User, target_department_id, action: str, noun: str = "财务记录"):
     """非admin用户只能操作本部门数据"""
     if user.role == "admin":
         return
     if target_department_id is not None and user.department_id != target_department_id:
-        raise HTTPException(403, f"不能{action}其他部门的财务记录")
+        raise HTTPException(403, f"不能{action}其他部门的{noun}")
 
 
 # ── Pydantic Schemas ──
@@ -94,6 +94,23 @@ class PaymentCreate(BaseModel):
     payment_method: str = "bank_transfer"
     ref_no: str = ""
     notes: str = ""
+
+
+class BudgetCreate(BaseModel):
+    department_id: str | None = None
+    project_id: str | None = None
+    name: str = ""
+    year: int = 2026
+    quarter: int | None = None
+    total_amount: float = 0.0
+    status: str = "active"
+
+class BudgetUpdate(BaseModel):
+    name: str | None = None
+    year: int | None = None
+    quarter: int | None = None
+    total_amount: float | None = None
+    status: str | None = None
 
 
 # ── Row Serializers ──
@@ -172,6 +189,46 @@ def _payment_row(p: Payment) -> dict:
         "department_id": str(p.department_id) if p.department_id else None,
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
+
+
+def _budget_row(b: Budget) -> dict:
+    return {
+        "id": str(b.id),
+        "department_id": str(b.department_id) if b.department_id else None,
+        "project_id": str(b.project_id) if b.project_id else None,
+        "name": b.name,
+        "year": b.year,
+        "quarter": b.quarter,
+        "total_amount": b.total_amount,
+        "used_amount": b.used_amount,
+        "status": b.status,
+        "created_at": b.created_at.isoformat() if b.created_at else None,
+    }
+
+
+async def _recalc_budget_usage(db: AsyncSession):
+    """Recalculate used_amount for all active budgets."""
+    budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
+    budgets = budgets_result.scalars().all()
+    for b in budgets:
+        conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
+        if b.project_id:
+            conditions.append(Expense.project_id == b.project_id)
+        exp_result = await db.execute(
+            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*conditions)
+        )
+        expense_total = exp_result.scalar() or 0.0
+
+        stl_conditions = [Settlement.department_id == b.department_id, Settlement.status.in_(["completed", "settled"])]
+        if b.project_id:
+            stl_conditions.append(Settlement.project_id == b.project_id)
+        stl_result = await db.execute(
+            select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
+        )
+        settlement_total = stl_result.scalar() or 0.0
+
+        b.used_amount = expense_total + settlement_total
+    await db.commit()
 
 
 # ── Settlements ──
@@ -676,3 +733,217 @@ async def delete_payment(
         await _sync_invoice_status(inv_id, db)
     await audit_log(db, user, "payment_delete", "payment", p.id, f"¥{p.amount}", request=request)
     return {"ok": True}
+
+
+# ── Budgets ──
+
+@router.get("/budgets")
+async def list_budgets(
+    department_id: str = "",
+    year: int = 0,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    query = select(Budget).order_by(Budget.updated_at.desc())
+    if user.role != "admin":
+        if user.department_id:
+            query = query.where(Budget.department_id == user.department_id)
+    if department_id:
+        query = query.where(Budget.department_id == department_id)
+    if year:
+        query = query.where(Budget.year == year)
+    result = await db.execute(query)
+    return {"items": [_budget_row(b) for b in result.scalars().all()]}
+
+
+@router.post("/budgets")
+async def create_budget(
+    body: BudgetCreate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    dept_id = uuid.UUID(body.department_id) if body.department_id else user.department_id
+    project_id = uuid.UUID(body.project_id) if body.project_id else None
+
+    # Validate: project budget must not exceed department budget
+    if project_id and dept_id:
+        dept_result = await db.execute(
+            select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                Budget.department_id == dept_id,
+                Budget.project_id.is_(None),
+                Budget.status == "active",
+                Budget.year == body.year,
+            )
+        )
+        dept_budget = dept_result.scalar() or 0.0
+        proj_result = await db.execute(
+            select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                Budget.department_id == dept_id,
+                Budget.project_id.isnot(None),
+                Budget.status == "active",
+                Budget.year == body.year,
+            )
+        )
+        proj_budgets = proj_result.scalar() or 0.0
+        if proj_budgets + body.total_amount > dept_budget:
+            raise HTTPException(400, f"项目预算总和({proj_budgets + body.total_amount:.0f})超过部门预算({dept_budget:.0f})")
+
+    b = Budget(
+        department_id=dept_id, project_id=project_id, name=body.name,
+        year=body.year, quarter=body.quarter, total_amount=body.total_amount,
+        status=body.status, created_by=user.id,
+    )
+    db.add(b)
+    await db.commit()
+    await db.refresh(b)
+    await audit_log(db, user, "budget_create", "budget", b.id, b.name, request=request)
+    return _budget_row(b)
+
+
+@router.put("/budgets/{budget_id}")
+async def update_budget(
+    budget_id: str,
+    body: BudgetUpdate,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    result = await db.execute(select(Budget).where(Budget.id == budget_id))
+    b = result.scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "预算不存在")
+    await _check_department(db, user, b.department_id, "修改", "预算")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        if v is not None:
+            setattr(b, k, v)
+    await db.commit()
+    await db.refresh(b)
+    await audit_log(db, user, "budget_update", "budget", b.id, b.name, request=request)
+    return _budget_row(b)
+
+
+@router.delete("/budgets/{budget_id}")
+async def delete_budget(
+    budget_id: str,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    result = await db.execute(select(Budget).where(Budget.id == budget_id))
+    b = result.scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "预算不存在")
+    await _check_department(db, user, b.department_id, "删除", "预算")
+    await db.delete(b)
+    await db.commit()
+    await audit_log(db, user, "budget_delete", "budget", b.id, b.name, request=request)
+    return {"ok": True}
+
+
+# ── Dashboard ──
+
+@router.get("/dashboard")
+async def finance_dashboard(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    dept_cond = (user.department_id is not None and user.role != "admin")
+
+    now = datetime.utcnow()
+    # Monthly revenue: payments this calendar month
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+        Payment.payment_date >= month_start
+    )
+    if dept_cond:
+        month_query = month_query.where(Payment.department_id == user.department_id)
+    monthly_revenue = (await db.execute(month_query)).scalar() or 0.0
+
+    # Total receivable: invoice amounts - payments for non-paid invoices
+    inv_query = select(func.coalesce(func.sum(Invoice.amount), 0.0)).where(
+        Invoice.status.in_(["issued", "partial", "draft"])
+    )
+    if dept_cond:
+        inv_query = inv_query.where(Invoice.department_id == user.department_id)
+    total_invoiced = (await db.execute(inv_query)).scalar() or 0.0
+
+    paid_query = select(func.coalesce(func.sum(Payment.amount), 0.0))
+    if dept_cond:
+        paid_query = paid_query.where(Payment.department_id == user.department_id)
+    total_paid = (await db.execute(paid_query)).scalar() or 0.0
+    total_receivable = max(0, total_invoiced - total_paid)
+    collection_rate = round(total_paid / total_invoiced, 4) if total_invoiced > 0 else 0.0
+
+    # Budget usage
+    budget_query = select(Budget).where(Budget.status == "active").order_by(Budget.total_amount.desc())
+    if dept_cond:
+        budget_query = budget_query.where(Budget.department_id == user.department_id)
+    budgets = (await db.execute(budget_query)).scalars().all()
+    budget_usage = [
+        {"name": b.name, "total": b.total_amount, "used": b.used_amount}
+        for b in budgets
+    ]
+
+    # 12-month revenue trend
+    import calendar
+    from datetime import timedelta
+    trend = []
+    for i in range(12):
+        months_ago = 11 - i
+        y = now.year
+        m = now.month - months_ago
+        while m <= 0:
+            m += 12
+            y -= 1
+        ms = datetime(y, m, 1)
+        if m == 12:
+            me = datetime(y + 1, 1, 1)
+        else:
+            me = datetime(y, m + 1, 1)
+        month_rev_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+            Payment.payment_date >= ms,
+            Payment.payment_date < me,
+        )
+        if dept_cond:
+            month_rev_query = month_rev_query.where(Payment.department_id == user.department_id)
+        month_rev = (await db.execute(month_rev_query)).scalar() or 0.0
+        trend.append({"month": f"{y}-{m:02d}", "revenue": month_rev})
+
+    # Pending counts
+    pending_inv_query = select(func.count(Invoice.id)).where(
+        Invoice.status.in_(["draft", "issued", "partial"])
+    )
+    if dept_cond:
+        pending_inv_query = pending_inv_query.where(Invoice.department_id == user.department_id)
+    pending_invoices = (await db.execute(pending_inv_query)).scalar() or 0
+
+    pending_pay_query = select(func.count(Invoice.id)).where(
+        Invoice.status.in_(["issued", "partial"])
+    )
+    if dept_cond:
+        pending_pay_query = pending_pay_query.where(Invoice.department_id == user.department_id)
+    pending_payments = (await db.execute(pending_pay_query)).scalar() or 0
+
+    exp_filter = [Expense.status == "pending"]
+    if dept_cond:
+        exp_filter.append(Expense.department_id == user.department_id)
+    pending_expenses = (await db.execute(
+        select(func.count(Expense.id)).where(*exp_filter)
+    )).scalar() or 0
+
+    return {
+        "monthly_revenue": monthly_revenue,
+        "total_receivable": total_receivable,
+        "collection_rate": collection_rate,
+        "budget_usage": budget_usage,
+        "revenue_trend_12m": trend,
+        "pending_invoices": pending_invoices,
+        "pending_payments": pending_payments,
+        "pending_expenses": pending_expenses,
+    }
