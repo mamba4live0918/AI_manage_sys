@@ -16,7 +16,7 @@ class FinanceDashboardNotifier extends StateNotifier<FinanceDashboardState> {
   Future<void> load() async {
     state = const FinanceDashboardState(loading: true);
     try {
-      final resp = await _api.dio.get('/api/finance/dashboard');
+      final resp = await _api.dio.get('/finance/dashboard');
       state = FinanceDashboardState(data: FinanceDashboardData.fromJson(resp.data));
     } catch (e) {
       state = FinanceDashboardState(error: e.toString());
@@ -45,7 +45,7 @@ class FinanceInvoiceNotifier extends StateNotifier<FinanceInvoiceState> {
       final params = <String, String>{};
       if (projectId.isNotEmpty) params['project_id'] = projectId;
       if (status.isNotEmpty) params['status'] = status;
-      final resp = await _api.dio.get('/api/finance/invoices', queryParameters: params.isNotEmpty ? params : null);
+      final resp = await _api.dio.get('/finance/invoices', queryParameters: params.isNotEmpty ? params : null);
       final items = (resp.data['items'] as List).map((j) => InvoiceData.fromJson(j)).toList();
       state = FinanceInvoiceState(items: items);
     } catch (e) {
@@ -72,7 +72,7 @@ class FinanceBudgetNotifier extends StateNotifier<FinanceBudgetState> {
   Future<void> load() async {
     state = const FinanceBudgetState(loading: true);
     try {
-      final resp = await _api.dio.get('/api/finance/budgets');
+      final resp = await _api.dio.get('/finance/budgets');
       final items = (resp.data['items'] as List).map((j) => BudgetData.fromJson(j)).toList();
       state = FinanceBudgetState(items: items);
     } catch (e) {

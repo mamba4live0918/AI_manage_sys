@@ -83,7 +83,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {
             try {
-              await _api.dio.post('/api/finance/invoices', data: {
+              await _api.dio.post('/finance/invoices', data: {
                 'invoice_no': invoiceNoCtrl.text,
                 'amount': double.tryParse(amountCtrl.text) ?? 0,
                 'tax_amount': double.tryParse(taxAmountCtrl.text) ?? 0,

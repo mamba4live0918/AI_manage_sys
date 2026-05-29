@@ -100,7 +100,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {
             try {
-              await _api.dio.post('/api/finance/budgets', data: {
+              await _api.dio.post('/finance/budgets', data: {
                 'name': nameCtrl.text,
                 'total_amount': double.tryParse(amountCtrl.text) ?? 0,
                 'year': int.tryParse(yearCtrl.text) ?? 2026,
