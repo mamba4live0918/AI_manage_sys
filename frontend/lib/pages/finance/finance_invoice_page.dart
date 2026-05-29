@@ -26,11 +26,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const _statusOptions = ['', 'draft', 'pending', 'issued', 'partial', 'paid', 'cancelled'];
+  static const _statusOptions = ['', 'draft', 'issued', 'partial', 'paid', 'cancelled'];
   static const _statusLabels = {
     '': '全部',
     'draft': '草稿',
-    'pending': '待结算',
     'issued': '已开票',
     'partial': '部分收款',
     'paid': '已收款',
@@ -38,7 +37,6 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   };
   static const _statusColors = {
     'draft': Colors.grey,
-    'pending': Colors.orange,
     'issued': Colors.orange,
     'partial': Colors.blue,
     'paid': Colors.green,
