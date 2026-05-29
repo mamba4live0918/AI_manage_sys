@@ -359,6 +359,7 @@ CREATE TABLE IF NOT EXISTS budgets (
     total_amount FLOAT DEFAULT 0.0,
     used_amount FLOAT DEFAULT 0.0,
     status VARCHAR(32) DEFAULT 'active',
+    notes TEXT DEFAULT '',
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -369,6 +370,9 @@ ALTER TABLE settlements ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invo
 
 -- Migration: add invoice_id to vouchers
 ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL;
+
+-- Migration: add notes to budgets
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_voucher_invoice ON vouchers(invoice_id);
 
 -- 2026-05-29: add seller/buyer info to invoices

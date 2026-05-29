@@ -74,12 +74,13 @@ class BudgetData {
   final double totalAmount;
   final double usedAmount;
   final String status;
+  final String notes;
   final String? updatedAt;
 
   BudgetData({required this.id, this.departmentId, this.projectId,
     required this.name, required this.year, this.quarter,
     required this.totalAmount, required this.usedAmount, required this.status,
-    this.updatedAt});
+    this.notes = '', this.updatedAt});
 
   factory BudgetData.fromJson(Map<String, dynamic> json) => BudgetData(
     id: json['id'] ?? '',
@@ -91,6 +92,7 @@ class BudgetData {
     totalAmount: (json['total_amount'] ?? 0).toDouble(),
     usedAmount: (json['used_amount'] ?? 0).toDouble(),
     status: json['status'] ?? 'active',
+    notes: json['notes'] ?? '',
     updatedAt: json['updated_at'],
   );
 }

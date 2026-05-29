@@ -113,6 +113,7 @@ class BudgetCreate(BaseModel):
     quarter: int | None = None
     total_amount: float = 0.0
     status: str = "active"
+    notes: str = ""
 
 class BudgetUpdate(BaseModel):
     name: str | None = None
@@ -120,6 +121,7 @@ class BudgetUpdate(BaseModel):
     quarter: int | None = None
     total_amount: float | None = None
     status: str | None = None
+    notes: str | None = None
 
 
 # ── Row Serializers ──
@@ -216,6 +218,7 @@ def _budget_row(b: Budget) -> dict:
         "total_amount": b.total_amount,
         "used_amount": b.used_amount,
         "status": b.status,
+        "notes": b.notes,
         "updated_at": b.updated_at.isoformat() if b.updated_at else None,
         "created_at": b.created_at.isoformat() if b.created_at else None,
     }
@@ -841,7 +844,7 @@ async def create_budget(
     b = Budget(
         department_id=dept_id, project_id=project_id, name=body.name,
         year=body.year, quarter=body.quarter, total_amount=body.total_amount,
-        status=body.status, created_by=user.id,
+        status=body.status, notes=body.notes, created_by=user.id,
     )
     db.add(b)
     await db.commit()
@@ -892,6 +895,82 @@ async def delete_budget(
     await db.commit()
     await audit_log(db, user, "budget_delete", "budget", b.id, b.name, request=request)
     return {"ok": True}
+
+
+@router.get("/budgets/{budget_id}/consumption")
+async def budget_consumption(
+    budget_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    b = (await db.execute(select(Budget).where(Budget.id == budget_id))).scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "预算不存在")
+
+    # Expenses by category
+    exp_conditions = [
+        Expense.department_id == b.department_id,
+        Expense.status == "approved",
+    ]
+    if b.project_id:
+        exp_conditions.append(Expense.project_id == b.project_id)
+    if b.year:
+        exp_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
+        exp_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+    exp_query = (
+        select(Expense.category, func.sum(Expense.amount).label("total"), func.count(Expense.id).label("count"))
+        .where(*exp_conditions)
+        .group_by(Expense.category)
+    )
+    exp_rows = (await db.execute(exp_query)).all()
+    expenses = [{"category": r.category, "total": float(r.total or 0), "count": r.count} for r in exp_rows]
+
+    # Settlements total for this budget
+    stl_conditions = [
+        Settlement.department_id == b.department_id,
+        Settlement.status.in_(["completed", "settled"]),
+    ]
+    if b.project_id:
+        stl_conditions.append(Settlement.project_id == b.project_id)
+    if b.year:
+        stl_conditions.append(Settlement.created_at >= datetime(b.year, 1, 1))
+        stl_conditions.append(Settlement.created_at < datetime(b.year + 1, 1, 1))
+    stl_result = await db.execute(
+        select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
+    )
+    settlement_total = float(stl_result.scalar() or 0)
+
+    # Recent expense items
+    exp_items_conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
+    if b.project_id:
+        exp_items_conditions.append(Expense.project_id == b.project_id)
+    if b.year:
+        exp_items_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
+        exp_items_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+    exp_items = (
+        await db.execute(
+            select(Expense)
+            .where(*exp_items_conditions)
+            .order_by(Expense.updated_at.desc())
+            .limit(10)
+        )
+    ).scalars().all()
+
+    return {
+        "expense_breakdown": expenses,
+        "settlement_total": settlement_total,
+        "recent_expenses": [
+            {
+                "id": str(e.id),
+                "amount": e.amount,
+                "category": e.category,
+                "description": e.description,
+                "date": e.updated_at.isoformat() if e.updated_at else None,
+            }
+            for e in exp_items
+        ],
+    }
 
 
 # ── Dashboard ──
