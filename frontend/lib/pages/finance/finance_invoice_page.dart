@@ -981,8 +981,16 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'ref_no': refNoCtrl.text,
                       'notes': notesCtrl.text,
                     });
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('收款失败: $e')));
+                    }
+                    return;
+                  }
 
-                    // Always upload voucher with file
+                  // Upload voucher
+                  try {
                     final formData = FormData.fromMap({
                       'file': MultipartFile.fromBytes(
                         voucherBytes!,
@@ -995,21 +1003,21 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       '/finance/vouchers/upload',
                       data: formData,
                     );
-
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    await _loadAllPayments();
-                    ref
-                        .read(financeInvoiceProvider.notifier)
-                        .load(status: _selectedStatus);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('收款记录添加成功')));
-                    }
                   } catch (e) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(content: Text('添加失败: $e')));
+                          SnackBar(content: Text('收款成功，但凭证上传失败: $e')));
                     }
+                  }
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _loadAllPayments();
+                  ref
+                      .read(financeInvoiceProvider.notifier)
+                      .load(status: _selectedStatus);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('收款记录添加成功')));
                   }
                 },
                 child: const Text('确认添加并上传凭证')),
