@@ -1305,6 +1305,12 @@ async def create_instructor(
     await db.commit()
     await db.refresh(i)
     await audit_log(db, user, "instructor_create", "instructor", i.id, i.name, "success", request=request)
+    await es_index(
+        str(i.id), "instructors", i.name,
+        ", ".join(i.expertise) if i.expertise else "",
+        extra=i.notes or "",
+        department_id=str(user.department_id) if user.department_id else None,
+    )
     return _instructor_row(i)
 
 
@@ -1338,6 +1344,12 @@ async def update_instructor(
     await db.commit()
     await db.refresh(i)
     await audit_log(db, user, "instructor_update", "instructor", i.id, i.name, "success", request=request)
+    await es_index(
+        str(i.id), "instructors", i.name,
+        ", ".join(i.expertise) if i.expertise else "",
+        extra=i.notes or "",
+        department_id=str(i.department_id) if i.department_id else None,
+    )
     return _instructor_row(i)
 
 
@@ -1352,6 +1364,7 @@ async def delete_instructor(
     i = result.scalar_one_or_none()
     if not i:
         raise HTTPException(status_code=404, detail="讲师不存在")
+    await es_delete(str(i.id), "instructors")
     await db.delete(i)
     await db.commit()
     await audit_log(db, user, "instructor_delete", "instructor", i.id, i.name, "success", request=request)
