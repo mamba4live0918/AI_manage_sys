@@ -71,9 +71,11 @@ class BudgetItemData {
   final double amount;
   final double usedAmount;
   final String color;
+  final String icon;
 
   BudgetItemData({required this.id, required this.category, required this.name,
-    required this.amount, required this.usedAmount, this.color = '#FF0000'});
+    required this.amount, required this.usedAmount, this.color = '#FF0000',
+    this.icon = 'description'});
 
   factory BudgetItemData.fromJson(Map<String, dynamic> json) => BudgetItemData(
     id: json['id'] ?? '',
@@ -82,6 +84,7 @@ class BudgetItemData {
     amount: (json['amount'] ?? 0).toDouble(),
     usedAmount: (json['used_amount'] ?? 0).toDouble(),
     color: json['color'] ?? '#FF0000',
+    icon: json['icon'] ?? 'description',
   );
 }
 

@@ -389,6 +389,9 @@ CREATE TABLE IF NOT EXISTS budget_items (
 -- Migration: add color to budget_items
 ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS color VARCHAR(32) DEFAULT '#FF0000';
 
+-- Migration: add icon to budget_items
+ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS icon VARCHAR(64) DEFAULT 'description';
+
 -- 2026-05-29: add seller/buyer info to invoices
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_name VARCHAR(128) DEFAULT '';
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_tax_id VARCHAR(64) DEFAULT '';

@@ -406,7 +406,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
-                                  Container(width: 12, height: 12, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
+                                  Icon(_iconFromName(item.icon), size: 16, color: catColor),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(item.name.isNotEmpty ? '${_categoryLabel(item.category)} - ${item.name}' : _categoryLabel(item.category),
@@ -634,6 +634,57 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     }
   }
 
+  IconData _iconFromName(String name) {
+    switch (name) {
+      case 'receipt': return Icons.receipt;
+      case 'flight': return Icons.flight;
+      case 'directions_car': return Icons.directions_car;
+      case 'restaurant': return Icons.restaurant;
+      case 'devices': return Icons.devices;
+      case 'monetization_on': return Icons.monetization_on;
+      case 'school': return Icons.school;
+      case 'campaign': return Icons.campaign;
+      case 'card_giftcard': return Icons.card_giftcard;
+      case 'local_shipping': return Icons.local_shipping;
+      case 'medical_services': return Icons.medical_services;
+      case 'build': return Icons.build;
+      case 'security': return Icons.security;
+      case 'pets': return Icons.pets;
+      case 'emoji_events': return Icons.emoji_events;
+      case 'construction': return Icons.construction;
+      case 'brush': return Icons.brush;
+      case 'cloud': return Icons.cloud;
+      case 'more_horiz': return Icons.more_horiz;
+      default: return Icons.description;
+    }
+  }
+
+  Widget _iconPickerRow(String currentIcon, ValueChanged<String> onChanged) {
+    final icons = ['description', 'receipt', 'flight', 'directions_car', 'restaurant', 'devices', 'monetization_on', 'school', 'campaign', 'card_giftcard', 'local_shipping', 'medical_services', 'build', 'security', 'pets', 'emoji_events', 'construction', 'brush', 'cloud', 'more_horiz'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: icons.map((name) {
+          final iconData = _iconFromName(name);
+          final selected = currentIcon == name;
+          return GestureDetector(
+            onTap: () => onChanged(name),
+            child: Container(
+              width: 40, height: 40,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: selected ? Colors.blue.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: selected ? Border.all(color: Colors.blue, width: 2) : null,
+              ),
+              child: Icon(iconData, size: 20, color: selected ? Colors.blue : Colors.grey),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   // ── Edit Dialog ──
 
   void _showEditDialog(BuildContext context, BudgetData budget) {
@@ -645,7 +696,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
     // Pre-fill existing items
     final List<Map<String, dynamic>> items = budget.items.isNotEmpty
-        ? budget.items.map((item) => _newItemEntry(item.category, item.name, item.amount.toStringAsFixed(0), color: item.color)).toList()
+        ? budget.items.map((item) => _newItemEntry(item.category, item.name, item.amount.toStringAsFixed(0), color: item.color, icon: item.icon)).toList()
         : [_newItemEntry('other', '', '0')];
 
     showDialog(
@@ -746,6 +797,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                           ]),
                           const SizedBox(height: 4),
                           _colorPickerRow(item['color'] as String, (c) => setDialogState(() => items[i]['color'] = c)),
+                          const SizedBox(height: 4),
+                          _iconPickerRow(item['icon'] as String, (ic) => setDialogState(() => items[i]['icon'] = ic)),
                         ]),
                       ),
                     );
@@ -780,6 +833,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     'name': (item['nameCtrl'] as TextEditingController).text,
                     'amount': double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0,
                     'color': item['color'] as String,
+                    'icon': item['icon'] as String,
                   }).toList();
                   await _api.dio.put('/finance/budgets/${budget.id}', data: {
                     'name': nameCtrl.text,
@@ -1014,6 +1068,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                           ]),
                           const SizedBox(height: 4),
                           _colorPickerRow(item['color'] as String, (c) => setDialogState(() => items[i]['color'] = c)),
+                          const SizedBox(height: 4),
+                          _iconPickerRow(item['icon'] as String, (ic) => setDialogState(() => items[i]['icon'] = ic)),
                         ]),
                       ),
                     );
@@ -1048,6 +1104,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     'name': (item['nameCtrl'] as TextEditingController).text,
                     'amount': double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0,
                     'color': item['color'] as String,
+                    'icon': item['icon'] as String,
                   }).toList();
                   final data = <String, dynamic>{
                     'name': nameCtrl.text,
@@ -1074,39 +1131,72 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     );
   }
 
-  Map<String, dynamic> _newItemEntry(String cat, String name, String amount, {String color = '#FF0000'}) {
+  Map<String, dynamic> _newItemEntry(String cat, String name, String amount, {String color = '#FF0000', String icon = 'description'}) {
     return {
       'cat': cat,
       'nameCtrl': TextEditingController(text: name),
       'amountCtrl': TextEditingController(text: amount),
       'color': color,
+      'icon': icon,
     };
   }
 
   static const _colorOptions = ['#FF0000', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#9E9E9E'];
 
   Widget _colorPickerRow(String currentColor, ValueChanged<String> onChanged) {
-    return Row(
-      children: _colorOptions.map((c) {
-        final isSelected = currentColor == c;
-        return GestureDetector(
-          onTap: () => onChanged(c),
-          child: Container(
-            width: 28,
-            height: 28,
-            margin: const EdgeInsets.only(right: 8),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(
+        children: _colorOptions.map((c) {
+          final isSelected = currentColor == c;
+          return GestureDetector(
+            onTap: () => onChanged(c),
+            child: Container(
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+                shape: BoxShape.circle,
+                border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+                boxShadow: isSelected
+                    ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(100), blurRadius: 4)]
+                    : [],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 4),
+      TextField(
+        decoration: InputDecoration(
+          hintText: '自定义颜色 (如 #FF5722)',
+          prefix: Container(
+            width: 20,
+            height: 20,
             decoration: BoxDecoration(
-              color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+              color: _tryParseColor(currentColor),
               shape: BoxShape.circle,
-              border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-              boxShadow: isSelected
-                  ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(100), blurRadius: 4)]
-                  : [],
             ),
           ),
-        );
-      }).toList(),
-    );
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        ),
+        style: const TextStyle(fontSize: 13),
+        controller: TextEditingController(text: currentColor),
+        onChanged: (v) {
+          if (v.length == 7 && v.startsWith('#')) onChanged(v);
+        },
+      ),
+    ]);
+  }
+
+  Color _tryParseColor(String hex) {
+    try {
+      if (hex.isEmpty) return const Color(0xFFFF0000);
+      return Color(int.parse(hex.replaceFirst('#', '0xff')));
+    } catch (_) {
+      return const Color(0xFFFF0000);
+    }
   }
 
   // ── Delete Confirmation ──
