@@ -13,6 +13,7 @@ class FinanceInvoicePage extends ConsumerStatefulWidget {
 }
 
 class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
+  final ApiClient _api = ApiClient();
   @override
   void initState() {
     super.initState();
@@ -82,7 +83,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {
             try {
-              await apiClient.post('/api/finance/invoices', data: {
+              await _api.dio.post('/api/finance/invoices', data: {
                 'invoice_no': invoiceNoCtrl.text,
                 'amount': double.tryParse(amountCtrl.text) ?? 0,
                 'tax_amount': double.tryParse(taxAmountCtrl.text) ?? 0,

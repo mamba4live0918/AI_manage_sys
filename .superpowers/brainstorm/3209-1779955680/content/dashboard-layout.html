@@ -1,0 +1,118 @@
+<h2>HR 仪表盘 — 整体布局设计</h2>
+<p class="subtitle">无TabBar全仪表盘，包含KPI概览、图表分析、快捷入口三部分</p>
+
+<div class="mockup" style="margin-bottom:24px">
+  <div class="mockup-header">HR Dashboard — 完整布局预览</div>
+  <div class="mockup-body" style="padding:20px;background:#f8fafc">
+    <!-- KPI Row -->
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;padding:16px;color:white;box-shadow:0 4px 12px rgba(102,126,234,0.3)">
+        <div style="font-size:12px;opacity:0.85">👥 在职员工</div>
+        <div style="font-size:28px;font-weight:700;margin:4px 0">156</div>
+        <div style="font-size:11px;opacity:0.7">+3 本月入职</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:12px;padding:16px;color:white;box-shadow:0 4px 12px rgba(245,87,108,0.3)">
+        <div style="font-size:12px;opacity:0.85">📄 待审简历</div>
+        <div style="font-size:28px;font-weight:700;margin:4px 0">23</div>
+        <div style="font-size:11px;opacity:0.7">5 份新投递</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:12px;padding:16px;color:white;box-shadow:0 4px 12px rgba(79,172,254,0.3)">
+        <div style="font-size:12px;opacity:0.85">⏳ 待审批</div>
+        <div style="font-size:28px;font-weight:700;margin:4px 0">8</div>
+        <div style="font-size:11px;opacity:0.7">3 条今日到期</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:12px;padding:16px;color:white;box-shadow:0 4px 12px rgba(67,233,123,0.3)">
+        <div style="font-size:12px;opacity:0.85">📅 今日面试</div>
+        <div style="font-size:28px;font-weight:700;margin:4px 0">4</div>
+        <div style="font-size:11px;opacity:0.7">本周共 12 场</div>
+      </div>
+    </div>
+    <!-- Charts Row -->
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="flex:2;min-width:300px;background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#1e293b">📊 部门人员分布</div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <div style="width:120px;height:120px;border-radius:50%;background:conic-gradient(#667eea 0% 35%, #f5576c 35% 55%, #4facfe 55% 75%, #43e97b 75% 90%, #f093fb 90% 100%);display:flex;align-items:center;justify-content:center">
+            <div style="width:60px;height:60px;border-radius:50%;background:white"></div>
+          </div>
+          <div style="flex:1;font-size:12px">
+            <div style="margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;background:#667eea;border-radius:50%;margin-right:6px"></span>技术部 55人 (35%)</div>
+            <div style="margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;background:#f5576c;border-radius:50%;margin-right:6px"></span>市场部 31人 (20%)</div>
+            <div style="margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;background:#4facfe;border-radius:50%;margin-right:6px"></span>销售部 31人 (20%)</div>
+            <div style="margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;background:#43e97b;border-radius:50%;margin-right:6px"></span>财务部 23人 (15%)</div>
+            <div><span style="display:inline-block;width:10px;height:10px;background:#f093fb;border-radius:50%;margin-right:6px"></span>HR部 16人 (10%)</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#1e293b">📋 审批状态</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>⏳ Pending</span><b>8</b></div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px"><div style="width:30%;height:100%;background:#f59e0b;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>✅ Approved</span><b>42</b></div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px"><div style="width:65%;height:100%;background:#10b981;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>❌ Rejected</span><b>5</b></div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px"><div style="width:8%;height:100%;background:#ef4444;border-radius:3px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Quick Actions + Recent -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#1e293b">⚡ 快捷操作</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="mock-button" style="width:100%;text-align:left">👤 员工管理</button>
+          <button class="mock-button" style="width:100%;text-align:left">📄 上传简历</button>
+          <button class="mock-button" style="width:100%;text-align:left">📝 新建审批</button>
+          <button class="mock-button" style="width:100%;text-align:left">📅 安排面试</button>
+        </div>
+      </div>
+      <div style="flex:2;min-width:280px;background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#1e293b">🕐 最近动态</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#10b981">✓</span>
+            <div><b>张三</b> 审批通过 — 请假审批 <span style="color:#94a3b8">10分钟前</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#667eea">+</span>
+            <div><b>李四</b> 上传新简历 — 高级前端工程师 <span style="color:#94a3b8">30分钟前</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#f59e0b">⏳</span>
+            <div><b>王五</b> 提交请假申请 — 待审批 <span style="color:#94a3b8">1小时前</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#4facfe">📅</span>
+            <div>面试提醒 — <b>赵六</b> 产品经理岗 明天 14:00 <span style="color:#94a3b8">2小时前</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:8px">核心设计要点</h3>
+
+<div class="pros-cons">
+  <div class="pros"><h4>包含元素</h4><ul>
+    <li>4个渐变色KPI卡片（在职员工 / 待审简历 / 待审批 / 今日面试）</li>
+    <li>部门人员分布 — 环形饼图</li>
+    <li>审批状态 — 进度条</li>
+    <li>快捷操作按钮 — 跳转原Tab功能</li>
+    <li>最近动态时间线 — 审批/简历/面试活动</li>
+  </ul></div>
+  <div class="cons"><h4>需要后端支持</h4><ul>
+    <li>新增 /hr/stats 或 /hr/dashboard API 聚合数据</li>
+    <li>KPI数据（各部门人数统计）</li>
+    <li>最近动态从 audit_log 获取</li>
+  </ul></div>
+</div>
+
+<p style="margin-top:16px;color:#94a3b8;font-size:13px">这个布局和内容方向可以吗？有什么想调整的？（如增删图表、调整卡片内容等）</p>

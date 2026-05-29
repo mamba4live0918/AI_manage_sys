@@ -4,8 +4,6 @@ import '../../services/api_client.dart';
 
 const _typeNames = {'leave': '请假', 'expense': '报销', 'regularization': '转正'};
 const _statusNames = {'pending': '待审批', 'approved': '已通过', 'rejected': '已驳回'};
-const _levelLabels = {1: '一级审批', 2: '二级审批', 3: '三级审批'};
-
 class HrApprovalTab extends StatefulWidget {
   const HrApprovalTab({super.key});
 
@@ -104,34 +102,9 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
     _load();
   }
 
-  Future<void> _approveStep(String approvalId, String stepId, String action) async {
-    final commentCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(action == 'approved' ? '审批步骤通过' : '审批步骤驳回'),
-        content: TextField(controller: commentCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '批注')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确认')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
-    await _api.dio.put('/hr/approvals/$approvalId/steps/$stepId', data: {
-      'status': action,
-      'comment': commentCtrl.text.trim(),
-    });
-    _load();
-  }
-
   void _showDetail(Map<String, dynamic> approval) {
     final id = approval['id'] as String;
     final type = approval['approval_type'] as String? ?? 'leave';
-    final status = approval['status'] as String? ?? 'pending';
-    final steps = approval['steps'] as List<dynamic>? ?? [];
 
     showModalBottomSheet(
       context: context,
@@ -140,7 +113,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
       builder: (ctx) {
         final theme = Theme.of(ctx);
         return DraggableScrollableSheet(
-          initialChildSize: 0.5,
+          initialChildSize: 0.6,
           maxChildSize: 0.85,
           minChildSize: 0.3,
           expand: false,
@@ -150,60 +123,102 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
               Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: Colors.grey.shade300))),
               const SizedBox(height: 16),
               Text(_typeNames[type] ?? type, style: theme.textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(approval['content'] as String? ?? '', style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 16),
-              Text('审批流程', style: theme.textTheme.titleMedium),
               const SizedBox(height: 12),
-              Expanded(
-                child: ListView(
-                  controller: scrollCtrl,
-                  children: steps.map((s) {
-                    final stepStatus = s['status'] as String? ?? 'pending';
-                    final level = s['level'] as int? ?? 1;
-                    final comment = s['comment'] as String? ?? '';
-                    final stepId = s['id'] as String;
-                    final isPending = stepStatus == 'pending';
-                    final isApproved = stepStatus == 'approved';
-                    final color = isApproved ? AppTheme.green : isPending ? AppTheme.orange : AppTheme.red;
-                    final icon = isApproved ? Icons.check_circle_rounded : isPending ? Icons.radio_button_unchecked_rounded : Icons.cancel_rounded;
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(children: [
-                          Icon(icon, color: color, size: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(_levelLabels[level] ?? '第${level}级', style: const TextStyle(fontWeight: FontWeight.w600)),
-                              if (comment.isNotEmpty) Text(comment, maxLines: 2, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(150))),
-                            ]),
-                          ),
-                          if (isPending && status == 'pending')
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                              IconButton(
-                                icon: const Icon(Icons.check_rounded, color: AppTheme.green, size: 20),
-                                onPressed: () { Navigator.pop(ctx); _approveStep(id, stepId, 'approved'); },
-                                tooltip: '通过',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close_rounded, color: AppTheme.red, size: 20),
-                                onPressed: () { Navigator.pop(ctx); _approveStep(id, stepId, 'rejected'); },
-                                tooltip: '驳回',
-                              ),
-                            ]),
-                        ]),
+              if (approval['applicant'] != null) ...[
+                _buildApplicantCard(approval['applicant'], theme),
+                const SizedBox(height: 12),
+              ],
+              if ((approval['content'] as String?)?.isNotEmpty == true) ...[
+                Text(approval['content'] as String, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.check_rounded, size: 18, color: AppTheme.green),
+                      label: const Text('通过', style: TextStyle(fontSize: 15, color: AppTheme.green, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppTheme.green),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                    );
-                  }).toList(),
+                      onPressed: () { Navigator.pop(ctx); _approve(id, 'approved'); },
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.close_rounded, size: 18, color: AppTheme.red),
+                      label: const Text('驳回', style: TextStyle(fontSize: 15, color: AppTheme.red, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppTheme.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () { Navigator.pop(ctx); _approve(id, 'rejected'); },
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 16),
             ]),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildApplicantCard(Map<String, dynamic> applicant, ThemeData theme) {
+    final statusMap = {'active': '在职', 'inactive': '离职', 'probation': '试用期'};
+    final empStatus = applicant['emp_status'] as String? ?? 'active';
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(radius: 18, child: Text((applicant['username'] as String? ?? '?')[0].toUpperCase())),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(applicant['username'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(applicant['email'] ?? '', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(150))),
+              ]),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: empStatus == 'active' ? AppTheme.green.withAlpha(20) : empStatus == 'probation' ? AppTheme.orange.withAlpha(20) : AppTheme.red.withAlpha(20),
+              ),
+              child: Text(statusMap[empStatus] ?? empStatus, style: TextStyle(
+                fontSize: 11,
+                color: empStatus == 'active' ? AppTheme.green : empStatus == 'probation' ? AppTheme.orange : AppTheme.red,
+              )),
+            ),
+          ]),
+          if (applicant['department']?.isNotEmpty == true || applicant['position']?.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              if (applicant['department']?.isNotEmpty == true) ...[
+                Icon(Icons.business_rounded, size: 14, color: theme.colorScheme.onSurface.withAlpha(150)),
+                const SizedBox(width: 4),
+                Text(applicant['department'], style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(150))),
+                const SizedBox(width: 12),
+              ],
+              if (applicant['position']?.isNotEmpty == true) ...[
+                Icon(Icons.badge_rounded, size: 14, color: AppTheme.purple),
+                const SizedBox(width: 4),
+                Text(applicant['position'], style: const TextStyle(fontSize: 12, color: AppTheme.purple)),
+              ],
+            ]),
+          ],
+        ]),
+      ),
     );
   }
 
@@ -251,12 +266,8 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
                     itemCount: _approvals.length,
                     itemBuilder: (_, i) {
                       final a = _approvals[i];
-                      final id = a['id'] as String;
                       final type = a['approval_type'] as String? ?? 'leave';
                       final status = a['status'] as String? ?? 'pending';
-                      final steps = a['steps'] as List<dynamic>? ?? [];
-                      final pendingCount = steps.where((s) => s['status'] == 'pending').length;
-                      final totalSteps = steps.length;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 4),
@@ -285,36 +296,25 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
                                   )),
                                 ),
                                 const Spacer(),
-                                if (status == 'pending')
-                                  PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert_rounded, size: 18),
-                                    onSelected: (action) => _approve(id, action),
-                                    itemBuilder: (_) => [
-                                      const PopupMenuItem(value: 'approved', child: Text('通过', style: TextStyle(color: AppTheme.green))),
-                                      const PopupMenuItem(value: 'rejected', child: Text('驳回', style: TextStyle(color: AppTheme.red))),
-                                    ],
-                                  ),
                               ]),
                               const SizedBox(height: 8),
-                              Text(a['content'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
-                              if (totalSteps > 0) ...[
-                                const SizedBox(height: 10),
+                              if (a['applicant'] != null) ...[
                                 Row(children: [
-                                  for (int j = 0; j < totalSteps; j++) ...[
-                                    if (j > 0) ...[
-                                      const SizedBox(width: 4),
-                                      Expanded(flex: 0, child: Container(width: 16, height: 2, color: Colors.grey.shade300)),
-                                      const SizedBox(width: 4),
-                                    ],
-                                    _StepDot(
-                                      step: steps[j] as Map<String, dynamic>,
-                                      label: '${j + 1}级',
-                                    ),
+                                  const Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text('${a['applicant']['username']}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+                                  if (a['applicant']['department'] != null && (a['applicant']['department'] as String).isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Text(a['applicant']['department'], style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(150))),
                                   ],
-                                  const SizedBox(width: 12),
-                                  Text('$pendingCount/$totalSteps 待审批', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(150))),
+                                  if (a['applicant']['position'] != null && (a['applicant']['position'] as String).isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Text(a['applicant']['position'], style: TextStyle(fontSize: 11, color: AppTheme.purple)),
+                                  ],
                                 ]),
+                                const SizedBox(height: 6),
                               ],
+                              Text(a['content'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
                             ]),
                           ),
                         ),
@@ -326,29 +326,3 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
   }
 }
 
-class _StepDot extends StatelessWidget {
-  final Map<String, dynamic> step;
-  final String label;
-
-  const _StepDot({required this.step, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = step['status'] as String? ?? 'pending';
-    final color = status == 'approved' ? AppTheme.green : status == 'rejected' ? AppTheme.red : Colors.grey.shade400;
-
-    return Column(children: [
-      Container(
-        width: 20, height: 20,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color, border: Border.all(color: color, width: 2)),
-        child: status == 'approved'
-            ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
-            : status == 'rejected'
-                ? const Icon(Icons.close_rounded, size: 12, color: Colors.white)
-                : null,
-      ),
-      const SizedBox(height: 2),
-      Text(label, style: TextStyle(fontSize: 9, color: color)),
-    ]);
-  }
-}

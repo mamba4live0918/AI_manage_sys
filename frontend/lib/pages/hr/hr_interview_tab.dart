@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_client.dart';
 import '../../config/theme.dart';
@@ -254,119 +255,135 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
         ]),
       ),
       // Calendar
-      if (_monthView)
-        LayoutBuilder(
-          builder: (ctx, constraints) {
-            final cellW = (constraints.maxWidth - 2) / 7;
-            return Column(children: [
-              // Weekday headers
-              Row(
-                children: weekdayLabels.map((l) => SizedBox(
-                  width: cellW,
-                  child: Center(child: Text(l, style: TextStyle(fontSize: 11, color: Colors.grey.shade500))),
-                )).toList(),
-              ),
-              const SizedBox(height: 2),
-              // Day grid using Wrap — no GridView to avoid touch conflict
-              Wrap(
-                children: monthDays.map((d) {
-                  final isCurrentMonth = d.month == _displayMonth.month;
-                  final isSelected = d.year == _selectedDay.year && d.month == _selectedDay.month && d.day == _selectedDay.day;
-                  final isTodayLocal = d.year == today.year && d.month == today.month && d.day == today.day;
-                  final dayEvents = _eventsForDay(d);
-                  final count = dayEvents.length;
-                  final tooltip = count > 0
-                      ? dayEvents.map((e) => '${e['candidate_name']} (${DateFormat('HH:mm').format(DateTime.parse(e['scheduled_at']))})').join('\n')
-                      : null;
-
-                  Widget cell = GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() {
-                      _selectedDay = d;
-                      if (d.month != _displayMonth.month) _displayMonth = DateTime(d.year, d.month, 1);
-                    }),
-                    child: Container(
-                      width: cellW,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.blue : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                        border: isTodayLocal && !isSelected ? Border.all(color: AppTheme.blue, width: 1.5) : null,
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Text('${d.day}', style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isTodayLocal || isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected ? Colors.white : isCurrentMonth ? null : Colors.grey.shade400,
-                          )),
-                          if (count > 0 && isCurrentMonth)
-                            Positioned(
-                              bottom: 1,
-                              child: Text('$count', style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected ? Colors.white : Colors.orange,
-                              )),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-
-                  if (tooltip != null) {
-                    cell = Tooltip(message: tooltip, child: cell);
-                  }
-                  return cell;
-                }).toList(),
-              ),
-            ]);
-          },
-        )
-      else
-        // Week strip — compact horizontal date picker
-        SizedBox(
-          height: 68,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            itemCount: 31,
-            itemBuilder: (_, i) {
-              final d = DateTime(_selectedDay.year, _selectedDay.month, i + 1);
-              final isSelected = d.day == _selectedDay.day;
-              final dayEvents = _eventsForDay(d);
-              final count = dayEvents.length;
-              final tooltip = count > 0
-                  ? dayEvents.map((e) => '${e['candidate_name']} (${DateFormat('HH:mm').format(DateTime.parse(e['scheduled_at']))})').join('\n')
-                  : null;
-
-              Widget cell = GestureDetector(
-                onTap: () => setState(() => _selectedDay = d),
-                child: Container(
-                  width: 48,
-                  margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.blue : null,
-                    borderRadius: BorderRadius.circular(10),
-                    border: !isSelected ? Border.all(color: Colors.grey.withAlpha(40)) : null,
-                  ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(DateFormat('E').format(d).substring(0, 1), style: TextStyle(fontSize: 10, color: isSelected ? Colors.white70 : Colors.grey.shade500)),
-                    const SizedBox(height: 4),
-                    Text('${d.day}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : null)),
-                    if (count > 0) Text('$count场', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.orange)),
-                  ]),
-                ),
-              );
-
-              if (tooltip != null) {
-                cell = Tooltip(message: tooltip, child: cell);
+      Listener(
+        onPointerSignal: (event) {
+          if (event is PointerScrollEvent) {
+            final dy = event.scrollDelta.dy;
+            if (dy > 0) {
+              if (_monthView) {
+                setState(() => _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1, 1));
+              } else {
+                setState(() => _selectedDay = _selectedDay.add(const Duration(days: 7)));
               }
-              return cell;
-            },
-          ),
-        ),
+            } else if (dy < 0) {
+              if (_monthView) {
+                setState(() => _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1, 1));
+              } else {
+                setState(() => _selectedDay = _selectedDay.subtract(const Duration(days: 7)));
+              }
+            }
+          }
+        },
+        child: _monthView
+            ? LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final cellW = (constraints.maxWidth - 2) / 7;
+                  return Column(children: [
+                    Row(
+                      children: weekdayLabels.map((l) => SizedBox(
+                        width: cellW,
+                        child: Center(child: Text(l, style: TextStyle(fontSize: 11, color: Colors.grey.shade500))),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 2),
+                    Wrap(
+                      children: monthDays.map((d) {
+                        final isCurrentMonth = d.month == _displayMonth.month;
+                        final isSelected = d.year == _selectedDay.year && d.month == _selectedDay.month && d.day == _selectedDay.day;
+                        final isTodayLocal = d.year == today.year && d.month == today.month && d.day == today.day;
+                        final dayEvents = _eventsForDay(d);
+                        final count = dayEvents.length;
+                        final tooltip = count > 0
+                            ? dayEvents.map((e) => '${e['candidate_name']} (${DateFormat('HH:mm').format(DateTime.parse(e['scheduled_at']))})').join('\n')
+                            : null;
+
+                        Widget cell = GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(() {
+                            _selectedDay = d;
+                            if (d.month != _displayMonth.month) _displayMonth = DateTime(d.year, d.month, 1);
+                          }),
+                          child: Container(
+                            width: cellW,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppTheme.blue : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isTodayLocal && !isSelected ? Border.all(color: AppTheme.blue, width: 1.5) : null,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Text('${d.day}', style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isTodayLocal || isSelected ? FontWeight.w600 : FontWeight.w400,
+                                  color: isSelected ? Colors.white : isCurrentMonth ? null : Colors.grey.shade400,
+                                )),
+                                if (count > 0 && isCurrentMonth)
+                                  Positioned(
+                                    bottom: 1,
+                                    child: Text('$count', style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected ? Colors.white : Colors.orange,
+                                    )),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+
+                        if (tooltip != null) {
+                          cell = Tooltip(message: tooltip, child: cell);
+                        }
+                        return cell;
+                      }).toList(),
+                    ),
+                  ]);
+                },
+              )
+            : SizedBox(
+                height: 68,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: 31,
+                  itemBuilder: (_, i) {
+                    final d = DateTime(_selectedDay.year, _selectedDay.month, i + 1);
+                    final isSelected = d.day == _selectedDay.day;
+                    final dayEvents = _eventsForDay(d);
+                    final count = dayEvents.length;
+                    final tooltip = count > 0
+                        ? dayEvents.map((e) => '${e['candidate_name']} (${DateFormat('HH:mm').format(DateTime.parse(e['scheduled_at']))})').join('\n')
+                        : null;
+
+                    Widget cell = GestureDetector(
+                      onTap: () => setState(() => _selectedDay = d),
+                      child: Container(
+                        width: 48,
+                        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.blue : null,
+                          borderRadius: BorderRadius.circular(10),
+                          border: !isSelected ? Border.all(color: Colors.grey.withAlpha(40)) : null,
+                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Text(DateFormat('E').format(d).substring(0, 1), style: TextStyle(fontSize: 10, color: isSelected ? Colors.white70 : Colors.grey.shade500)),
+                          const SizedBox(height: 4),
+                          Text('${d.day}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : null)),
+                          if (count > 0) Text('$count场', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.orange)),
+                        ]),
+                      ),
+                    );
+
+                    if (tooltip != null) {
+                      cell = Tooltip(message: tooltip, child: cell);
+                    }
+                    return cell;
+                  },
+                ),
+              ),
+      ),
       // Event list
       Expanded(
         child: _loading

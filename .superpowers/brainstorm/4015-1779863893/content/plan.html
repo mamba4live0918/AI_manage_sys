@@ -1,0 +1,69 @@
+<h2>执行计划：按迭代顺序收尾</h2>
+<p class="subtitle">6 个前端页面 + 1 个后端增强，预估 4 步完成</p>
+
+<h3>Step 1: 迭代3.1 收尾 — 客户管理补全（简单）</h3>
+<div class="mockup">
+  <div class="mockup-header">CustomerDetailPage 内嵌入口 → 独立页面</div>
+  <div class="mockup-body" style="display:flex;gap:16px">
+    <div style="flex:1">
+      <div class="label">ChurnConfigPage</div>
+      <p style="font-size:13px">流失预警阈值配置表单：不活跃天数 / 低满意度阈值 / 自动通知开关。纯表单页，1个API GET + 1个API PUT。</p>
+      <div class="placeholder" style="height:80px">阈值滑块 + 开关 + 保存按钮</div>
+    </div>
+    <div style="flex:1">
+      <div class="label">DemandPredictionPage</div>
+      <p style="font-size:13px">LLM需求预测报告：调用 POST /predict-demand → 复用现有HTML预览渲染。纯展示页。</p>
+      <div class="placeholder" style="height:80px">需求预测 HTML 内容</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px">Step 2: 迭代3.2 收尾 — 项目简报预览（简单）</h3>
+<div class="mockup">
+  <div class="mockup-header">BriefPreviewPage — 复用现有 HTML 预览</div>
+  <div class="mockup-body">
+    <p style="font-size:13px">POST /projects/{id}/brief → LLM生成简报 → HTML内容 → 复用 preview_page 的 WebView 渲染模式。在 ProjectTimelineTab 中点击"生成简报"按钮跳转。</p>
+    <div class="placeholder" style="height:60px">简报 HTML 预览（WebView）</div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px">Step 3: 迭代3.3 收尾 — 合同中心（中等复杂度）</h3>
+<div class="mockup">
+  <div class="mockup-header">3 个合同页面 — 核心链路：选择模板 → 生成 → 预览 → 版本历史 → Diff</div>
+  <div class="mockup-body" style="display:flex;gap:16px">
+    <div style="flex:1">
+      <div class="label">ContractGeneratePage</div>
+      <p style="font-size:13px">模板下拉选择 → 参数表单 → POST generate → 跳转详情。约150行。</p>
+      <div class="placeholder" style="height:60px">模板选择 + 参数填写</div>
+    </div>
+    <div style="flex:1">
+      <div class="label">ContractDetailPage</div>
+      <p style="font-size:13px">HTML内容预览 + Tab切换"版本历史"列表。约200行。</p>
+      <div class="placeholder" style="height:60px">合同内容 + 版本列表</div>
+    </div>
+    <div style="flex:1">
+      <div class="label">ContractDiffView</div>
+      <p style="font-size:13px">选择v1/v2 → GET /diff → Python difflib 结果 → 分屏/内联展示。约150行。</p>
+      <div class="placeholder" style="height:60px">左右分屏 diff</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px">Step 4: 后端增强 + 总验证</h3>
+<table style="width:100%;font-size:14px">
+  <tr><td style="padding:6px">KnowledgeQARequest</td><td style="padding:6px">加 <code>history: list[dict] = []</code> 字段</td></tr>
+  <tr><td style="padding:6px">/knowledge/qa 端点</td><td style="padding:6px">history 拼入 system prompt，增强搜索词，返回 sources 加 content_preview</td></tr>
+  <tr><td style="padding:6px">全模块联调</td><td style="padding:6px">手动验证核心链路 + E2E 回归</td></tr>
+</table>
+
+<div class="pros-cons" style="margin-top:16px">
+  <div class="pros"><h4>为什么这个顺序</h4><ul>
+    <li>3.1→3.2 的页面简单（表单+展示），可以快速产出建立节奏</li>
+    <li>3.3 合同中心最复杂，放后面有足够的上下文和 pattern 参考</li>
+    <li>后端增强放最后，避免改 API 影响前端联调</li>
+  </ul></div>
+  <div class="cons"><h4>风险</h4><ul>
+    <li>ContractDetail 的版本历史 Tab 需要对现有 ContractTab 做少量改动（加跳转入口）</li>
+    <li>ContractDiff 的分屏 UI 在移动端需要降级为内联模式</li>
+  </ul></div>
+</div>

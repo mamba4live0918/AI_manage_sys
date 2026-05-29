@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:9200)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8001 -ErrorAction SilentlyContinue | ForEach-Object { try { Stop-Process -Id $_.OwningProcess -Force } catch {} })",
+      "Bash(C:\\\\Users\\\\Mamba4live\\\\Downloads\\\\flutter\\\\bin\\\\flutter.bat pub *)",
+      "PowerShell(Start-Process python -ArgumentList \"-m\", \"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8001\", \"--reload\" -WorkingDirectory \"c:\\\\Users\\\\Mamba4live\\\\Desktop\\\\intern\\\\AI_manage_sys\\\\backend\" -WindowStyle Minimized)"
+    ]
+  }
+}

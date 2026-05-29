@@ -1,0 +1,38 @@
+<h2>HR 仪表盘放在哪里？</h2>
+<p class="subtitle">目前 HR 页面有4个Tab（员工管理、简历、审批、面试安排），仪表盘有两种放置方式</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>新增"概览"Tab（推荐）</h3>
+      <p>在现有 TabBar 最前面加一个"概览"Tab（共5个Tab），对齐 PM 模块的 PmOverviewTab 模式。用户进入 HR 页面首先看到仪表盘图表，再切换到具体操作Tab。</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">TabBar: <b style="background:#1976D2;color:white;padding:2px 8px;border-radius:4px">概览</b> | 员工管理 | 简历 | 审批 | 面试安排</div>
+        <div class="mockup-body" style="padding:16px;display:flex;gap:8px;flex-wrap:wrap">
+          <div class="placeholder" style="flex:1;min-width:100px;height:60px">KPI卡片</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:60px">图表区域</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:60px">日历/列表</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>替换现有页面为全仪表盘</h3>
+      <p>去掉 TabBar，整个 HR 页面变成一个完整仪表盘（类似独立Dashboard），包含KPI卡片、图表、快捷入口。原Tab功能通过卡片点击跳转到子页面。</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">HR Dashboard（无TabBar）</div>
+        <div class="mockup-body" style="padding:16px;display:flex;gap:8px;flex-wrap:wrap">
+          <div class="placeholder" style="flex:1;min-width:100px;height:60px">KPI卡片×4</div>
+          <div class="placeholder" style="width:100%;height:80px">图表区域</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:50px">员工管理入口</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:50px">简历入口</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:50px">审批入口</div>
+          <div class="placeholder" style="flex:1;min-width:100px;height:50px">面试入口</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

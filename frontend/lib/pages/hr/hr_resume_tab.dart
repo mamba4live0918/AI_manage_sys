@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -13,8 +14,9 @@ class _RadarPainter extends CustomPainter {
   final List<String> labels;
   final List<double> values;
   final double maxVal;
+  final bool isDark;
 
-  _RadarPainter(this.labels, this.values, this.maxVal);
+  _RadarPainter(this.labels, this.values, this.maxVal, {this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -23,13 +25,17 @@ class _RadarPainter extends CustomPainter {
     final n = labels.length;
     if (n < 3) return;
 
+    final gridColor = isDark ? Colors.white.withAlpha(25) : Colors.grey.shade300;
+    final labelColor = isDark ? Colors.white.withAlpha(180) : Colors.black87;
+    final centerColor = isDark ? Colors.white : AppTheme.blue;
+
     final paint = Paint()
-      ..color = Colors.grey.shade300
+      ..color = gridColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
     final fillPaint = Paint()
-      ..color = AppTheme.blue.withAlpha(40)
+      ..color = AppTheme.blue.withAlpha(isDark ? 50 : 40)
       ..style = PaintingStyle.fill;
 
     final strokePaint = Paint()
@@ -59,7 +65,7 @@ class _RadarPainter extends CustomPainter {
     }
 
     final axisPaint = Paint()
-      ..color = Colors.grey.shade300
+      ..color = gridColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     for (int i = 0; i < n; i++) {
@@ -95,7 +101,7 @@ class _RadarPainter extends CustomPainter {
       final x = center.dx + labelRadius * math.cos(angle);
       final y = center.dy + labelRadius * math.sin(angle);
       final tp = TextPainter(
-        text: TextSpan(text: labels[i], style: const TextStyle(fontSize: 10, color: Colors.black87)),
+        text: TextSpan(text: labels[i], style: TextStyle(fontSize: 10, color: labelColor)),
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
@@ -105,7 +111,7 @@ class _RadarPainter extends CustomPainter {
     final scoreTp = TextPainter(
       text: TextSpan(
         text: avgScore.toStringAsFixed(1),
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.blue),
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: centerColor),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -221,25 +227,51 @@ class _HrResumeTabState extends State<HrResumeTab> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => _AnalysisDialog(
+        resumeId: id,
+        candidateName: candidateName,
+        api: _api,
+        onSchedule: () => _scheduleInterview(candidateName),
+        onDone: _load,
+      ),
     );
-    try {
-      final resp = await _api.dio.post('/hr/resumes/$id/match');
-      if (mounted) Navigator.pop(context);
-      final analysis = resp.data['analysis'] as Map<String, dynamic>?;
-      if (analysis == null) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('分析结果解析失败')));
-        _load();
-        return;
-      }
-      if (mounted) _showAnalysisDialog(candidateName, analysis);
-      _load();
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分析失败: $e')));
-      }
+  }
+
+  void _viewAnalysis(String candidateName, String? matchResult) {
+    final analysis = _parseMatchResult(matchResult);
+    if (analysis == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('无法解析分析结果')));
+      return;
     }
+    showDialog(
+      context: context,
+      builder: (ctx) => _AnalysisDialog(
+        candidateName: candidateName,
+        analysis: analysis,
+        onSchedule: () => _scheduleInterview(candidateName),
+      ),
+    );
+  }
+
+  Map<String, dynamic>? _parseMatchResult(String? matchResult) {
+    if (matchResult == null || matchResult.isEmpty) return null;
+    try {
+      final json = jsonDecode(matchResult);
+      if (json is Map<String, dynamic>) return json;
+    } catch (_) {}
+    // Try markdown code block extraction
+    String text = matchResult;
+    if (text.startsWith('```')) {
+      final lines = text.split('\n');
+      if (lines.length > 1) text = lines.skip(1).join('\n');
+      final end = text.lastIndexOf('```');
+      if (end >= 0) text = text.substring(0, end);
+    }
+    try {
+      final json = jsonDecode(text);
+      if (json is Map<String, dynamic>) return json;
+    } catch (_) {}
+    return null;
   }
 
   Future<void> _scheduleInterview(String candidateName, {Map<String, dynamic>? existing}) async {
@@ -341,109 +373,6 @@ class _HrResumeTabState extends State<HrResumeTab> {
     }
   }
 
-  void _showAnalysisDialog(String candidateName, Map<String, dynamic> analysis) {
-    final scores = (analysis['scores'] as Map<String, dynamic>?) ?? {};
-    final strengths = analysis['strengths'] as String? ?? '';
-    final departmentMatches = (analysis['department_matches'] as List?) ?? [];
-    final recommendedSalary = analysis['recommended_salary'] as String? ?? '';
-    final summary = analysis['summary'] as String? ?? '';
-
-    final labels = scores.keys.toList();
-    final values = scores.values.map((v) => (v as num).toDouble()).toList();
-    final maxVal = values.isEmpty ? 10.0 : values.reduce(math.max);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('$candidateName 能力评估', style: const TextStyle(fontSize: 16)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (values.length >= 3)
-                Center(
-                  child: SizedBox(
-                    width: 240,
-                    height: 240,
-                    child: CustomPaint(
-                      painter: _RadarPainter(labels, values, maxVal),
-                    ),
-                  ),
-                ),
-              if (strengths.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('核心优势', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(strengths, style: const TextStyle(fontSize: 13)),
-              ],
-              if (departmentMatches.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('部门匹配', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                const SizedBox(height: 4),
-                ...departmentMatches.map((dm) {
-                  final d = dm as Map<String, dynamic>;
-                  final ds = (d['score'] as num? ?? 0).toDouble();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(children: [
-                      Expanded(child: Text(d['department'] ?? '', style: const TextStyle(fontSize: 13))),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 100,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: ds / 100,
-                            minHeight: 8,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              ds >= 70 ? AppTheme.green : AppTheme.orange,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('${ds.toInt()}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    ]),
-                  );
-                }),
-              ],
-              if (recommendedSalary.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('薪资建议', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.green.withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(recommendedSalary, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.green)),
-                ),
-              ],
-              if (summary.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('综合评价', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(summary, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ]),
-          ),
-        ),
-        actions: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.calendar_today_rounded, size: 16),
-            label: const Text('安排面试'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _scheduleInterview(candidateName);
-            },
-          ),
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
-        ],
-      ),
-    );
-  }
 
   Future<void> _delete(String id, String name) async {
     final ok = await showDialog<bool>(
@@ -593,7 +522,14 @@ class _HrResumeTabState extends State<HrResumeTab> {
                                   else
                                     _actionChip(Icons.calendar_today_rounded, '安排面试', () => _scheduleInterview(name)),
                                   const SizedBox(width: 6),
-                                  _actionChip(Icons.auto_awesome_rounded, isAnalyzed ? '重新分析' : 'AI分析', () => _analyze(id, name)),
+                                  if (isAnalyzed) ...[
+                                    _actionChip(Icons.visibility_rounded, '查看分析', () => _viewAnalysis(name, r['match_result'] as String?)),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  if (isAnalyzed)
+                                    _actionChip(Icons.refresh_rounded, '重新分析', () => _analyze(id, name))
+                                  else
+                                    _actionChip(Icons.auto_awesome_rounded, 'AI分析', () => _analyze(id, name)),
                                   const Spacer(),
                                   PopupMenuButton<String>(
                                     icon: const Icon(Icons.more_vert_rounded, size: 18),
@@ -634,6 +570,241 @@ class _HrResumeTabState extends State<HrResumeTab> {
           Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.blue)),
         ]),
       ),
+    );
+  }
+}
+
+class _AnalysisDialog extends StatefulWidget {
+  final String? resumeId;
+  final String candidateName;
+  final ApiClient? api;
+  final VoidCallback? onSchedule;
+  final VoidCallback? onDone;
+  final Map<String, dynamic>? analysis;
+
+  const _AnalysisDialog({
+    this.resumeId,
+    required this.candidateName,
+    this.api,
+    this.onSchedule,
+    this.onDone,
+    this.analysis,
+  });
+
+  @override
+  State<_AnalysisDialog> createState() => _AnalysisDialogState();
+}
+
+class _AnalysisDialogState extends State<_AnalysisDialog> {
+  bool _loading = true;
+  Map<String, dynamic>? _analysisData;
+  String? _error;
+  final _labels = <String>[];
+  final _values = <double>[];
+  double _maxVal = 10.0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.analysis != null) {
+      _parseAndShow(widget.analysis!);
+    } else {
+      _callApi();
+    }
+  }
+
+  void _parseAndShow(Map<String, dynamic> analysis) {
+    final scores = (analysis['scores'] as Map<String, dynamic>?) ?? {};
+    setState(() {
+      _analysisData = analysis;
+      _labels.addAll(scores.keys);
+      for (final v in scores.values) {
+        if (v is Map) {
+          _values.add((v['score'] as num?)?.toDouble() ?? 5.0);
+        } else {
+          _values.add((v as num).toDouble());
+        }
+      }
+      _maxVal = _values.isEmpty ? 10.0 : math.max(_values.reduce(math.max), 1.0);
+      _loading = false;
+    });
+    widget.onDone?.call();
+  }
+
+  Future<void> _callApi() async {
+    try {
+      final resp = await widget.api!.dio.post('/hr/resumes/${widget.resumeId}/match');
+      if (!mounted) return;
+      final analysis = resp.data['analysis'] as Map<String, dynamic>?;
+      if (analysis == null) {
+        setState(() { _error = '分析结果解析失败'; _loading = false; });
+        return;
+      }
+      _parseAndShow(analysis);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return AlertDialog(
+        title: const Text('分析失败'),
+        content: Text(_error!),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+      );
+    }
+    return _buildContent(context);
+  }
+
+  Widget _buildContent(BuildContext ctx) {
+    final a = _analysisData!;
+    final scores = (a['scores'] as Map<String, dynamic>?) ?? {};
+    final strengths = a['strengths'] as String? ?? '';
+    final weaknesses = a['weaknesses'] as String? ?? '';
+    final departmentMatches = (a['department_matches'] as List?) ?? [];
+    final recommendedSalary = a['recommended_salary'] as String? ?? '';
+    final summary = a['summary'] as String? ?? '';
+    final overallScore = (a['overall_score'] as num?)?.toDouble();
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+    final cs = Theme.of(ctx).colorScheme;
+    final subtitleColor = cs.onSurface.withAlpha(150);
+
+    return AlertDialog(
+      title: Text('${widget.candidateName} 能力评估', style: TextStyle(fontSize: 16, color: cs.onSurface)),
+      content: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (_values.length >= 3)
+              Center(
+                child: SizedBox(
+                  width: 240, height: 240,
+                  child: CustomPaint(painter: _RadarPainter(_labels, _values, _maxVal, isDark: isDark)),
+                ),
+              ),
+            if (overallScore != null) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Text('综合评分: ${overallScore.toInt()}分',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.primary)),
+              ),
+            ],
+            if (scores.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('维度评分', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: cs.onSurface)),
+              const SizedBox(height: 8),
+              ...scores.entries.map((e) {
+                final scoreVal = e.value is Map ? (e.value['score'] as num?)?.toDouble() ?? 5.0 : (e.value as num).toDouble();
+                final evidence = e.value is Map ? (e.value['evidence'] as String?) ?? '' : '';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SizedBox(
+                      width: 32, height: 24,
+                      child: Center(
+                        child: Text('${scoreVal.toInt()}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                            color: scoreVal >= 7 ? AppTheme.green : scoreVal >= 4 ? AppTheme.orange : AppTheme.red)),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(e.key, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurface)),
+                        if (evidence.isNotEmpty)
+                          Text(evidence, style: TextStyle(fontSize: 11, color: subtitleColor)),
+                      ]),
+                    ),
+                  ]),
+                );
+              }),
+            ],
+            if (strengths.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('核心优势', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.green)),
+              const SizedBox(height: 4),
+              Text(strengths, style: TextStyle(fontSize: 13, color: cs.onSurface)),
+            ],
+            if (weaknesses.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('风险/短板', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.red)),
+              const SizedBox(height: 4),
+              Text(weaknesses, style: TextStyle(fontSize: 13, color: cs.onSurface)),
+            ],
+            if (departmentMatches.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('部门匹配', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: cs.onSurface)),
+              const SizedBox(height: 4),
+              ...departmentMatches.map((dm) {
+                final d = dm as Map<String, dynamic>;
+                final ds = (d['score'] as num? ?? 0).toDouble();
+                final reason = (d['reason'] as String?) ?? '';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(d['department'] ?? '', style: TextStyle(fontSize: 13, color: cs.onSurface))),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 80,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: ds / 100, minHeight: 6,
+                            backgroundColor: cs.onSurface.withAlpha(20),
+                            valueColor: AlwaysStoppedAnimation<Color>(ds >= 70 ? AppTheme.green : AppTheme.orange),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('${ds.toInt()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurface)),
+                    ]),
+                    if (reason.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 0, top: 2),
+                        child: Text(reason, style: TextStyle(fontSize: 11, color: subtitleColor)),
+                      ),
+                  ]),
+                );
+              }),
+            ],
+            if (recommendedSalary.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('薪资建议', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: cs.onSurface)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.green.withAlpha(isDark ? 30 : 20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(recommendedSalary, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.green)),
+              ),
+            ],
+            if (summary.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('综合评价', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: cs.onSurface)),
+              const SizedBox(height: 4),
+              Text(summary, style: TextStyle(fontSize: 13, color: subtitleColor)),
+            ],
+          ]),
+        ),
+      ),
+      actions: [
+        if (widget.onSchedule != null)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.calendar_today_rounded, size: 16),
+            label: const Text('安排面试'),
+            onPressed: () { Navigator.pop(ctx); widget.onSchedule!.call(); },
+          ),
+        FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+      ],
     );
   }
 }

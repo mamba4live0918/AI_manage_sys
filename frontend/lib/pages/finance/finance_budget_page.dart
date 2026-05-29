@@ -12,6 +12,7 @@ class FinanceBudgetPage extends ConsumerStatefulWidget {
 }
 
 class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
+  final ApiClient _api = ApiClient();
   @override
   void initState() {
     super.initState();
@@ -99,7 +100,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {
             try {
-              await apiClient.post('/api/finance/budgets', data: {
+              await _api.dio.post('/api/finance/budgets', data: {
                 'name': nameCtrl.text,
                 'total_amount': double.tryParse(amountCtrl.text) ?? 0,
                 'year': int.tryParse(yearCtrl.text) ?? 2026,

@@ -39,6 +39,8 @@ class HrDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _HrDashboardPageState extends ConsumerState<HrDashboardPage> {
+  int _activeView = 0; // 0=dashboard, 1-4=sub-pages
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +53,11 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage> {
     final state = ref.watch(hrDashboardProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    if (_activeView == 1) return HrEmployeeListPage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 2) return HrResumePage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 3) return HrApprovalPage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 4) return HrInterviewPage(onBack: () => setState(() => _activeView = 0));
 
     return Watermark(
       username: auth.user?.username ?? '',
@@ -93,7 +100,7 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage> {
           const SizedBox(height: 20),
           _ApprovalOverview(data: data, isDark: isDark),
           const SizedBox(height: 20),
-          _QuickActions(),
+          _QuickActions(onSelect: (i) => setState(() => _activeView = i)),
           const SizedBox(height: 20),
           _RecentActivities(data: data, isDark: isDark),
           const SizedBox(height: 20),
@@ -208,21 +215,23 @@ class _ChartsRow extends StatelessWidget {
                 child: Row(children: [
                   Expanded(
                     flex: 2,
-                    child: PieChart(
-                      PieChartData(
-                        sections: data.employeesByDepartment.asMap().entries.map((e) {
-                          final color = pieColors[e.key % pieColors.length];
-                          final pct = deptTotal > 0 ? e.value.count / deptTotal : 0.0;
-                          return PieChartSectionData(
-                            value: e.value.count.toDouble(),
-                            color: color,
-                            title: pct > 0.08 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
-                            radius: 50,
-                            titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                          );
-                        }).toList(),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 28,
+                    child: RepaintBoundary(
+                      child: PieChart(
+                        PieChartData(
+                          sections: data.employeesByDepartment.asMap().entries.map((e) {
+                            final color = pieColors[e.key % pieColors.length];
+                            final pct = deptTotal > 0 ? e.value.count / deptTotal : 0.0;
+                            return PieChartSectionData(
+                              value: e.value.count.toDouble(),
+                              color: color,
+                              title: pct > 0.08 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
+                              radius: 50,
+                              titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                            );
+                          }).toList(),
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 28,
+                        ),
                       ),
                     ),
                   ),
@@ -268,22 +277,24 @@ class _ChartsRow extends StatelessWidget {
                 child: Row(children: [
                   Expanded(
                     flex: 2,
-                    child: PieChart(
-                      PieChartData(
-                        sections: data.employeesByStatus.asMap().entries.map((e) {
-                          final color = _statusColor[e.key] ?? AppTheme.blue;
-                          final total = data.employeesByStatus.fold<int>(0, (s, st) => s + st.count);
-                          final pct = total > 0 ? e.value.count / total : 0.0;
-                          return PieChartSectionData(
-                            value: e.value.count.toDouble(),
-                            color: color,
-                            title: pct > 0.1 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
-                            radius: 40,
-                            titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                          );
-                        }).toList(),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 22,
+                    child: RepaintBoundary(
+                      child: PieChart(
+                        PieChartData(
+                          sections: data.employeesByStatus.asMap().entries.map((e) {
+                            final color = _statusColor[e.key] ?? AppTheme.blue;
+                            final total = data.employeesByStatus.fold<int>(0, (s, st) => s + st.count);
+                            final pct = total > 0 ? e.value.count / total : 0.0;
+                            return PieChartSectionData(
+                              value: e.value.count.toDouble(),
+                              color: color,
+                              title: pct > 0.1 ? '${(pct * 100).toStringAsFixed(0)}%' : '',
+                              radius: 40,
+                              titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                            );
+                          }).toList(),
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 22,
+                        ),
                       ),
                     ),
                   ),
@@ -371,21 +382,16 @@ class _ApprovalOverview extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  void _navigate(BuildContext context, Widget page) {
-    Navigator.push(context, PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-      transitionDuration: const Duration(milliseconds: 200),
-    ));
-  }
+  final void Function(int viewIndex) onSelect;
+  const _QuickActions({required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
     final actions = [
-      ('员工管理', Icons.people_rounded, const Color(0xFF667eea), const HrEmployeeListPage()),
-      ('简历管理', Icons.article_rounded, const Color(0xFFf5576c), const HrResumePage()),
-      ('审批管理', Icons.fact_check_rounded, const Color(0xFF4facfe), const HrApprovalPage()),
-      ('面试安排', Icons.event_available_rounded, const Color(0xFF43e97b), const HrInterviewPage()),
+      ('员工管理', Icons.people_rounded, const Color(0xFF667eea)),
+      ('简历管理', Icons.article_rounded, const Color(0xFFf5576c)),
+      ('审批管理', Icons.fact_check_rounded, const Color(0xFF4facfe)),
+      ('面试安排', Icons.event_available_rounded, const Color(0xFF43e97b)),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -394,8 +400,9 @@ class _QuickActions extends StatelessWidget {
         child: Text('快捷操作', style: Theme.of(context).textTheme.titleMedium),
       ),
       Row(
-        children: actions.map((a) {
-          final (label, icon, color, page) = a;
+        children: actions.asMap().entries.map((e) {
+          final i = e.key;
+          final (label, icon, color) = e.value;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -404,7 +411,7 @@ class _QuickActions extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () => _navigate(context, page),
+                  onTap: () => onSelect(i + 1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(children: [
