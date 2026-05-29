@@ -486,6 +486,8 @@ async def create_expense(
     db.add(e)
     await db.commit()
     await db.refresh(e)
+    if status == "paid":
+        await _recalc_budget_usage(db)
     await audit_log(db, user, "expense_create", "expense", e.id, body.category, request=request)
     return _expense_row(e)
 
