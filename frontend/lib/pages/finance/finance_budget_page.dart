@@ -101,7 +101,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
               : RefreshIndicator(
                   onRefresh: () async => ref.read(financeBudgetProvider.notifier).load(),
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
                     itemCount: state.items.length,
                     itemBuilder: (_, i) => _buildBudgetCard(context, state.items[i]),
                   ),
