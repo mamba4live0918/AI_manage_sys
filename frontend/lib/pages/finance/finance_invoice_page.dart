@@ -20,6 +20,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   String _selectedStatus = '';
   final Map<String, List<PaymentData>> _paymentsCache = {};
   final Map<String, double> _paymentTotals = {};
+  final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingPayments = false;
 
   static const _statusOptions = ['', 'draft', 'issued', 'partial', 'paid'];
@@ -68,6 +69,17 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           _paymentTotals[p.invoiceId!] =
               (_paymentTotals[p.invoiceId!] ?? 0) + p.amount;
           _paymentsCache.putIfAbsent(p.invoiceId!, () => []).add(p);
+        }
+      }
+      // Also load vouchers
+      final vResp = await _api.dio.get('/finance/vouchers',
+          queryParameters: {'limit': '1000'});
+      final vouchers = List<Map<String, dynamic>>.from(vResp.data['items']);
+      _voucherCache.clear();
+      for (final v in vouchers) {
+        final invId = v['invoice_id'] as String?;
+        if (invId != null) {
+          _voucherCache.putIfAbsent(invId, () => []).add(v);
         }
       }
     } catch (_) {}
@@ -721,7 +733,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                                 : Colors.grey.shade200,
                                           ),
                                           const SizedBox(width: 4),
-                                          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                                          const Icon(Icons.chevron_right,
+                                              size: 18, color: Colors.grey),
                                         ]),
                                         const SizedBox(height: 4),
                                         Row(children: [
@@ -761,6 +774,61 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                 ),
                               ),
                             )),
+
+                      // Vouchers section
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Builder(builder: (_) {
+                        final vouchers = _voucherCache[inv.id] ?? [];
+                        final voucherTheme = Theme.of(ctx);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(children: [
+                              Text('凭证',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: textColor)),
+                              if (vouchers.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: voucherTheme.colorScheme.primary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${vouchers.length}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: voucherTheme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ]),
+                            if (vouchers.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                    child: Text('暂无凭证',
+                                        style: TextStyle(
+                                            color: labelColor,
+                                            fontSize: 14))),
+                              )
+                            else
+                              ...vouchers.map((v) => _buildVoucherItem(
+                                  v, isDark, textColor, labelColor, ctx)),
+                          ],
+                        );
+                      }),
                     ]),
               ),
             );
@@ -812,6 +880,348 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           const SizedBox(height: 16),
         ]),
       ),
+    );
+  }
+
+  // ─── Voucher item ───
+
+  Widget _buildVoucherItem(Map<String, dynamic> v, bool isDark,
+      Color textColor, Color labelColor, BuildContext ctx) {
+    final typeLabels = {
+      'invoice': '发票',
+      'receipt': '收据',
+      'contract': '合同',
+      'other': '其他',
+    };
+    final voucherType =
+        typeLabels[v['type']] ?? (v['type'] as String?) ?? '未知';
+    final description = (v['description'] as String?) ?? '';
+    final createdAt = (v['created_at'] as String?) ?? '';
+    final fileId = v['file_id'] as String?;
+
+    return Material(
+      color: isDark ? Colors.white10 : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          if (fileId != null) {
+            _showVoucherPreview(ctx, v, isDark);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: fileId != null
+                      ? Colors.blue.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  fileId != null ? Icons.attach_file : Icons.description,
+                  size: 20,
+                  color: fileId != null ? Colors.blue : Colors.grey,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          voucherType,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: textColor,
+                          ),
+                        ),
+                        if (fileId != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.visibility,
+                              size: 13,
+                              color: isDark
+                                  ? Colors.white38
+                                  : Colors.black38),
+                        ],
+                      ],
+                    ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: labelColor,
+                        ),
+                      ),
+                    ],
+                    if (createdAt.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDate(createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (fileId != null)
+                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String iso) {
+    try {
+      return iso.substring(0, 10);
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  void _showVoucherPreview(
+      BuildContext context, Map<String, dynamic> voucher, bool isDark) {
+    final fileId = voucher['file_id'] as String?;
+    if (fileId == null) return;
+
+    final voucherType = (voucher['type'] as String?) ?? 'unknown';
+    final description = (voucher['description'] as String?) ?? '';
+    final createdAt = (voucher['created_at'] as String?) ?? '';
+    final typeLabels = {
+      'invoice': '发票',
+      'receipt': '收据',
+      'contract': '合同',
+      'other': '其他',
+    };
+
+    // Show dialog immediately, load file info inside
+    late String? fileUrl;
+    late String? mimeType;
+    late String? fileName;
+    late String? errorMsg;
+    late String? authToken;
+    bool loaded = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        if (!loaded) {
+          loaded = true;
+          Future.microtask(() async {
+            try {
+              authToken = await _api.loadToken();
+              final resp =
+                  await _api.dio.get('/preview/file/$fileId');
+              fileUrl = resp.data['url'];
+              mimeType = resp.data['mime_type'];
+              fileName = resp.data['name'];
+            } catch (e) {
+              errorMsg = '加载失败: $e';
+            }
+            // Rebuild dialog with loaded data
+            if (ctx.mounted) {
+              Navigator.pop(ctx);
+              _showVoucherPreviewDialog(
+                  context, isDark, typeLabels, voucherType,
+                  description, createdAt, fileId,
+                  authToken, fileUrl, mimeType, fileName, errorMsg);
+            }
+          });
+        }
+
+        return const AlertDialog(
+          content: SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showVoucherPreviewDialog(
+      BuildContext context,
+      bool isDark,
+      Map<String, String> typeLabels,
+      String voucherType,
+      String description,
+      String createdAt,
+      String fileId,
+      String? authToken,
+      String? fileUrl,
+      String? mimeType,
+      String? fileName,
+      String? errorMsg) {
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final labelColor = isDark ? Colors.white70 : Colors.black54;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          description.isNotEmpty ? description : '凭证详情',
+          style: TextStyle(color: textColor),
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _voucherDetailRow(
+                  '类型', typeLabels[voucherType] ?? voucherType,
+                  labelColor, textColor),
+              if (description.isNotEmpty)
+                _voucherDetailRow(
+                    '说明', description, labelColor, textColor),
+              if (createdAt.isNotEmpty)
+                _voucherDetailRow(
+                    '上传时间', _formatDate(createdAt),
+                    labelColor, textColor),
+              const SizedBox(height: 16),
+              if (errorMsg != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(errorMsg,
+                      style: TextStyle(
+                          color: Colors.red.shade700, fontSize: 13)),
+                )
+              else ...[
+                // Preview area
+                if (mimeType != null &&
+                    fileUrl != null &&
+                    mimeType.startsWith('image/'))
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      fileUrl,
+                      headers: authToken != null
+                          ? {'Authorization': 'Bearer $authToken'}
+                          : null,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white10
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(children: [
+                          const Icon(Icons.broken_image,
+                              size: 48, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text('无法预览',
+                              style: TextStyle(color: labelColor)),
+                        ]),
+                      ),
+                    ),
+                  )
+                else if (fileName != null)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white10
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(children: [
+                      Icon(Icons.insert_drive_file,
+                          size: 48,
+                          color: isDark
+                              ? Colors.white38
+                              : Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(fileName,
+                          style: TextStyle(
+                              color: textColor, fontSize: 13),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 4),
+                      Text(
+                        '无法预览此文件类型，请下载查看',
+                        style: TextStyle(
+                            color: labelColor, fontSize: 12),
+                      ),
+                    ]),
+                  ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.download, size: 18),
+                    label: const Text('下载文件'),
+                    onPressed: () async {
+                      try {
+                        await _api.dio.get(
+                          '/preview/download/$fileId',
+                          options: Options(
+                            responseType: ResponseType.bytes,
+                          ),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                                  content: Text('文件已下载')));
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                                  content: Text('下载失败')));
+                        }
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  Widget _voucherDetailRow(
+      String label, String value, Color labelColor, Color textColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+            width: 70,
+            child: Text(label,
+                style: TextStyle(color: labelColor, fontSize: 13))),
+        Expanded(
+            child: Text(value,
+                style: TextStyle(color: textColor, fontSize: 13))),
+      ]),
     );
   }
 
@@ -1175,6 +1585,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     _paymentsCache.remove(id);
                     _paymentTotals.remove(id);
+                    _voucherCache.remove(id);
                     ref
                         .read(financeInvoiceProvider.notifier)
                         .load(status: _selectedStatus);
