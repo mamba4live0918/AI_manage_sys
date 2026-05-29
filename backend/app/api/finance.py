@@ -202,6 +202,7 @@ def _budget_row(b: Budget) -> dict:
         "total_amount": b.total_amount,
         "used_amount": b.used_amount,
         "status": b.status,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
         "created_at": b.created_at.isoformat() if b.created_at else None,
     }
 
@@ -214,6 +215,9 @@ async def _recalc_budget_usage(db: AsyncSession):
         conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
         if b.project_id:
             conditions.append(Expense.project_id == b.project_id)
+        if b.year:
+            conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
+            conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
         exp_result = await db.execute(
             select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*conditions)
         )
@@ -222,6 +226,9 @@ async def _recalc_budget_usage(db: AsyncSession):
         stl_conditions = [Settlement.department_id == b.department_id, Settlement.status.in_(["completed", "settled"])]
         if b.project_id:
             stl_conditions.append(Settlement.project_id == b.project_id)
+        if b.year:
+            stl_conditions.append(Settlement.created_at >= datetime(b.year, 1, 1))
+            stl_conditions.append(Settlement.created_at < datetime(b.year + 1, 1, 1))
         stl_result = await db.execute(
             select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
         )
@@ -276,6 +283,7 @@ async def create_settlement(
     )
     db.add(s)
     await db.commit()
+    await _recalc_budget_usage(db)
     await db.refresh(s)
     await audit_log(db, user, "settlement_create", "settlement", s.id, s.invoice_no, request=request)
     return _settlement_row(s)
@@ -309,6 +317,7 @@ async def update_settlement(
     if not s:
         raise HTTPException(404, "结算不存在")
     await _check_department(db, user, s.department_id, "编辑")
+    old_status = s.status
     for k, v in body.model_dump(exclude_none=True).items():
         if k == "project_id" and v is not None:
             setattr(s, k, uuid.UUID(v) if v else None)
@@ -318,6 +327,8 @@ async def update_settlement(
             setattr(s, k, v)
     s.updated_at = _now()
     await db.commit()
+    if old_status not in ("completed", "settled") and s.status in ("completed", "settled"):
+        await _recalc_budget_usage(db)
     await db.refresh(s)
     await audit_log(db, user, "settlement_update", "settlement", s.id, s.invoice_no, request=request)
     return _settlement_row(s)
@@ -338,6 +349,7 @@ async def delete_settlement(
     await _check_department(db, user, s.department_id, "删除")
     await db.delete(s)
     await db.commit()
+    await _recalc_budget_usage(db)
     await audit_log(db, user, "settlement_delete", "settlement", s.id, s.invoice_no, request=request)
     return {"ok": True}
 
@@ -412,6 +424,7 @@ async def approve_expense(
     e.status = body.status
     e.updated_at = _now()
     await db.commit()
+    await _recalc_budget_usage(db)
     await db.refresh(e)
     await audit_log(db, user, f"expense_{body.status}", "expense", e.id, e.category, request=request)
     return _expense_row(e)
@@ -432,6 +445,7 @@ async def delete_expense(
     await _check_department(db, user, e.department_id, "删除")
     await db.delete(e)
     await db.commit()
+    await _recalc_budget_usage(db)
     await audit_log(db, user, "expense_delete", "expense", e.id, e.category, request=request)
     return {"ok": True}
 
@@ -779,17 +793,18 @@ async def create_budget(
             )
         )
         dept_budget = dept_result.scalar() or 0.0
-        proj_result = await db.execute(
-            select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
-                Budget.department_id == dept_id,
-                Budget.project_id.isnot(None),
-                Budget.status == "active",
-                Budget.year == body.year,
+        if dept_budget > 0:
+            proj_result = await db.execute(
+                select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                    Budget.department_id == dept_id,
+                    Budget.project_id.isnot(None),
+                    Budget.status == "active",
+                    Budget.year == body.year,
+                )
             )
-        )
-        proj_budgets = proj_result.scalar() or 0.0
-        if proj_budgets + body.total_amount > dept_budget:
-            raise HTTPException(400, f"项目预算总和({proj_budgets + body.total_amount:.0f})超过部门预算({dept_budget:.0f})")
+            proj_budgets = proj_result.scalar() or 0.0
+            if proj_budgets + body.total_amount > dept_budget:
+                raise HTTPException(400, f"项目预算总和({proj_budgets + body.total_amount:.0f})超过部门预算({dept_budget:.0f})")
 
     b = Budget(
         department_id=dept_id, project_id=project_id, name=body.name,
@@ -798,6 +813,7 @@ async def create_budget(
     )
     db.add(b)
     await db.commit()
+    await _recalc_budget_usage(db)
     await db.refresh(b)
     await audit_log(db, user, "budget_create", "budget", b.id, b.name, request=request)
     return _budget_row(b)
@@ -821,6 +837,7 @@ async def update_budget(
         if v is not None:
             setattr(b, k, v)
     await db.commit()
+    await _recalc_budget_usage(db)
     await db.refresh(b)
     await audit_log(db, user, "budget_update", "budget", b.id, b.name, request=request)
     return _budget_row(b)
@@ -855,7 +872,7 @@ async def finance_dashboard(
 ):
     dept_cond = (user.department_id is not None and user.role != "admin")
 
-    now = datetime.utcnow()
+    now = _now()
     # Monthly revenue: payments this calendar month
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
