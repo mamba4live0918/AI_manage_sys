@@ -396,9 +396,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('创建发票'),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
+          content: SizedBox(width: 500, child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (errorMsg != null)
                 Padding(
@@ -510,7 +508,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   controller: buyerTaxIdCtrl,
                   decoration: const InputDecoration(labelText: '购买方税号')),
             ]),
-          ),
+          )),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -550,7 +548,6 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 child: const Text('创建')),
           ],
         ),
-      ),
       ),
     );
   }
@@ -1230,7 +1227,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('编辑凭证说明'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
+          content: SizedBox(width: 500, child: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(
               controller: descCtrl,
               decoration: const InputDecoration(labelText: '说明'),
@@ -1257,7 +1254,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   ]),
                 ),
               ),
-          ]),
+          ])),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
