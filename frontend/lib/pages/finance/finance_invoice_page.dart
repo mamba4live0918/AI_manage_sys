@@ -692,7 +692,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         if (inv.createdAt != null)
                           _detailRow(
                               '创建时间', inv.createdAt!, labelColor, textColor),
-                        _detailRow('状态', _statusLabels[inv.status] ?? inv.status, labelColor, textColor),
+                        Row(children: [
+                          Text('状态', style: TextStyle(color: labelColor, fontSize: 14)),
+                          const SizedBox(width: 12),
+                          Chip(
+                            label: Text(_statusLabels[inv.status] ?? inv.status, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                            backgroundColor: (_statusColors[inv.status] ?? Colors.grey),
+                          ),
+                        ]),
                         const SizedBox(height: 24),
                       ],
 
