@@ -10,7 +10,7 @@ class FinanceExpensePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('报销管理'),
+        title: const Text('支出管理'),
         leading: onBack != null
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
             : null,

@@ -51,6 +51,7 @@ class ExpenseCreate(BaseModel):
     project_id: str | None = None
     amount: float = 0.0
     category: str = "other"
+    expense_type: str = "reimbursement"  # reimbursement=员工报销, direct=直接支出
     description: str = ""
     submitted_by: str | None = None
 
@@ -158,6 +159,7 @@ def _expense_row(e: Expense) -> dict:
         "project_id": str(e.project_id) if e.project_id else None,
         "amount": e.amount,
         "category": e.category,
+        "expense_type": e.expense_type,
         "description": e.description,
         "status": e.status,
         "submitted_by": str(e.submitted_by) if e.submitted_by else None,
@@ -420,6 +422,7 @@ async def delete_settlement(
 async def list_expenses(
     category: str = "",
     status: str = "",
+    expense_type: str = "",
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -436,6 +439,8 @@ async def list_expenses(
         query = query.where(Expense.category == category)
     if status:
         query = query.where(Expense.status == status)
+    if expense_type:
+        query = query.where(Expense.expense_type == expense_type)
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_expense_row(e) for e in result.scalars().all()]}
 
@@ -450,11 +455,14 @@ async def create_expense(
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
     submitted_by = uuid.UUID(body.submitted_by) if body.submitted_by else user.id
+    status = "paid" if body.expense_type == "direct" else "pending"
     e = Expense(
         project_id=project_id,
         amount=body.amount,
         category=body.category,
+        expense_type=body.expense_type,
         description=body.description,
+        status=status,
         submitted_by=submitted_by,
         department_id=user.department_id,
     )

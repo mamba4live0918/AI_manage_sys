@@ -129,7 +129,7 @@ class _KpiCards extends StatelessWidget {
       (
         '待处理',
         '$pendingTotal',
-        '${data.pendingInvoices} 票据 / ${data.pendingPayments} 待收款 / ${data.pendingExpenses} 报销',
+        '${data.pendingInvoices} 票据 / ${data.pendingPayments} 待收款 / ${data.pendingExpenses} 待审批',
         [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
         [const Color(0xFF43e97b).withAlpha(50), const Color(0xFF38f9d7).withAlpha(50)],
       ),
@@ -373,7 +373,7 @@ class _QuickActions extends StatelessWidget {
     final actions = [
       ('发票管理', Icons.receipt_long_rounded, const Color(0xFF667eea)),
       ('预算管理', Icons.account_balance_wallet_rounded, const Color(0xFF4facfe)),
-      ('报销管理', Icons.attach_money_rounded, const Color(0xFFf093fb)),
+      ('支出管理', Icons.attach_money_rounded, const Color(0xFFf093fb)),
       ('凭证管理', Icons.description_rounded, const Color(0xFFf5576c)),
     ];
 

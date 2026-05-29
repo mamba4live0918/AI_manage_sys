@@ -577,6 +577,7 @@ class Expense(Base):
     project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pm_projects.id", ondelete="SET NULL"), nullable=True)
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     category: Mapped[str] = mapped_column(String(64), default="other")
+    expense_type: Mapped[str] = mapped_column(String(32), default="reimbursement")  # reimbursement=员工报销, direct=直接支出
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(32), default="pending")
     submitted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

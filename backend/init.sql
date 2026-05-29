@@ -397,3 +397,6 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_name VARCHAR(128) DEFAULT '
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_tax_id VARCHAR(64) DEFAULT '';
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_name VARCHAR(128) DEFAULT '';
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_tax_id VARCHAR(64) DEFAULT '';
+
+-- 2026-05-29: expense_type field — reimbursement vs direct
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_type VARCHAR(32) DEFAULT 'reimbursement';

@@ -9,7 +9,11 @@ const _expenseCategoryNames = {
   'travel': '差旅', 'office': '办公', 'entertainment': '招待', 'other': '其他',
 };
 const _expenseStatusNames = {
-  'pending': '待审批', 'approved': '已通过', 'rejected': '已驳回',
+  'pending': '待审批', 'approved': '已通过', 'rejected': '已驳回', 'paid': '已支付',
+};
+const _expenseTypeNames = {
+  'reimbursement': '员工报销',
+  'direct': '直接支出',
 };
 
 class FinanceExpenseTab extends StatefulWidget {
@@ -24,6 +28,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String _statusFilter = '';
+  String _typeFilter = '';
 
   @override
   void initState() {
@@ -36,6 +41,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     try {
       final params = <String, dynamic>{'limit': 100};
       if (_statusFilter.isNotEmpty) params['status'] = _statusFilter;
+      if (_typeFilter.isNotEmpty) params['expense_type'] = _typeFilter;
       final resp = await _api.dio.get('/finance/expenses', queryParameters: params);
       setState(() {
         _items = List<Map<String, dynamic>>.from(resp.data['items']);
@@ -50,13 +56,14 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String category = 'other';
+    String expenseType = 'reimbursement';
     PlatformFile? pickedFile;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (_, setDlg) => AlertDialog(
-          title: const Text('新建报销'),
+          title: const Text('新建支出'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: amountCtrl, decoration: const InputDecoration(labelText: '金额 *'), keyboardType: TextInputType.number),
@@ -71,6 +78,27 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              const Text('支出类型', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 4),
+              SegmentedButton<String>(
+                selected: {expenseType},
+                onSelectionChanged: (v) => setDlg(() => expenseType = v.first),
+                segments: const [
+                  ButtonSegment(value: 'reimbursement', label: Text('员工报销'), icon: Icon(Icons.person, size: 16)),
+                  ButtonSegment(value: 'direct', label: Text('直接支出'), icon: Icon(Icons.business, size: 16)),
+                ],
+              ),
+              if (expenseType == 'reimbursement')
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('员工报销需要审批', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('直接支出自动完成，无需审批', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                ),
               const SizedBox(height: 8),
               TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
               const SizedBox(height: 12),
@@ -106,6 +134,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     final resp = await _api.dio.post('/finance/expenses', data: {
       'amount': double.tryParse(amountCtrl.text) ?? 0.0,
       'category': category,
+      'expense_type': expenseType,
       'description': descCtrl.text.trim(),
     });
     final expenseId = resp.data['id'] as String;
@@ -129,6 +158,11 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     _load();
   }
 
+  Future<void> _delete(String id) async {
+    await _api.dio.delete('/finance/expenses/$id');
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -141,7 +175,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
             child: SizedBox(height: 40, child: ElevatedButton.icon(
               onPressed: _create,
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('新建报销'),
+              label: const Text('新建支出'),
             )),
           ),
         ]),
@@ -150,7 +184,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(children: ['', 'pending', 'approved', 'rejected'].map((s) {
+          child: Row(children: ['', 'pending', 'approved', 'rejected', 'paid'].map((s) {
             final selected = _statusFilter == s;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -163,11 +197,28 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
           }).toList()),
         ),
       ),
+      Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 4),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: ['', 'reimbursement', 'direct'].map((t) {
+            final selected = _typeFilter == t;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(t.isEmpty ? '全部类型' : _expenseTypeNames[t] ?? t),
+                selected: selected,
+                onSelected: (_) { _typeFilter = selected ? '' : t; _load(); },
+              ),
+            );
+          }).toList()),
+        ),
+      ),
       Expanded(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
-                ? Center(child: Text('暂无报销记录', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
+                ? Center(child: Text('暂无支出记录', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: _items.length,
@@ -177,14 +228,30 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                       final amount = e['amount'] as num? ?? 0;
                       final category = e['category'] as String? ?? 'other';
                       final status = e['status'] as String? ?? 'pending';
+                      final expType = e['expense_type'] as String? ?? 'reimbursement';
+                      final bool isReimbursement = expType == 'reimbursement';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFFFCE4EC),
-                            child: Icon(Icons.money_rounded, color: AppTheme.red, size: 20),
+                          leading: CircleAvatar(
+                            backgroundColor: isReimbursement ? const Color(0xFFE3F2FD) : const Color(0xFFE8F5E9),
+                            child: Icon(Icons.money_rounded, color: isReimbursement ? AppTheme.blue : AppTheme.green, size: 20),
                           ),
-                          title: Text('\$${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          title: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Flexible(child: Text('\$${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600))),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: isReimbursement ? AppTheme.blue.withAlpha(20) : AppTheme.green.withAlpha(20),
+                              ),
+                              child: Text(
+                                isReimbursement ? '报销' : '支出',
+                                style: TextStyle(fontSize: 10, color: isReimbursement ? AppTheme.blue : AppTheme.green, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ]),
                           subtitle: Text([_expenseCategoryNames[category] ?? category, e['description'] ?? ''].where((x) => x.isNotEmpty).join(' · ')),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             Container(
@@ -192,17 +259,25 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                               decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), color: AppTheme.red.withAlpha(20)),
                               child: Text(_expenseStatusNames[status] ?? status, style: const TextStyle(fontSize: 11, color: AppTheme.red)),
                             ),
-                            if (status == 'pending') ...[
-                              const SizedBox(width: 4),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert_rounded, size: 18),
-                                onSelected: (action) => _approve(id, action),
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(value: 'approved', child: Text('通过', style: TextStyle(color: AppTheme.green))),
-                                  const PopupMenuItem(value: 'rejected', child: Text('驳回', style: TextStyle(color: AppTheme.red))),
-                                ],
-                              ),
-                            ],
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert_rounded, size: 18),
+                              onSelected: (action) {
+                                if (action == 'delete') {
+                                  _delete(id);
+                                } else {
+                                  _approve(id, action);
+                                }
+                              },
+                              itemBuilder: (_) {
+                                final items = <PopupMenuEntry<String>>[];
+                                if (isReimbursement && status == 'pending') {
+                                  items.add(const PopupMenuItem(value: 'approved', child: Text('通过', style: TextStyle(color: AppTheme.green))));
+                                  items.add(const PopupMenuItem(value: 'rejected', child: Text('驳回', style: TextStyle(color: AppTheme.red))));
+                                }
+                                items.add(const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))));
+                                return items;
+                              },
+                            ),
                           ]),
                         ),
                       );
