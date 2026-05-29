@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/finance_providers.dart';
 import '../../widgets/watermark.dart';
 import '../../models/finance_models.dart';
+import 'finance_invoice_page.dart';
+import 'finance_budget_page.dart';
 
 class FinanceDashboardPage extends ConsumerStatefulWidget {
   const FinanceDashboardPage({super.key});
@@ -28,20 +30,8 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
     final state = ref.watch(financeDashboardProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (_activeView == 1) {
-      return _PlaceholderPage(
-        title: '发票管理',
-        onBack: () => setState(() => _activeView = 0),
-        auth: auth,
-      );
-    }
-    if (_activeView == 2) {
-      return _PlaceholderPage(
-        title: '预算管理',
-        onBack: () => setState(() => _activeView = 0),
-        auth: auth,
-      );
-    }
+    if (_activeView == 1) return FinanceInvoicePage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 2) return FinanceBudgetPage(onBack: () => setState(() => _activeView = 0));
 
     return Watermark(
       username: auth.user?.username ?? '',
@@ -87,34 +77,6 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
           _QuickActions(onSelect: (i) => setState(() => _activeView = i)),
           const SizedBox(height: 80),
         ]),
-      ),
-    );
-  }
-}
-
-// ── Placeholder sub-pages ──
-
-class _PlaceholderPage extends StatelessWidget {
-  final String title;
-  final VoidCallback onBack;
-  final AuthState auth;
-  const _PlaceholderPage({required this.title, required this.onBack, required this.auth});
-
-  @override
-  Widget build(BuildContext context) {
-    return Watermark(
-      username: auth.user?.username ?? '',
-      department: auth.user?.department ?? '',
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(title),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: onBack,
-          ),
-        ),
-        body: const Center(child: Text('即将上线', style: TextStyle(fontSize: 16, color: Colors.grey))),
       ),
     );
   }
