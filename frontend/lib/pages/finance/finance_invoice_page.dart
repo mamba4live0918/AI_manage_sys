@@ -543,14 +543,17 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: textColor))),
-                        TextButton.icon(
-                          icon: Icon(
-                              isEditing ? Icons.visibility : Icons.edit,
-                              size: 18),
-                          label: Text(isEditing ? '查看' : '编辑'),
-                          onPressed: () =>
-                              setSheetState(() => isEditing = !isEditing),
-                        ),
+                        if (isEditing)
+                          TextButton(
+                            onPressed: () => setSheetState(() => isEditing = false),
+                            child: const Text('取消编辑'),
+                          )
+                        else
+                          TextButton.icon(
+                            icon: const Icon(Icons.edit, size: 18),
+                            label: const Text('编辑'),
+                            onPressed: () => setSheetState(() => isEditing = true),
+                          ),
                       ]),
                       const SizedBox(height: 16),
 
