@@ -77,6 +77,10 @@ class InvoiceCreate(BaseModel):
     issue_date: str | None = None
     due_date: str | None = None
     notes: str = ""
+    seller_name: str = ""
+    seller_tax_id: str = ""
+    buyer_name: str = ""
+    buyer_tax_id: str = ""
 
 class InvoiceUpdate(BaseModel):
     invoice_no: str | None = None
@@ -87,6 +91,10 @@ class InvoiceUpdate(BaseModel):
     issue_date: str | None = None
     due_date: str | None = None
     notes: str | None = None
+    seller_name: str | None = None
+    seller_tax_id: str | None = None
+    buyer_name: str | None = None
+    buyer_tax_id: str | None = None
 
 class PaymentCreate(BaseModel):
     invoice_id: str | None = None
@@ -174,6 +182,10 @@ def _invoice_row(inv: Invoice) -> dict:
         "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
         "due_date": inv.due_date.isoformat() if inv.due_date else None,
         "notes": inv.notes,
+        "seller_name": inv.seller_name,
+        "seller_tax_id": inv.seller_tax_id,
+        "buyer_name": inv.buyer_name,
+        "buyer_tax_id": inv.buyer_tax_id,
         "department_id": str(inv.department_id) if inv.department_id else None,
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
@@ -604,6 +616,8 @@ async def list_invoices(
         query = query.where(
             Invoice.invoice_no.ilike(f"%{search}%")
             | Invoice.notes.ilike(f"%{search}%")
+            | Invoice.seller_name.ilike(f"%{search}%")
+            | Invoice.buyer_name.ilike(f"%{search}%")
         )
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_invoice_row(i) for i in result.scalars().all()]}
@@ -624,6 +638,8 @@ async def create_invoice(
         project_id=project_id, invoice_no=body.invoice_no, amount=body.amount,
         tax_amount=body.tax_amount, tax_rate=body.tax_rate, status=body.status,
         issue_date=issue_date, due_date=due_date, notes=body.notes,
+        seller_name=body.seller_name, seller_tax_id=body.seller_tax_id,
+        buyer_name=body.buyer_name, buyer_tax_id=body.buyer_tax_id,
         department_id=user.department_id, created_by=user.id,
     )
     db.add(i)

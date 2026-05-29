@@ -9,12 +9,17 @@ class InvoiceData {
   final String? issueDate;
   final String? dueDate;
   final String notes;
+  final String sellerName;
+  final String sellerTaxId;
+  final String buyerName;
+  final String buyerTaxId;
   final String? createdAt;
 
   InvoiceData({required this.id, this.projectId, required this.invoiceNo,
     required this.amount, required this.taxAmount, required this.taxRate,
     required this.status, this.issueDate, this.dueDate, required this.notes,
-    this.createdAt});
+    this.sellerName = '', this.sellerTaxId = '', this.buyerName = '',
+    this.buyerTaxId = '', this.createdAt});
 
   factory InvoiceData.fromJson(Map<String, dynamic> json) => InvoiceData(
     id: json['id'] ?? '',
@@ -27,6 +32,10 @@ class InvoiceData {
     issueDate: json['issue_date'],
     dueDate: json['due_date'],
     notes: json['notes'] ?? '',
+    sellerName: json['seller_name'] ?? '',
+    sellerTaxId: json['seller_tax_id'] ?? '',
+    buyerName: json['buyer_name'] ?? '',
+    buyerTaxId: json['buyer_tax_id'] ?? '',
     createdAt: json['created_at'],
   );
 }

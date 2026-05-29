@@ -119,7 +119,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: '搜索发票号或备注',
+                hintText: '搜索发票号、销售方或购买方名称',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
@@ -292,6 +292,18 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   ),
                 ],
               ),
+              if (inv.buyerName.isNotEmpty || inv.sellerName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '${inv.sellerName.isNotEmpty ? '${inv.sellerName} → ' : ''}${inv.buyerName.isNotEmpty ? inv.buyerName : ''}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 14),
               // Progress bar
               ClipRRect(
@@ -370,6 +382,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final taxAmountCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     final projectIdCtrl = TextEditingController();
+    final sellerNameCtrl = TextEditingController();
+    final sellerTaxIdCtrl = TextEditingController();
+    final buyerNameCtrl = TextEditingController();
+    final buyerTaxIdCtrl = TextEditingController();
     final taxRateCtrl = TextEditingController(text: '0.13');
     String? issueDate;
     String? dueDate;
@@ -475,6 +491,22 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   controller: notesCtrl,
                   decoration: const InputDecoration(labelText: '备注'),
                   maxLines: 2),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: sellerNameCtrl,
+                  decoration: const InputDecoration(labelText: '销售方名称')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: sellerTaxIdCtrl,
+                  decoration: const InputDecoration(labelText: '销售方税号')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: buyerNameCtrl,
+                  decoration: const InputDecoration(labelText: '购买方名称')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: buyerTaxIdCtrl,
+                  decoration: const InputDecoration(labelText: '购买方税号')),
             ]),
           ),
           actions: [
@@ -492,6 +524,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'tax_rate':
                           double.tryParse(taxRateCtrl.text) ?? 0.13,
                       'notes': notesCtrl.text,
+                      'seller_name': sellerNameCtrl.text,
+                      'seller_tax_id': sellerTaxIdCtrl.text,
+                      'buyer_name': buyerNameCtrl.text,
+                      'buyer_tax_id': buyerTaxIdCtrl.text,
                       'status': 'issued',
                     };
                     if (projectIdCtrl.text.isNotEmpty) {
@@ -539,6 +575,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
         final editTaxAmountCtrl =
             TextEditingController(text: inv.taxAmount.toStringAsFixed(2));
         final editNotesCtrl = TextEditingController(text: inv.notes);
+        final editSellerNameCtrl = TextEditingController(text: inv.sellerName);
+        final editSellerTaxIdCtrl = TextEditingController(text: inv.sellerTaxId);
+        final editBuyerNameCtrl = TextEditingController(text: inv.buyerName);
+        final editBuyerTaxIdCtrl = TextEditingController(text: inv.buyerTaxId);
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
@@ -634,6 +674,30 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                 const InputDecoration(labelText: '备注'),
                             maxLines: 2,
                             style: TextStyle(color: textColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                            controller: editSellerNameCtrl,
+                            decoration:
+                                const InputDecoration(labelText: '销售方名称'),
+                            style: TextStyle(color: textColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                            controller: editSellerTaxIdCtrl,
+                            decoration:
+                                const InputDecoration(labelText: '销售方税号'),
+                            style: TextStyle(color: textColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                            controller: editBuyerNameCtrl,
+                            decoration:
+                                const InputDecoration(labelText: '购买方名称'),
+                            style: TextStyle(color: textColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                            controller: editBuyerTaxIdCtrl,
+                            decoration:
+                                const InputDecoration(labelText: '购买方税号'),
+                            style: TextStyle(color: textColor)),
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
@@ -654,6 +718,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                                   editTaxAmountCtrl.text) ??
                                               inv.taxAmount,
                                       'notes': editNotesCtrl.text,
+                                      'seller_name': editSellerNameCtrl.text,
+                                      'seller_tax_id': editSellerTaxIdCtrl.text,
+                                      'buyer_name': editBuyerNameCtrl.text,
+                                      'buyer_tax_id': editBuyerTaxIdCtrl.text,
                                     });
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 ref
@@ -696,6 +764,26 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         _detailRow(
                             '备注',
                             inv.notes.isNotEmpty ? inv.notes : '无',
+                            labelColor,
+                            textColor),
+                        _detailRow(
+                            '销售方名称',
+                            inv.sellerName.isNotEmpty ? inv.sellerName : '无',
+                            labelColor,
+                            textColor),
+                        _detailRow(
+                            '销售方税号',
+                            inv.sellerTaxId.isNotEmpty ? inv.sellerTaxId : '无',
+                            labelColor,
+                            textColor),
+                        _detailRow(
+                            '购买方名称',
+                            inv.buyerName.isNotEmpty ? inv.buyerName : '无',
+                            labelColor,
+                            textColor),
+                        _detailRow(
+                            '购买方税号',
+                            inv.buyerTaxId.isNotEmpty ? inv.buyerTaxId : '无',
                             labelColor,
                             textColor),
                         if (inv.createdAt != null)

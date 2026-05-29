@@ -370,3 +370,9 @@ ALTER TABLE settlements ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invo
 -- Migration: add invoice_id to vouchers
 ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_voucher_invoice ON vouchers(invoice_id);
+
+-- 2026-05-29: add seller/buyer info to invoices
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_name VARCHAR(128) DEFAULT '';
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_tax_id VARCHAR(64) DEFAULT '';
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_name VARCHAR(128) DEFAULT '';
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_tax_id VARCHAR(64) DEFAULT '';
