@@ -29,6 +29,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: 'Microsoft YaHei',
       colorScheme: ColorScheme.fromSeed(
         seedColor: accent,
         brightness: Brightness.light,
@@ -148,6 +149,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: 'Microsoft YaHei',
       colorScheme: ColorScheme.fromSeed(
         seedColor: accent,
         brightness: Brightness.dark,
