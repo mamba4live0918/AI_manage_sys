@@ -531,7 +531,6 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final labelColor = isDark ? Colors.white70 : Colors.black54;
-    String selectedStatus = inv.status;
 
     showModalBottomSheet(
       context: context,
@@ -693,75 +692,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         if (inv.createdAt != null)
                           _detailRow(
                               '创建时间', inv.createdAt!, labelColor, textColor),
-                        const SizedBox(height: 16),
-                        Row(children: [
-                          Text('状态',
-                              style:
-                                  TextStyle(color: labelColor, fontSize: 14)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButton<String>(
-                              value: selectedStatus,
-                              isExpanded: true,
-                              items: ['draft', 'issued', 'partial', 'paid']
-                                  .map((s) => DropdownMenuItem(
-                                        value: s,
-                                        child: Chip(
-                                          label: Text(
-                                              _statusLabels[s] ?? s,
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.white)),
-                                          backgroundColor:
-                                              _statusColors[s] ?? Colors.grey,
-                                        ),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setSheetState(
-                                      () => selectedStatus = v);
-                                }
-                              },
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed: selectedStatus == inv.status
-                                ? null
-                                : () async {
-                                    try {
-                                      await _api.dio.put(
-                                          '/finance/invoices/${inv.id}',
-                                          data: {
-                                            'status': selectedStatus
-                                          });
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      ref
-                                          .read(financeInvoiceProvider
-                                              .notifier)
-                                          .load(status: _selectedStatus);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(const SnackBar(
-                                                content:
-                                                    Text('状态更新成功')));
-                                      }
-                                    } catch (e) {
-                                      if (ctx.mounted) {
-                                        ScaffoldMessenger.of(ctx)
-                                            .showSnackBar(SnackBar(
-                                                content:
-                                                    Text('更新失败: $e')));
-                                      }
-                                    }
-                                  },
-                            child: const Text('更新状态'),
-                          ),
-                        ),
+                        _detailRow('状态', _statusLabels[inv.status] ?? inv.status, labelColor, textColor),
                         const SizedBox(height: 24),
                       ],
 
