@@ -51,7 +51,7 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
   }
 
   Widget _buildBody(FinanceDashboardState state, bool isDark) {
-    if (state.loading && state.data == null) {
+    if (state.data == null) {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.error != null && state.data == null) {
