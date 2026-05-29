@@ -36,6 +36,7 @@ class FinanceInvoiceState {
 }
 
 class FinanceInvoiceNotifier extends StateNotifier<FinanceInvoiceState> {
+  final ApiClient _api = ApiClient();
   FinanceInvoiceNotifier() : super(const FinanceInvoiceState());
 
   Future<void> load({String projectId = '', String status = ''}) async {
@@ -65,6 +66,7 @@ class FinanceBudgetState {
 }
 
 class FinanceBudgetNotifier extends StateNotifier<FinanceBudgetState> {
+  final ApiClient _api = ApiClient();
   FinanceBudgetNotifier() : super(const FinanceBudgetState());
 
   Future<void> load() async {
