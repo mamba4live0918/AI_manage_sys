@@ -957,11 +957,19 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
             FilledButton(
                 onPressed: () async {
                   final amountStr = amountCtrl.text.trim();
-                  if (amountStr.isEmpty ||
-                      (double.tryParse(amountStr) ?? 0) <= 0) {
+                  final amt = double.tryParse(amountStr) ?? 0;
+                  final remaining = invoiceAmount - alreadyPaid;
+                  if (amountStr.isEmpty || amt <= 0) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                           const SnackBar(content: Text('请输入有效金额')));
+                    }
+                    return;
+                  }
+                  if (amt > remaining) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('收款金额不能超过剩余应收款 ¥${remaining.toStringAsFixed(2)}')));
                     }
                     return;
                   }
