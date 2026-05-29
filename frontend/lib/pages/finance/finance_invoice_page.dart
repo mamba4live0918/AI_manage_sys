@@ -396,7 +396,9 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('创建发票'),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (errorMsg != null)
                 Padding(
@@ -548,6 +550,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 child: const Text('创建')),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1366,7 +1369,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('添加收款'),
           content: SizedBox(
-            width: 420,
+            width: 500,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
