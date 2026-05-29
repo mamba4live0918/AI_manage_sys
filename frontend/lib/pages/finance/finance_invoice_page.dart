@@ -329,6 +329,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final taxRateCtrl = TextEditingController(text: '0.13');
     String? issueDate;
     String? dueDate;
+    String? errorMsg;
 
     showDialog(
       context: context,
@@ -337,6 +338,23 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           title: const Text('创建发票'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (errorMsg != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(errorMsg!, style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                    ]),
+                  ),
+                ),
               TextField(
                   controller: invoiceNoCtrl,
                   decoration: const InputDecoration(labelText: '发票号')),
@@ -444,10 +462,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         .read(financeInvoiceProvider.notifier)
                         .load(status: _selectedStatus);
                   } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('创建失败: $e')));
-                    }
+                    setDialogState(() => errorMsg = '创建失败: $e');
                   }
                 },
                 child: const Text('创建')),
@@ -472,6 +487,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         bool isEditing = false;
+        String? errorMsg;
         final editInvoiceNoCtrl =
             TextEditingController(text: inv.invoiceNo);
         final editAmountCtrl =
@@ -526,6 +542,23 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       const SizedBox(height: 16),
 
                       if (isEditing) ...[
+                        if (errorMsg != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(errorMsg!, style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                              ]),
+                            ),
+                          ),
                         TextField(
                             controller: editInvoiceNoCtrl,
                             decoration:
@@ -585,10 +618,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                           content: Text('发票更新成功')));
                                 }
                               } catch (e) {
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('更新失败: $e')));
-                                }
+                                setSheetState(() => errorMsg = '更新失败: $e');
                               }
                             },
                             child: const Text('保存修改'),
@@ -796,8 +826,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final voucherDescCtrl = TextEditingController();
     String selectedMethod = 'bank_transfer';
     String paymentDate = DateTime.now().toIso8601String().substring(0, 10);
+    String? errorMsg;
     String? voucherFileName;
     Uint8List? voucherBytes;
+    String? voucherError;
 
     showDialog(
       context: context,
@@ -827,6 +859,23 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                           color: Colors.blue),
                     ),
                   ),
+                  if (errorMsg != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(errorMsg!, style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                        ]),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: amountCtrl,
@@ -1003,50 +1052,32 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   final amt = double.tryParse(amountStr) ?? 0;
                   final remaining = invoiceAmount - alreadyPaid;
                   if (amountStr.isEmpty || amt <= 0) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('请输入有效金额')));
-                    }
+                    setDialogState(() => errorMsg = '请输入有效金额');
                     return;
                   }
                   if (amt > remaining) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('收款金额不能超过剩余应收款 ¥${remaining.toStringAsFixed(2)}')));
-                    }
+                    setDialogState(() => errorMsg = '收款金额不能超过剩余应收款 ¥${remaining.toStringAsFixed(2)}');
                     return;
                   }
 
                   // Method-specific validation
                   if (selectedMethod == 'bank_transfer' || selectedMethod == 'cheque') {
                     if (refNoCtrl.text.trim().isEmpty) {
-                      if (ctx.mounted) {
-                        final label = selectedMethod == 'bank_transfer' ? '银行流水号' : '支票号码';
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('请输入$label（必填）')));
-                      }
+                      final label = selectedMethod == 'bank_transfer' ? '银行流水号' : '支票号码';
+                      setDialogState(() => errorMsg = '请输入$label（必填）');
                       return;
                     }
                     if (voucherBytes == null || voucherFileName == null) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('必须上传凭证文件')));
-                      }
+                      setDialogState(() => errorMsg = '必须上传凭证文件');
                       return;
                     }
                   } else if (selectedMethod == 'other') {
                     if (voucherBytes == null || voucherFileName == null) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('必须上传凭证文件')));
-                      }
+                      setDialogState(() => errorMsg = '必须上传凭证文件');
                       return;
                     }
                     if (voucherDescCtrl.text.trim().isEmpty) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('请填写凭证说明（其他方式必须填写凭证说明）')));
-                      }
+                      setDialogState(() => errorMsg = '请填写凭证说明（其他方式必须填写凭证说明）');
                       return;
                     }
                   }
@@ -1061,10 +1092,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'notes': notesCtrl.text,
                     });
                   } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('收款失败: $e')));
-                    }
+                    setDialogState(() => errorMsg = '收款失败: $e');
                     return;
                   }
 
@@ -1084,10 +1112,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         data: formData,
                       );
                     } catch (e) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('收款成功，但凭证上传失败: $e')));
-                      }
+                      voucherError = '收款成功，但凭证上传失败: $e';
                     }
                   }
 
@@ -1098,7 +1123,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       .load(status: _selectedStatus);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('收款记录添加成功')));
+                        SnackBar(content: Text(voucherError ?? '收款记录添加成功')));
                   }
                 },
                 child: Text(selectedMethod == 'cash' ? '确认添加' : '确认添加并上传凭证')),
@@ -1113,39 +1138,60 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   void _confirmDelete(BuildContext context, String id) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此发票吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              try {
-                await _api.dio.delete('/finance/invoices/$id');
-                if (ctx.mounted) Navigator.pop(ctx);
-                _paymentsCache.remove(id);
-                _paymentTotals.remove(id);
-                ref
-                    .read(financeInvoiceProvider.notifier)
-                    .load(status: _selectedStatus);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('删除成功')));
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('删除失败: $e')));
-                }
-              }
-            },
-            child: const Text('删除'),
+      builder: (ctx) {
+        String? errorMsg;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('确认删除'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('确定要删除此发票吗？此操作不可撤销。'),
+              if (errorMsg != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(errorMsg!, style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                    ]),
+                  ),
+                ),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('取消')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  try {
+                    await _api.dio.delete('/finance/invoices/$id');
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    _paymentsCache.remove(id);
+                    _paymentTotals.remove(id);
+                    ref
+                        .read(financeInvoiceProvider.notifier)
+                        .load(status: _selectedStatus);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('删除成功')));
+                    }
+                  } catch (e) {
+                    setDialogState(() => errorMsg = '删除失败: $e');
+                  }
+                },
+                child: const Text('删除'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
