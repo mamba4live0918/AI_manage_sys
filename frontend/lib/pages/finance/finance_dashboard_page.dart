@@ -8,6 +8,9 @@ import '../../widgets/watermark.dart';
 import '../../models/finance_models.dart';
 import 'finance_invoice_page.dart';
 import 'finance_budget_page.dart';
+import 'finance_settlement_page.dart';
+import 'finance_expense_page.dart';
+import 'finance_voucher_page.dart';
 
 class FinanceDashboardPage extends ConsumerStatefulWidget {
   const FinanceDashboardPage({super.key});
@@ -16,7 +19,7 @@ class FinanceDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
-  int _activeView = 0; // 0=dashboard, 1=invoice placeholder, 2=budget placeholder
+  int _activeView = 0; // 0=dashboard, 1=invoice, 2=budget, 3=settlement, 4=expense, 5=voucher
 
   @override
   void initState() {
@@ -32,6 +35,9 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
 
     if (_activeView == 1) return FinanceInvoicePage(onBack: () => setState(() => _activeView = 0));
     if (_activeView == 2) return FinanceBudgetPage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 3) return FinanceSettlementPage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 4) return FinanceExpensePage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 5) return FinanceVoucherPage(onBack: () => setState(() => _activeView = 0));
 
     return Watermark(
       username: auth.user?.username ?? '',
@@ -361,6 +367,9 @@ class _QuickActions extends StatelessWidget {
     final actions = [
       ('发票管理', Icons.receipt_long_rounded, const Color(0xFF667eea)),
       ('预算管理', Icons.account_balance_wallet_rounded, const Color(0xFF4facfe)),
+      ('结算管理', Icons.payment_rounded, const Color(0xFF43e97b)),
+      ('报销管理', Icons.attach_money_rounded, const Color(0xFFf093fb)),
+      ('凭证管理', Icons.description_rounded, const Color(0xFFf5576c)),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -368,27 +377,27 @@ class _QuickActions extends StatelessWidget {
         padding: const EdgeInsets.only(left: 4, bottom: 12),
         child: Text('快捷操作', style: Theme.of(context).textTheme.titleMedium),
       ),
-      Row(
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: actions.asMap().entries.map((e) {
           final i = e.key;
           final (label, icon, color) = e.value;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Material(
-                color: color.withAlpha(20),
+          return SizedBox(
+            width: (MediaQuery.of(context).size.width - 16 - 32) / 5,
+            child: Material(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => onSelect(i + 1),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Column(children: [
-                      Icon(icon, color: color, size: 28),
-                      const SizedBox(height: 8),
-                      Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
-                    ]),
-                  ),
+                onTap: () => onSelect(i + 1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(children: [
+                    Icon(icon, color: color, size: 28),
+                    const SizedBox(height: 8),
+                    Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+                  ]),
                 ),
               ),
             ),
