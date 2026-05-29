@@ -28,7 +28,14 @@ async def list_files(
 ):
     q = select(File).where(File.parent_id == (uuid.UUID(parent_id) if parent_id else None))
     if search:
-        q = q.where(File.name.ilike(f"%{search}%"))
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="files", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            q = q.where(File.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": [], "total": 0}
     q = q.order_by(File.is_folder.desc(), File.created_at.desc())
 
     total_q = select(func.count()).select_from(File).where(
@@ -89,6 +96,9 @@ async def upload(
     await db.commit()
     await db.refresh(record)
 
+    from app.services.search import index_document as es_index
+    await es_index(str(record.id), "files", record.name, "", extra=record.mime_type or "", department_id=str(user.department_id) if user.department_id else None)
+
     await audit_log(db, user, "upload", "file", record.id, record.name, request=request)
 
     return {"id": str(record.id), "name": record.name, "size_bytes": record.size_bytes}
@@ -109,6 +119,9 @@ async def create_folder(
     db.add(folder)
     await db.commit()
     await db.refresh(folder)
+
+    from app.services.search import index_document as es_index
+    await es_index(str(folder.id), "files", folder.name, "", extra="folder", department_id=str(user.department_id) if user.department_id else None)
 
     await audit_log(db, user, "create_folder", "folder", folder.id, folder.name, request=request)
     return {"id": str(folder.id), "name": folder.name}
@@ -135,6 +148,9 @@ async def delete(
     name = record.name
     await db.delete(record)
     await db.commit()
+
+    from app.services.search import delete_document as es_delete
+    await es_delete(str(record.id), "files")
 
     await audit_log(db, user, "delete", "file", uuid.UUID(file_id), name, request=request)
     return {"message": "删除成功"}
