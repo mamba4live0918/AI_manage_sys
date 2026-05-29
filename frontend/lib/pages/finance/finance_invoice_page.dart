@@ -26,17 +26,23 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const _statusOptions = ['', 'issued', 'partial', 'paid'];
+  static const _statusOptions = ['', 'draft', 'pending', 'issued', 'partial', 'paid', 'cancelled'];
   static const _statusLabels = {
     '': '全部',
+    'draft': '草稿',
+    'pending': '待结算',
     'issued': '已开票',
     'partial': '部分收款',
     'paid': '已收款',
+    'cancelled': '已取消',
   };
   static const _statusColors = {
+    'draft': Colors.grey,
+    'pending': Colors.orange,
     'issued': Colors.orange,
     'partial': Colors.blue,
     'paid': Colors.green,
+    'cancelled': Colors.grey,
   };
   static const _paymentMethodLabels = {
     'bank_transfer': '银行转账',
@@ -102,7 +108,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('发票管理'),
+        title: const Text('票据管理'),
         leading: widget.onBack != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back), onPressed: widget.onBack)
@@ -297,6 +303,18 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     '${inv.sellerName.isNotEmpty ? '${inv.sellerName} → ' : ''}${inv.buyerName.isNotEmpty ? inv.buyerName : ''}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+                ),
+              if (inv.projectId != null && inv.projectId!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '关联项目: ${inv.projectId}',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,

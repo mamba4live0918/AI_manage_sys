@@ -8,7 +8,6 @@ import '../../widgets/watermark.dart';
 import '../../models/finance_models.dart';
 import 'finance_invoice_page.dart';
 import 'finance_budget_page.dart';
-import 'finance_settlement_page.dart';
 import 'finance_expense_page.dart';
 import 'finance_voucher_page.dart';
 
@@ -19,7 +18,7 @@ class FinanceDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
-  int _activeView = 0; // 0=dashboard, 1=invoice, 2=budget, 3=settlement, 4=expense, 5=voucher
+  int _activeView = 0; // 0=dashboard, 1=invoice, 2=budget, 3=expense, 4=voucher
 
   @override
   void initState() {
@@ -35,9 +34,8 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
 
     if (_activeView == 1) return FinanceInvoicePage(onBack: () => setState(() => _activeView = 0));
     if (_activeView == 2) return FinanceBudgetPage(onBack: () => setState(() => _activeView = 0));
-    if (_activeView == 3) return FinanceSettlementPage(onBack: () => setState(() => _activeView = 0));
-    if (_activeView == 4) return FinanceExpensePage(onBack: () => setState(() => _activeView = 0));
-    if (_activeView == 5) return FinanceVoucherPage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 3) return FinanceExpensePage(onBack: () => setState(() => _activeView = 0));
+    if (_activeView == 4) return FinanceVoucherPage(onBack: () => setState(() => _activeView = 0));
 
     return Watermark(
       username: auth.user?.username ?? '',
@@ -375,7 +373,6 @@ class _QuickActions extends StatelessWidget {
     final actions = [
       ('发票管理', Icons.receipt_long_rounded, const Color(0xFF667eea)),
       ('预算管理', Icons.account_balance_wallet_rounded, const Color(0xFF4facfe)),
-      ('结算管理', Icons.payment_rounded, const Color(0xFF43e97b)),
       ('报销管理', Icons.attach_money_rounded, const Color(0xFFf093fb)),
       ('凭证管理', Icons.description_rounded, const Color(0xFFf5576c)),
     ];
