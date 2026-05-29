@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment, Budget
+from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment, Budget, BudgetItem
 from app.security import get_current_user, require_module
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
@@ -105,6 +105,12 @@ class PaymentCreate(BaseModel):
     notes: str = ""
 
 
+class BudgetItemCreate(BaseModel):
+    category: str = "other"
+    name: str = ""
+    amount: float = 0.0
+
+
 class BudgetCreate(BaseModel):
     department_id: str | None = None
     project_id: str | None = None
@@ -114,6 +120,7 @@ class BudgetCreate(BaseModel):
     total_amount: float = 0.0
     status: str = "active"
     notes: str = ""
+    items: list[BudgetItemCreate] = []
 
 class BudgetUpdate(BaseModel):
     name: str | None = None
@@ -122,6 +129,7 @@ class BudgetUpdate(BaseModel):
     total_amount: float | None = None
     status: str | None = None
     notes: str | None = None
+    items: list[BudgetItemCreate] | None = None
 
 
 # ── Row Serializers ──
@@ -207,7 +215,19 @@ def _payment_row(p: Payment) -> dict:
     }
 
 
-def _budget_row(b: Budget) -> dict:
+def _budget_item_row(item: BudgetItem) -> dict:
+    return {
+        "id": str(item.id),
+        "category": item.category,
+        "name": item.name,
+        "amount": item.amount,
+        "used_amount": item.used_amount,
+    }
+
+
+async def _budget_row(b: Budget, db: AsyncSession) -> dict:
+    items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
+    budget_items = items_result.scalars().all()
     return {
         "id": str(b.id),
         "department_id": str(b.department_id) if b.department_id else None,
@@ -221,11 +241,12 @@ def _budget_row(b: Budget) -> dict:
         "notes": b.notes,
         "updated_at": b.updated_at.isoformat() if b.updated_at else None,
         "created_at": b.created_at.isoformat() if b.created_at else None,
+        "items": [_budget_item_row(item) for item in budget_items],
     }
 
 
 async def _recalc_budget_usage(db: AsyncSession):
-    """Recalculate used_amount for all active budgets."""
+    """Recalculate used_amount for all active budgets and their items."""
     budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
     budgets = budgets_result.scalars().all()
     for b in budgets:
@@ -252,6 +273,24 @@ async def _recalc_budget_usage(db: AsyncSession):
         settlement_total = stl_result.scalar() or 0.0
 
         b.used_amount = expense_total + settlement_total
+
+        # Recalculate per-item used_amount by matching expense category
+        items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
+        for item in items_result.scalars().all():
+            item_conditions = [
+                Expense.department_id == b.department_id,
+                Expense.status == "approved",
+                Expense.category == item.category,
+            ]
+            if b.project_id:
+                item_conditions.append(Expense.project_id == b.project_id)
+            if b.year:
+                item_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
+                item_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+            item_exp = await db.execute(
+                select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_conditions)
+            )
+            item.used_amount = item_exp.scalar() or 0.0
     await db.commit()
 
 
@@ -803,7 +842,10 @@ async def list_budgets(
     if year:
         query = query.where(Budget.year == year)
     result = await db.execute(query)
-    return {"items": [_budget_row(b) for b in result.scalars().all()]}
+    items = []
+    for b in result.scalars().all():
+        items.append(await _budget_row(b, db))
+    return {"items": items}
 
 
 @router.post("/budgets")
@@ -816,6 +858,11 @@ async def create_budget(
 ):
     dept_id = uuid.UUID(body.department_id) if body.department_id else user.department_id
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+
+    # Auto-calculate total_amount from items if items are provided
+    total_amount = body.total_amount
+    if body.items:
+        total_amount = sum(item.amount for item in body.items)
 
     # Validate: project budget must not exceed department budget
     if project_id and dept_id:
@@ -838,20 +885,34 @@ async def create_budget(
                 )
             )
             proj_budgets = proj_result.scalar() or 0.0
-            if proj_budgets + body.total_amount > dept_budget:
-                raise HTTPException(400, f"项目预算总和({proj_budgets + body.total_amount:.0f})超过部门预算({dept_budget:.0f})")
+            if proj_budgets + total_amount > dept_budget:
+                raise HTTPException(400, f"项目预算总和({proj_budgets + total_amount:.0f})超过部门预算({dept_budget:.0f})")
 
     b = Budget(
         department_id=dept_id, project_id=project_id, name=body.name,
-        year=body.year, quarter=body.quarter, total_amount=body.total_amount,
+        year=body.year, quarter=body.quarter, total_amount=total_amount,
         status=body.status, notes=body.notes, created_by=user.id,
     )
     db.add(b)
     await db.commit()
+    await db.refresh(b)
+
+    # Create budget items
+    for item_data in body.items:
+        item = BudgetItem(
+            budget_id=b.id,
+            category=item_data.category,
+            name=item_data.name,
+            amount=item_data.amount,
+        )
+        db.add(item)
+    if body.items:
+        await db.commit()
+
     await _recalc_budget_usage(db)
     await db.refresh(b)
     await audit_log(db, user, "budget_create", "budget", b.id, b.name, request=request)
-    return _budget_row(b)
+    return await _budget_row(b, db)
 
 
 @router.put("/budgets/{budget_id}")
@@ -868,14 +929,37 @@ async def update_budget(
     if not b:
         raise HTTPException(404, "预算不存在")
     await _check_department(db, user, b.department_id, "修改", "预算")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+    items_data = update_data.pop("items", None)
+
+    for k, v in update_data.items():
         if v is not None:
             setattr(b, k, v)
+
+    # Sync budget items if provided
+    if items_data is not None:
+        # Delete existing items
+        existing = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
+        for old_item in existing.scalars().all():
+            await db.delete(old_item)
+        # Create new items
+        total = 0.0
+        for item_data in items_data:
+            item = BudgetItem(
+                budget_id=b.id,
+                category=item_data["category"],
+                name=item_data.get("name", ""),
+                amount=item_data.get("amount", 0.0),
+            )
+            db.add(item)
+            total += item_data.get("amount", 0.0)
+        b.total_amount = total
+
     await db.commit()
     await _recalc_budget_usage(db)
     await db.refresh(b)
     await audit_log(db, user, "budget_update", "budget", b.id, b.name, request=request)
-    return _budget_row(b)
+    return await _budget_row(b, db)
 
 
 @router.delete("/budgets/{budget_id}")
@@ -941,6 +1025,10 @@ async def budget_consumption(
     )
     settlement_total = float(stl_result.scalar() or 0)
 
+    # Budget items with their used amounts
+    items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
+    budget_items = items_result.scalars().all()
+
     # Recent expense items
     exp_items_conditions = [Expense.department_id == b.department_id, Expense.status == "approved"]
     if b.project_id:
@@ -960,6 +1048,7 @@ async def budget_consumption(
     return {
         "expense_breakdown": expenses,
         "settlement_total": settlement_total,
+        "items": [_budget_item_row(item) for item in budget_items],
         "recent_expenses": [
             {
                 "id": str(e.id),

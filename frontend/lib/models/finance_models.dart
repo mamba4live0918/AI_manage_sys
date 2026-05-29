@@ -64,6 +64,25 @@ class PaymentData {
   );
 }
 
+class BudgetItemData {
+  final String id;
+  final String category;
+  final String name;
+  final double amount;
+  final double usedAmount;
+
+  BudgetItemData({required this.id, required this.category, required this.name,
+    required this.amount, required this.usedAmount});
+
+  factory BudgetItemData.fromJson(Map<String, dynamic> json) => BudgetItemData(
+    id: json['id'] ?? '',
+    category: json['category'] ?? 'other',
+    name: json['name'] ?? '',
+    amount: (json['amount'] ?? 0).toDouble(),
+    usedAmount: (json['used_amount'] ?? 0).toDouble(),
+  );
+}
+
 class BudgetData {
   final String id;
   final String? departmentId;
@@ -76,11 +95,12 @@ class BudgetData {
   final String status;
   final String notes;
   final String? updatedAt;
+  final List<BudgetItemData> items;
 
   BudgetData({required this.id, this.departmentId, this.projectId,
     required this.name, required this.year, this.quarter,
     required this.totalAmount, required this.usedAmount, required this.status,
-    this.notes = '', this.updatedAt});
+    this.notes = '', this.updatedAt, this.items = const []});
 
   factory BudgetData.fromJson(Map<String, dynamic> json) => BudgetData(
     id: json['id'] ?? '',
@@ -94,6 +114,7 @@ class BudgetData {
     status: json['status'] ?? 'active',
     notes: json['notes'] ?? '',
     updatedAt: json['updated_at'],
+    items: (json['items'] as List? ?? []).map((i) => BudgetItemData.fromJson(i)).toList(),
   );
 }
 

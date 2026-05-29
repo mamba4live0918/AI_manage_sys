@@ -20,7 +20,7 @@ from app.models.models import (
     # Phase 4: Finance
     Settlement, Expense, Voucher,
     # Phase 5: Finance upgrade
-    Invoice, Payment, Budget,
+    Invoice, Payment, Budget, BudgetItem,
 )
 
 __all__ = [
@@ -37,5 +37,5 @@ __all__ = [
     "Resume", "Approval", "ApprovalStep",
     "Interview",
     "Settlement", "Expense", "Voucher",
-    "Invoice", "Payment", "Budget",
+    "Invoice", "Payment", "Budget", "BudgetItem",
 ]

@@ -375,6 +375,16 @@ ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoice
 ALTER TABLE budgets ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_voucher_invoice ON vouchers(invoice_id);
 
+CREATE TABLE IF NOT EXISTS budget_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    budget_id UUID REFERENCES budgets(id) ON DELETE CASCADE,
+    category VARCHAR(64) DEFAULT 'other',
+    name VARCHAR(128) DEFAULT '',
+    amount FLOAT DEFAULT 0.0,
+    used_amount FLOAT DEFAULT 0.0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 2026-05-29: add seller/buyer info to invoices
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_name VARCHAR(128) DEFAULT '';
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS seller_tax_id VARCHAR(64) DEFAULT '';
