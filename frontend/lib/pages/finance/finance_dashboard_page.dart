@@ -176,7 +176,6 @@ class _KpiCards extends StatelessWidget {
 
     return isDesktop ? Row(children: cardWidgets) : Wrap(spacing: 8, runSpacing: 8, children: cardWidgets);
   }
-  }
 }
 
 // ── Revenue Trend Chart ──
