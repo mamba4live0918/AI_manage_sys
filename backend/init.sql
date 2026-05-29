@@ -366,3 +366,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 
 -- Migration: add invoice_id to settlements
 ALTER TABLE settlements ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL;
+
+-- Migration: add invoice_id to vouchers
+ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_voucher_invoice ON vouchers(invoice_id);

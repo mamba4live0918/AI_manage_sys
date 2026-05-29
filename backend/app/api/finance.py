@@ -62,6 +62,7 @@ class ExpenseApprove(BaseModel):
 class VoucherCreate(BaseModel):
     settlement_id: str | None = None
     expense_id: str | None = None
+    invoice_id: str | None = None
     type: str = "invoice"
     description: str = ""
 
@@ -151,6 +152,7 @@ def _voucher_row(v: Voucher) -> dict:
         "id": str(v.id),
         "settlement_id": str(v.settlement_id) if v.settlement_id else None,
         "expense_id": str(v.expense_id) if v.expense_id else None,
+        "invoice_id": str(v.invoice_id) if v.invoice_id else None,
         "file_id": str(v.file_id) if v.file_id else None,
         "type": v.type,
         "description": v.description,
@@ -456,6 +458,7 @@ async def delete_expense(
 async def list_vouchers(
     settlement_id: str = "",
     expense_id: str = "",
+    invoice_id: str = "",
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -472,6 +475,8 @@ async def list_vouchers(
         query = query.where(Voucher.settlement_id == settlement_id)
     if expense_id:
         query = query.where(Voucher.expense_id == expense_id)
+    if invoice_id:
+        query = query.where(Voucher.invoice_id == invoice_id)
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_voucher_row(v) for v in result.scalars().all()]}
 
@@ -486,9 +491,11 @@ async def create_voucher(
 ):
     settlement_id = uuid.UUID(body.settlement_id) if body.settlement_id else None
     expense_id = uuid.UUID(body.expense_id) if body.expense_id else None
+    invoice_id = uuid.UUID(body.invoice_id) if body.invoice_id else None
     v = Voucher(
         settlement_id=settlement_id,
         expense_id=expense_id,
+        invoice_id=invoice_id,
         type=body.type,
         description=body.description,
         department_id=user.department_id,
@@ -508,6 +515,7 @@ async def upload_voucher(
     description: str = Form(""),
     settlement_id: str = Form(""),
     expense_id: str = Form(""),
+    invoice_id: str = Form(""),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -532,9 +540,11 @@ async def upload_voucher(
 
     sid = uuid.UUID(settlement_id) if settlement_id else None
     eid = uuid.UUID(expense_id) if expense_id else None
+    iid = uuid.UUID(invoice_id) if invoice_id else None
     v = Voucher(
         settlement_id=sid,
         expense_id=eid,
+        invoice_id=iid,
         file_id=file_record.id,
         type=type,
         description=description.strip() or file.filename,

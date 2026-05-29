@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/finance_providers.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
+import 'finance_voucher_tab.dart';
 
 class FinanceInvoicePage extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -17,6 +18,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   String _selectedStatus = '';
   final Map<String, List<PaymentData>> _paymentsCache = {};
   final Map<String, double> _paymentTotals = {};
+  final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingPayments = false;
 
   static const _statusOptions = ['', 'draft', 'issued', 'partial', 'paid'];
@@ -46,6 +48,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     Future.microtask(() {
       ref.read(financeInvoiceProvider.notifier).load();
       _loadAllPayments();
+      _loadAllVouchers();
     });
   }
 
@@ -69,6 +72,21 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingPayments = false);
+  }
+
+  Future<void> _loadAllVouchers() async {
+    try {
+      final resp = await _api.dio.get('/finance/vouchers',
+          queryParameters: {'limit': '1000'});
+      final vouchers = List<Map<String, dynamic>>.from(resp.data['items']);
+      _voucherCache.clear();
+      for (final v in vouchers) {
+        final invId = v['invoice_id'] as String?;
+        if (invId != null) {
+          _voucherCache.putIfAbsent(invId, () => []).add(v);
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -791,6 +809,61 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                                   color: labelColor)),
                                         ),
                                     ]),
+                              ),
+                            )),
+                      // ─── Vouchers section ───
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Text('关联凭证',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: textColor)),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(Icons.upload_file, size: 18),
+                          label: const Text('上传凭证'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Scaffold(
+                                  appBar: AppBar(title: const Text('上传凭证')),
+                                  body: FinanceVoucherTab(invoiceId: inv.id),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ]),
+                      if (_voucherCache[inv.id]?.isEmpty ?? true)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                              child: Text('暂无关联凭证',
+                                  style: TextStyle(
+                                      color: labelColor, fontSize: 14))),
+                        )
+                      else
+                        ...(_voucherCache[inv.id] ?? []).map((v) => Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.green.shade50,
+                                  child: const Icon(Icons.receipt, size: 20,
+                                      color: Colors.green),
+                                ),
+                                title: Text(
+                                    '${v['type'] ?? 'invoice'}',
+                                    style: TextStyle(
+                                        fontSize: 14, color: textColor)),
+                                subtitle: Text(
+                                    v['description'] ?? '',
+                                    maxLines: 2,
+                                    style: TextStyle(
+                                        fontSize: 12, color: labelColor)),
                               ),
                             )),
                     ]),

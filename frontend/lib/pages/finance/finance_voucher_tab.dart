@@ -17,8 +17,9 @@ const _typeIcons = {
 class FinanceVoucherTab extends StatefulWidget {
   final String? settlementId;
   final String? expenseId;
+  final String? invoiceId;
 
-  const FinanceVoucherTab({super.key, this.settlementId, this.expenseId});
+  const FinanceVoucherTab({super.key, this.settlementId, this.expenseId, this.invoiceId});
 
   @override
   State<FinanceVoucherTab> createState() => _FinanceVoucherTabState();
@@ -50,6 +51,7 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
       final params = <String, dynamic>{'limit': 200};
       if (widget.settlementId != null) params['settlement_id'] = widget.settlementId;
       if (widget.expenseId != null) params['expense_id'] = widget.expenseId;
+      if (widget.invoiceId != null) params['invoice_id'] = widget.invoiceId;
       final resp = await _api.dio.get('/finance/vouchers', queryParameters: params);
       setState(() {
         _allItems = List<Map<String, dynamic>>.from(resp.data['items']);
@@ -142,6 +144,7 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
       };
       if (widget.settlementId != null) formDataMap['settlement_id'] = widget.settlementId;
       if (widget.expenseId != null) formDataMap['expense_id'] = widget.expenseId;
+      if (widget.invoiceId != null) formDataMap['invoice_id'] = widget.invoiceId;
       final formData = FormData.fromMap(formDataMap);
       await _api.dio.post('/finance/vouchers/upload', data: formData);
       _load();
@@ -261,15 +264,24 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                       final fileId = v['file_id'] as String?;
                       final hasSettlement = v['settlement_id'] != null;
                       final hasExpense = v['expense_id'] != null;
+                      final hasInvoice = v['invoice_id'] != null;
                       final icon = _typeIcons[type] ?? Icons.attach_file_rounded;
 
                       String? subtitle;
-                      if (hasSettlement && hasExpense) {
+                      if (hasSettlement && hasExpense && hasInvoice) {
+                        subtitle = '关联: 结算 + 报销 + 发票';
+                      } else if (hasSettlement && hasExpense) {
                         subtitle = '关联: 结算 + 报销';
+                      } else if (hasSettlement && hasInvoice) {
+                        subtitle = '关联: 结算 + 发票';
+                      } else if (hasExpense && hasInvoice) {
+                        subtitle = '关联: 报销 + 发票';
                       } else if (hasSettlement) {
                         subtitle = '关联: 结算';
                       } else if (hasExpense) {
                         subtitle = '关联: 报销';
+                      } else if (hasInvoice) {
+                        subtitle = '关联: 发票';
                       }
 
                       return Card(
