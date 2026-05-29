@@ -27,6 +27,7 @@ async def get_es() -> AsyncElasticsearch | None:
 
 
 async def _ensure_index():
+    global _es, _available
     try:
         exists = await _es.indices.exists(index=ES_INDEX)
         if not exists:
@@ -52,6 +53,12 @@ async def _ensure_index():
                             "content": {"type": "text", "analyzer": "cjk_ngram"},
                             "extra": {"type": "text"},
                             "department_id": {"type": "keyword"},
+                            "embedding": {
+                                "type": "dense_vector",
+                                "dims": 768,
+                                "index": True,
+                                "similarity": "cosine",
+                            },
                             "updated_at": {"type": "date"},
                         }
                     },
@@ -59,7 +66,6 @@ async def _ensure_index():
             )
             logger.info(f"Created ES index: {ES_INDEX}")
     except ESConnectionError:
-        global _available
         _available = False
         _es = None
 
