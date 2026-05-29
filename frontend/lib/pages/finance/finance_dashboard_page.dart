@@ -138,30 +138,10 @@ class _KpiCards extends StatelessWidget {
     ];
 
     final isDesktop = MediaQuery.of(context).size.width >= 768;
-    final cardWidth = isDesktop
-        ? null // Expanded fills Row
-        : (MediaQuery.of(context).size.width - 32 - 12) / 2; // 2 per row on mobile
 
-    return isDesktop
-        ? Row(
-            children: cards.map((c) => _buildCard(c, isDark, null)).toList(),
-          )
-        : Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: cards.map((c) => _buildCard(c, isDark, cardWidth)).toList(),
-          );
-  }
-
-  Widget _buildCard(
-    (String, String, String, List<Color>, List<Color>) c,
-    bool isDark,
-    double? width,
-  ) {
-    final (label, value, sub, lightGrad, darkGrad) = c;
-    return SizedBox(
-      width: width,
-      child: Container(
+    final cardWidgets = cards.map((c) {
+      final (label, value, sub, lightGrad, darkGrad) = c;
+      final card = Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
@@ -183,8 +163,19 @@ class _KpiCards extends StatelessWidget {
             Text(sub, style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(170))),
           ],
         ),
-      ),
-    );
+      );
+      if (isDesktop) {
+        return Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: card));
+      } else {
+        return SizedBox(
+          width: (MediaQuery.of(context).size.width - 32 - 8) / 2,
+          child: card,
+        );
+      }
+    }).toList();
+
+    return isDesktop ? Row(children: cardWidgets) : Wrap(spacing: 8, runSpacing: 8, children: cardWidgets);
+  }
   }
 }
 
