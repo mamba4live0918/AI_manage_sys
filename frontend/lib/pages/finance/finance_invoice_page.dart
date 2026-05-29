@@ -872,17 +872,26 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                             .toList(),
                         onChanged: (v) {
                           if (v != null) {
-                            setDialogState(() => selectedMethod = v);
+                            setDialogState(() {
+                              selectedMethod = v;
+                              if (v == 'cash' || v == 'other') {
+                                refNoCtrl.clear();
+                              }
+                            });
                           }
                         },
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
+                  if (selectedMethod == 'bank_transfer' || selectedMethod == 'cheque') ...[
+                    const SizedBox(height: 8),
+                    TextField(
                       controller: refNoCtrl,
-                      decoration:
-                          const InputDecoration(labelText: '凭证号/流水号')),
+                      decoration: InputDecoration(
+                        labelText: selectedMethod == 'bank_transfer' ? '银行流水号（必填）' : '支票号码（必填）',
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   TextField(
                       controller: notesCtrl,
@@ -890,88 +899,96 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       maxLines: 2),
 
                   const SizedBox(height: 8),
-                  // ─── Voucher upload section (mandatory) ───
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.upload_file, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '上传凭证',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(ctx).colorScheme.onSurface,
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(
-                    '必须上传凭证文件',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red.shade400,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // File picker + name display
-                  Row(children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.attach_file, size: 16),
-                      label: const Text('选择文件'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: voucherFileName != null
-                            ? null
-                            : Colors.red,
-                        side: BorderSide(
-                          color: voucherFileName != null
-                              ? Theme.of(ctx).colorScheme.outline
-                              : Colors.red,
-                        ),
-                      ),
-                      onPressed: () async {
-                        try {
-                          final result = await FilePicker.platform
-                              .pickFiles(withData: true);
-                          if (result != null &&
-                              result.files.isNotEmpty) {
-                            final file = result.files.first;
-                            setDialogState(() {
-                              voucherFileName = file.name;
-                              voucherBytes = file.bytes;
-                            });
-                          }
-                        } catch (_) {}
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        voucherFileName ?? '未选择文件',
-                        overflow: TextOverflow.ellipsis,
+                  if (selectedMethod == 'cash') ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Icon(Icons.info_outline, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        '现金收款无需上传凭证',
                         style: TextStyle(
-                          fontSize: 13,
-                          color:
-                              voucherFileName != null
-                                  ? Theme.of(ctx).colorScheme.onSurface
-                                  : Theme.of(ctx)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.5),
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
                         ),
                       ),
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: voucherDescCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '凭证说明',
-                      hintText: '例如：发票、收据、合同复印件等',
-                    ),
-                    maxLines: 2,
-                  ),
+                    ]),
+                  ] else ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      const Icon(Icons.upload_file, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '上传凭证（必填）',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.attach_file, size: 16),
+                        label: const Text('选择文件'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: voucherFileName != null
+                              ? null
+                              : Colors.red,
+                          side: BorderSide(
+                            color: voucherFileName != null
+                                ? Theme.of(ctx).colorScheme.outline
+                                : Colors.red,
+                          ),
+                        ),
+                        onPressed: () async {
+                          try {
+                            final result = await FilePicker.platform
+                                .pickFiles(withData: true);
+                            if (result != null &&
+                                result.files.isNotEmpty) {
+                              final file = result.files.first;
+                              setDialogState(() {
+                                voucherFileName = file.name;
+                                voucherBytes = file.bytes;
+                              });
+                            }
+                          } catch (_) {}
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          voucherFileName ?? '未选择文件',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: voucherFileName != null
+                                ? Theme.of(ctx).colorScheme.onSurface
+                                : Theme.of(ctx)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ]),
+                    if (selectedMethod == 'other') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: voucherDescCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '凭证说明',
+                          hintText: '其他方式必须填写凭证说明',
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -999,13 +1016,41 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     }
                     return;
                   }
-                  if (voucherBytes == null || voucherFileName == null) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text('必须上传凭证文件')));
+
+                  // Method-specific validation
+                  if (selectedMethod == 'bank_transfer' || selectedMethod == 'cheque') {
+                    if (refNoCtrl.text.trim().isEmpty) {
+                      if (ctx.mounted) {
+                        final label = selectedMethod == 'bank_transfer' ? '银行流水号' : '支票号码';
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('请输入$label（必填）')));
+                      }
+                      return;
                     }
-                    return;
+                    if (voucherBytes == null || voucherFileName == null) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('必须上传凭证文件')));
+                      }
+                      return;
+                    }
+                  } else if (selectedMethod == 'other') {
+                    if (voucherBytes == null || voucherFileName == null) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('必须上传凭证文件')));
+                      }
+                      return;
+                    }
+                    if (voucherDescCtrl.text.trim().isEmpty) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('请填写凭证说明（其他方式必须填写凭证说明）')));
+                      }
+                      return;
+                    }
                   }
+
                   try {
                     await _api.dio.post('/finance/payments', data: {
                       'invoice_id': invoiceId,
@@ -1023,24 +1068,26 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     return;
                   }
 
-                  // Upload voucher
-                  try {
-                    final formData = FormData.fromMap({
-                      'file': MultipartFile.fromBytes(
-                        voucherBytes!,
-                        filename: voucherFileName,
-                      ),
-                      'invoice_id': invoiceId,
-                      'description': voucherDescCtrl.text,
-                    });
-                    await _api.dio.post(
-                      '/finance/vouchers/upload',
-                      data: formData,
-                    );
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(content: Text('收款成功，但凭证上传失败: $e')));
+                  // Upload voucher (skip for cash)
+                  if (selectedMethod != 'cash' && voucherBytes != null && voucherFileName != null) {
+                    try {
+                      final formData = FormData.fromMap({
+                        'file': MultipartFile.fromBytes(
+                          voucherBytes!,
+                          filename: voucherFileName,
+                        ),
+                        'invoice_id': invoiceId,
+                        'description': voucherDescCtrl.text,
+                      });
+                      await _api.dio.post(
+                        '/finance/vouchers/upload',
+                        data: formData,
+                      );
+                    } catch (e) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('收款成功，但凭证上传失败: $e')));
+                      }
                     }
                   }
 
@@ -1054,7 +1101,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         const SnackBar(content: Text('收款记录添加成功')));
                   }
                 },
-                child: const Text('确认添加并上传凭证')),
+                child: Text(selectedMethod == 'cash' ? '确认添加' : '确认添加并上传凭证')),
           ],
         ),
       ),
