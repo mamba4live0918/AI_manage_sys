@@ -1017,81 +1017,39 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   }
 
   void _showVoucherPreview(
-      BuildContext context, Map<String, dynamic> voucher, bool isDark) {
+      BuildContext context, Map<String, dynamic> voucher, bool isDark) async {
     final fileId = voucher['file_id'] as String?;
     if (fileId == null) return;
+
+    // Show loading first
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    String? fileUrl, mimeType, fileName, errorMsg, authToken;
+    try {
+      authToken = await _api.loadToken();
+      final resp = await _api.dio.get('/preview/file/$fileId');
+      fileUrl = resp.data['url'];
+      mimeType = resp.data['mime_type'];
+      fileName = resp.data['name'];
+    } catch (e) {
+      errorMsg = '加载失败: $e';
+    }
+
+    if (context.mounted) Navigator.pop(context); // dismiss loading
+
+    if (!context.mounted) return;
 
     final voucherType = (voucher['type'] as String?) ?? 'unknown';
     final description = (voucher['description'] as String?) ?? '';
     final createdAt = (voucher['created_at'] as String?) ?? '';
-    final typeLabels = {
-      'invoice': '发票',
-      'receipt': '收据',
-      'contract': '合同',
-      'other': '其他',
-    };
-
-    // Show dialog immediately, load file info inside
-    late String? fileUrl;
-    late String? mimeType;
-    late String? fileName;
-    late String? errorMsg;
-    late String? authToken;
-    bool loaded = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        if (!loaded) {
-          loaded = true;
-          Future.microtask(() async {
-            try {
-              authToken = await _api.loadToken();
-              final resp =
-                  await _api.dio.get('/preview/file/$fileId');
-              fileUrl = resp.data['url'];
-              mimeType = resp.data['mime_type'];
-              fileName = resp.data['name'];
-            } catch (e) {
-              errorMsg = '加载失败: $e';
-            }
-            // Rebuild dialog with loaded data
-            if (ctx.mounted) {
-              Navigator.pop(ctx);
-              _showVoucherPreviewDialog(
-                  context, isDark, typeLabels, voucherType,
-                  description, createdAt, fileId,
-                  authToken, fileUrl, mimeType, fileName, errorMsg);
-            }
-          });
-        }
-
-        return const AlertDialog(
-          content: SizedBox(
-            height: 100,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showVoucherPreviewDialog(
-      BuildContext context,
-      bool isDark,
-      Map<String, String> typeLabels,
-      String voucherType,
-      String description,
-      String createdAt,
-      String fileId,
-      String? authToken,
-      String? fileUrl,
-      String? mimeType,
-      String? fileName,
-      String? errorMsg) {
+    final typeLabels = {'invoice': '发票', 'receipt': '收据', 'contract': '合同', 'other': '其他'};
     final textColor = isDark ? Colors.white : Colors.black87;
     final labelColor = isDark ? Colors.white70 : Colors.black54;
+    final isImage = (mimeType ?? '').startsWith('image/');
 
     showDialog(
       context: context,
@@ -1129,10 +1087,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                           color: Colors.red.shade700, fontSize: 13)),
                 )
               else ...[
-                // Preview area
-                if (mimeType != null &&
-                    fileUrl != null &&
-                    mimeType.startsWith('image/'))
+                if (isImage && fileUrl != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
