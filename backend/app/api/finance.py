@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment, Budget
+from app.models import User, File, Settlement, Expense, Voucher, Invoice, Payment
 from app.security import get_current_user, require_module
 from app.services.audit import log as audit_log
 from app.services.storage import upload_file
@@ -559,11 +559,14 @@ async def update_invoice(
     i = result.scalar_one_or_none()
     if not i:
         raise HTTPException(404, "发票不存在")
+    await _check_department(db, user, i.department_id, "修改")
     for k, v in body.model_dump(exclude_unset=True).items():
         if k in ("issue_date", "due_date") and v is not None:
             setattr(i, k, datetime.fromisoformat(v))
         elif v is not None and k not in ("issue_date", "due_date"):
             setattr(i, k, v)
+    if body.amount is not None:
+        await _sync_invoice_status(uuid.UUID(invoice_id), db)
     await db.commit()
     await db.refresh(i)
     await audit_log(db, user, "invoice_update", "invoice", i.id, i.invoice_no, request=request)
@@ -582,6 +585,7 @@ async def delete_invoice(
     i = result.scalar_one_or_none()
     if not i:
         raise HTTPException(404, "发票不存在")
+    await _check_department(db, user, i.department_id, "删除")
     await db.delete(i)
     await db.commit()
     await audit_log(db, user, "invoice_delete", "invoice", i.id, i.invoice_no, request=request)
@@ -602,6 +606,8 @@ async def _sync_invoice_status(invoice_id: uuid.UUID, db: AsyncSession):
             inv.status = "paid"
         elif paid > 0:
             inv.status = "partial"
+        elif paid == 0:
+            inv.status = "issued" if inv.status != "draft" else inv.status
         await db.commit()
 
 
@@ -662,6 +668,7 @@ async def delete_payment(
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "收款不存在")
+    await _check_department(db, user, p.department_id, "删除")
     inv_id = p.invoice_id
     await db.delete(p)
     await db.commit()
