@@ -445,7 +445,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         .load(status: _selectedStatus);
                   } catch (e) {
                     if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('创建失败: $e')));
                     }
                   }
@@ -586,7 +586,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                 }
                               } catch (e) {
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text('更新失败: $e')));
                                 }
                               }
@@ -1004,14 +1004,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   final remaining = invoiceAmount - alreadyPaid;
                   if (amountStr.isEmpty || amt <= 0) {
                     if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('请输入有效金额')));
                     }
                     return;
                   }
                   if (amt > remaining) {
                     if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('收款金额不能超过剩余应收款 ¥${remaining.toStringAsFixed(2)}')));
                     }
                     return;
@@ -1022,14 +1022,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     if (refNoCtrl.text.trim().isEmpty) {
                       if (ctx.mounted) {
                         final label = selectedMethod == 'bank_transfer' ? '银行流水号' : '支票号码';
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('请输入$label（必填）')));
                       }
                       return;
                     }
                     if (voucherBytes == null || voucherFileName == null) {
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('必须上传凭证文件')));
                       }
                       return;
@@ -1037,14 +1037,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   } else if (selectedMethod == 'other') {
                     if (voucherBytes == null || voucherFileName == null) {
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('必须上传凭证文件')));
                       }
                       return;
                     }
                     if (voucherDescCtrl.text.trim().isEmpty) {
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('请填写凭证说明（其他方式必须填写凭证说明）')));
                       }
                       return;
@@ -1062,7 +1062,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     });
                   } catch (e) {
                     if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('收款失败: $e')));
                     }
                     return;
@@ -1085,7 +1085,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       );
                     } catch (e) {
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('收款成功，但凭证上传失败: $e')));
                       }
                     }
