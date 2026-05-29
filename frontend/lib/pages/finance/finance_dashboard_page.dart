@@ -381,42 +381,42 @@ class _QuickActions extends StatelessWidget {
     ];
 
     final isDesktop = MediaQuery.of(context).size.width >= 768;
-    final itemWidth = isDesktop
-        ? (MediaQuery.of(context).size.width - 32 - 32) / 5
-        : (MediaQuery.of(context).size.width - 32 - 16) / 3;
+
+    final actionWidgets = actions.asMap().entries.map((e) {
+      final i = e.key;
+      final (label, icon, color) = e.value;
+      final button = Material(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => onSelect(i + 1),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
+              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+            ]),
+          ),
+        ),
+      );
+      if (isDesktop) {
+        return Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: button));
+      } else {
+        return SizedBox(
+          width: (MediaQuery.of(context).size.width - 32 - 16) / 3,
+          child: button,
+        );
+      }
+    }).toList();
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 12),
         child: Text('快捷操作', style: Theme.of(context).textTheme.titleMedium),
       ),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: actions.asMap().entries.map((e) {
-          final i = e.key;
-          final (label, icon, color) = e.value;
-          return SizedBox(
-            width: itemWidth,
-            child: Material(
-              color: color.withAlpha(20),
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => onSelect(i + 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(children: [
-                    Icon(icon, color: color, size: 28),
-                    const SizedBox(height: 8),
-                    Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
-                  ]),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+      isDesktop ? Row(children: actionWidgets) : Wrap(spacing: 8, runSpacing: 8, children: actionWidgets),
     ]);
   }
 }
