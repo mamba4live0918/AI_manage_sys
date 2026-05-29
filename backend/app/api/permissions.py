@@ -2,11 +2,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from app.database import get_db
 from app.models import User, File, Permission
 from app.security import get_current_user, require_roles
 from app.services.audit import log as audit_log
+from app.services.search import index_document as es_index, delete_document as es_delete
 
 router = APIRouter(prefix="/permissions", tags=["permissions"])
 
@@ -23,23 +24,26 @@ class GrantRequest(BaseModel):
 async def search_permissions(
     q: str = Query(default="", description="模糊搜索关键词"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     if not q.strip():
         return {"items": []}
 
-    pattern = f"%{q.strip()}%"
+    from uuid import UUID
+    from app.services.search import search as es_search
 
-    # search by grantee_value or file name (join files table)
+    es_result = await es_search(
+        query=q.strip(), module="permissions", size=200,
+        department_id=str(user.department_id) if user.department_id else None,
+    )
+    ids = [item["doc_id"] for item in es_result["items"]]
+    if not ids:
+        return {"items": []}
+
     perm_query = (
         select(Permission, File.name)
         .outerjoin(File, Permission.resource_id == File.id)
-        .where(
-            or_(
-                Permission.grantee_value.ilike(pattern),
-                File.name.ilike(pattern),
-            )
-        )
+        .where(Permission.id.in_([UUID(i) for i in ids]))
         .order_by(Permission.created_at.desc())
     )
     result = await db.execute(perm_query)
@@ -117,6 +121,14 @@ async def grant(
     await db.commit()
     await db.refresh(perm)
 
+    await es_index(
+        str(perm.id), "permissions",
+        f"Permission for {body.grantee_type}:{body.grantee_value}",
+        f"Resource: {body.resource_type} {body.resource_id}, Action: {body.action}",
+        extra=body.action,
+        department_id=str(user.department_id) if user.department_id else None,
+    )
+
     await audit_log(
         db, user, "permission_change", "permission", perm.id,
         f"grant {body.grantee_type}:{body.grantee_value} {body.action}",
@@ -140,6 +152,8 @@ async def revoke(
     detail = f"revoke {perm.grantee_type}:{perm.grantee_value} {perm.action}"
     await db.delete(perm)
     await db.commit()
+
+    await es_delete(str(perm.id), "permissions")
 
     await audit_log(db, user, "permission_change", "permission", uuid.UUID(perm_id), detail, request=request)
     return {"message": "已撤销"}
