@@ -316,3 +316,53 @@ ALTER TABLE employees ADD COLUMN IF NOT EXISTS file_id UUID REFERENCES files(id)
 
 -- Phase 4.5 migration: link employee to system user
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL UNIQUE;
+
+-- 2026-05-29: finance module upgrade
+CREATE TABLE IF NOT EXISTS invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
+    invoice_no VARCHAR(128) DEFAULT '',
+    amount FLOAT DEFAULT 0.0,
+    tax_amount FLOAT DEFAULT 0.0,
+    tax_rate FLOAT DEFAULT 0.13,
+    status VARCHAR(32) DEFAULT 'draft',
+    issue_date TIMESTAMPTZ,
+    due_date TIMESTAMPTZ,
+    notes TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
+    amount FLOAT DEFAULT 0.0,
+    payment_date TIMESTAMPTZ,
+    payment_method VARCHAR(32) DEFAULT 'bank_transfer',
+    ref_no VARCHAR(128) DEFAULT '',
+    notes TEXT DEFAULT '',
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS budgets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    project_id UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
+    name VARCHAR(128) DEFAULT '',
+    year INTEGER DEFAULT 2026,
+    quarter INTEGER,
+    total_amount FLOAT DEFAULT 0.0,
+    used_amount FLOAT DEFAULT 0.0,
+    status VARCHAR(32) DEFAULT 'active',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Migration: add invoice_id to settlements
+ALTER TABLE settlements ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL;
