@@ -1021,8 +1021,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final fileId = voucher['file_id'] as String?;
     if (fileId == null) return;
 
-    // Show loading
-    showDialog(context: context, barrierDismissible: false,
+    // Show loading on root navigator
+    showDialog(context: context, barrierDismissible: false, useRootNavigator: true,
       builder: (_) => const Center(child: CircularProgressIndicator()));
 
     String? fileUrl, mimeType, fileName, errorMsg;
@@ -1035,9 +1035,9 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       errorMsg = '加载失败';
     }
 
-    // Dismiss loading
-    if (context.mounted) Navigator.of(context).pop();
-    await Future.delayed(const Duration(milliseconds: 100)); // wait for dismiss animation
+    // Dismiss loading (use root navigator since showDialog uses it by default)
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+    await Future.delayed(const Duration(milliseconds: 150));
 
     if (!context.mounted) return;
 
@@ -1047,7 +1047,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
 
     if (!context.mounted) return;
 
-    showDialog(context: context, builder: (ctx) => AlertDialog(
+    showDialog(context: context, useRootNavigator: true, builder: (ctx) => AlertDialog(
       title: Text(desc.isNotEmpty ? desc : '凭证详情'),
       content: SizedBox(width: 350, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (fileName != null) Text('文件: $fileName', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54)),
