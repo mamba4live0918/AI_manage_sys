@@ -1141,53 +1141,122 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     };
   }
 
-  static const _colorOptions = ['#FF0000', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#9E9E9E'];
-
   Widget _colorPickerRow(String currentColor, ValueChanged<String> onChanged) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(
-        children: _colorOptions.map((c) {
-          final isSelected = currentColor == c;
-          return GestureDetector(
-            onTap: () => onChanged(c),
-            child: Container(
-              width: 28,
-              height: 28,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: Color(int.parse(c.replaceFirst('#', '0xff'))),
-                shape: BoxShape.circle,
-                border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                boxShadow: isSelected
-                    ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(100), blurRadius: 4)]
-                    : [],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-      const SizedBox(height: 4),
-      TextField(
-        decoration: InputDecoration(
-          hintText: '自定义颜色 (如 #FF5722)',
-          prefix: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: _tryParseColor(currentColor),
-              shape: BoxShape.circle,
-            ),
+    final presets = ['#FF0000', '#FF5722', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#607D8B'];
+    return Row(children: [
+      ...presets.map((c) => GestureDetector(
+        onTap: () => onChanged(c),
+        child: Container(
+          width: 28, height: 28, margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: _tryParseColor(c), shape: BoxShape.circle,
+            border: currentColor == c ? Border.all(color: Colors.white, width: 2) : null,
           ),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         ),
-        style: const TextStyle(fontSize: 13),
-        controller: TextEditingController(text: currentColor),
-        onChanged: (v) {
-          if (v.length == 7 && v.startsWith('#')) onChanged(v);
-        },
+      )),
+      const SizedBox(width: 4),
+      GestureDetector(
+        onTap: () => _showColorPickerDialog(context, currentColor, onChanged),
+        child: Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey, width: 1.5),
+            color: _tryParseColor(currentColor),
+          ),
+          child: const Icon(Icons.colorize, size: 14, color: Colors.white),
+        ),
       ),
     ]);
+  }
+
+  void _showColorPickerDialog(BuildContext context, String currentColor, ValueChanged<String> onChanged) {
+    Color selected = _tryParseColor(currentColor);
+    final hsv = HSVColor.fromColor(selected);
+    double hue = hsv.hue;
+    double sat = hsv.saturation;
+    double bright = hsv.value;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('选择颜色'),
+          content: SizedBox(
+            width: 300,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Preview
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: HSVColor.fromAHSV(1, hue, sat, bright).toColor(),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Hue
+              Text('色调', style: TextStyle(fontSize: 12, color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
+              const SizedBox(height: 4),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    height: 24,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(colors: [Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00), Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF), Color(0xFFFF0000)]),
+                    ),
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 24,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                      activeTrackColor: Colors.transparent,
+                      inactiveTrackColor: Colors.transparent,
+                      overlayColor: Colors.transparent,
+                    ),
+                    child: Slider(value: hue, min: 0, max: 360, onChanged: (v) => setDialogState(() => hue = v)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Saturation
+              Row(children: [
+                Text('饱和度', style: TextStyle(fontSize: 12, color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
+                Expanded(child: Slider(value: sat, min: 0, max: 1, onChanged: (v) => setDialogState(() => sat = v))),
+              ]),
+              // Brightness
+              Row(children: [
+                Text('亮度', style: TextStyle(fontSize: 12, color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
+                Expanded(child: Slider(value: bright, min: 0, max: 1, onChanged: (v) => setDialogState(() => bright = v))),
+              ]),
+              const SizedBox(height: 8),
+              // Hex display
+              Row(children: [
+                Text('HEX:', style: TextStyle(fontSize: 12, color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_hexFromHSV(HSVColor.fromAHSV(1, hue, sat, bright)), style: TextStyle(fontSize: 13, fontFamily: 'monospace')),
+                ),
+              ]),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            FilledButton(onPressed: () {
+              final hex = _hexFromHSV(HSVColor.fromAHSV(1, hue, sat, bright));
+              Navigator.pop(ctx);
+              onChanged(hex);
+            }, child: const Text('确定')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _hexFromHSV(HSVColor hsv) {
+    final c = hsv.toColor();
+    return '#${(c.r * 255).round().toRadixString(16).padLeft(2, '0')}${(c.g * 255).round().toRadixString(16).padLeft(2, '0')}${(c.b * 255).round().toRadixString(16).padLeft(2, '0')}'.toUpperCase();
   }
 
   Color _tryParseColor(String hex) {
