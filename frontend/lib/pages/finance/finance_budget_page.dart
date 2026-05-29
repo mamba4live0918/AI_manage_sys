@@ -251,7 +251,17 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
               final w = (item.amount / displayTotal) * totalW;
               if (w >= 2) {
                 usedW += w;
-                segments.add(SizedBox(width: w, child: Container(color: _itemColor(item))));
+                final pct = item.amount > 0 ? (item.usedAmount / item.amount).clamp(0.0, 1.0) : 0.0;
+                final baseColor = _itemColor(item);
+                segments.add(SizedBox(
+                  width: w,
+                  child: Column(children: [
+                    // Used portion (darker)
+                    Expanded(flex: (pct * 100).round().clamp(0, 100), child: Container(color: baseColor.withValues(alpha: 1.0))),
+                    // Unused portion (lighter)
+                    if (pct < 1.0) Expanded(flex: ((1 - pct) * 100).round().clamp(1, 100), child: Container(color: baseColor.withValues(alpha: 0.35))),
+                  ]),
+                ));
               }
             }
             // Unallocated amount in grey
