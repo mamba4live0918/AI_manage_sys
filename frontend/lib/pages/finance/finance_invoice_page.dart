@@ -863,11 +863,18 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (_, scrollCtrl) => SingleChildScrollView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
           Text('收款详情', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
@@ -892,6 +899,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           }),
           const SizedBox(height: 8),
         ]),
+        ),
       ),
     );
   }
