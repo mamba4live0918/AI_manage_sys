@@ -601,10 +601,14 @@ async def list_knowledge_docs(
     if dir_id:
         query = query.where(BiddingKnowledgeDoc.dir_id == uuid.UUID(dir_id))
     if search:
-        query = query.where(
-            BiddingKnowledgeDoc.title.ilike(f"%{search}%")
-            | BiddingKnowledgeDoc.content.ilike(f"%{search}%")
-        )
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="bidding_knowledge", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            query = query.where(BiddingKnowledgeDoc.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": [], "total": 0}
     result = await db.execute(query.offset(offset).limit(limit))
     rows = result.scalars().all()
 
