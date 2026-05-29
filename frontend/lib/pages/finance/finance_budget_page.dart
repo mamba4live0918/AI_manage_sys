@@ -240,22 +240,27 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
         child: LayoutBuilder(
           builder: (ctx, constraints) {
             final totalW = constraints.maxWidth;
-            final totalAmount = items.fold<double>(0, (s, i) => s + i.amount);
-            if (totalAmount <= 0) return Container(color: Colors.grey.shade200);
-            // Sort items by amount descending for better visual
+            final itemSum = items.fold<double>(0, (s, i) => s + i.amount);
+            final displayTotal = itemSum > 0 ? (itemSum < b.totalAmount ? b.totalAmount : itemSum) : (b.totalAmount > 0 ? b.totalAmount : 1);
+            if (items.isEmpty && b.totalAmount <= 0) return Container(color: Colors.grey.shade200);
             final sorted = List<BudgetItemData>.from(items)
               ..sort((a, b) => b.amount.compareTo(a.amount));
-            return Row(
-              children: sorted.map((item) {
-                final fraction = item.amount / totalAmount;
-                final w = fraction * totalW;
-                if (w < 2) return const SizedBox.shrink();
-                return SizedBox(
-                  width: w,
-                  child: Container(color: _itemColor(item)),
-                );
-              }).toList(),
-            );
+            final segments = <Widget>[];
+            double usedW = 0;
+            for (final item in sorted) {
+              final w = (item.amount / displayTotal) * totalW;
+              if (w >= 2) {
+                usedW += w;
+                segments.add(SizedBox(width: w, child: Container(color: _itemColor(item))));
+              }
+            }
+            // Unallocated amount in grey
+            final unallocated = b.totalAmount - itemSum;
+            if (unallocated > 0 && totalW - usedW >= 2) {
+              segments.add(SizedBox(width: totalW - usedW, child: Container(color: Colors.grey.shade400)));
+            }
+            if (segments.isEmpty) return Container(color: Colors.grey.shade200);
+            return Row(children: segments);
           },
         ),
       ),
@@ -608,7 +613,9 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   Color _itemColor(BudgetItemData item) {
     try {
-      return Color(int.parse(item.color.replaceFirst('#', '0xff')));
+      final c = item.color;
+      if (c.isEmpty || c == '#FF0000') return const Color(0xFFFF0000);
+      return Color(int.parse(c.replaceFirst('#', '0xff')));
     } catch (_) {
       return _catColor(item.category);
     }

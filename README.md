@@ -2,7 +2,7 @@
 
 全链路AI赋能管理平台，一套 Flutter 代码编译 **Windows .exe / Android .apk / Web** 三端，FastAPI 后端提供 REST API。覆盖市场部、招投标合同中心、项目管理中台、HR、财务五大业务域 + 讲师IP专属子系统 + 全系统权限化文件预览。
 
-**当前进度：阶段四完成（4/5）**
+**当前进度：阶段五进行中**
 
 ## 技术栈
 
@@ -124,7 +124,15 @@ AI_manage_sys/
 | 二 | 讲师IP（AI文案生成 + HTML预览） | ✅ 部分 | 3 | 8 | 3 | — |
 | 三 | 市场部 + 招投标 | ✅ 完成 | 17 | 34 | 20 | 54/54 |
 | 四 | 项目管理 + HR + 财务 | ✅ 完成 | 10 | 36 | 14 | 48/48 |
-| 五 | 联调 + 安全 + 三端打包分发 + 部署 | 📋 待开始 | — | — | — | — |
+| 五 | 联调 + 安全 + 三端打包分发 + 部署 | 🔄 进行中 | — | — | — | — |
+
+### 阶段五新增功能
+
+| 功能 | 说明 |
+|------|------|
+| ES 语义搜索 | BM25 + DeepSeek embedding (768维) + RRF 混合排序，覆盖全局+7模块搜索 |
+| 财务升级 | 发票(Payment+Invoice 合同到收款链路) + 预算管控(部门/项目两级) + Dashboard(12月趋势图) |
+| HR Dashboard | KPI卡片 + 饼图 + 响应式布局 |
 
 ### 阶段四模块一览
 
@@ -132,7 +140,7 @@ AI_manage_sys/
 |------|------|---------|
 | 项目管理 | PmProject, VisitLog, Courseware, ProjectReport | 项目台账 + 走访日志 + LLM项目报告生成 + 课件管理 |
 | HR | Employee, Resume, Approval | 员工档案 + 简历上传(PDF/DOCX) + LLM智能匹配 + 审批流 |
-| 财务 | Settlement, Expense, Voucher | 结算记录 + 费用报销审批 + 凭证归档 |
+| 财务 | Settlement, Expense, Voucher, Invoice, Payment, Budget | 结算+报销审批+凭证归档+发票+收款+预算管控 |
 
 ## 关键约束
 
