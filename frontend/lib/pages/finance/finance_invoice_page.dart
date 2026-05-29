@@ -659,69 +659,76 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                       color: labelColor, fontSize: 14))),
                         )
                       else
-                        ...payments.map((p) => Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(children: [
-                                        Text(
-                                            '\u{FFE5}${p.amount.toStringAsFixed(2)}',
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: textColor)),
-                                        const Spacer(),
-                                        Chip(
-                                          label: Text(
-                                              _paymentMethodLabels[
-                                                      p.paymentMethod] ??
-                                                  p.paymentMethod,
-                                              style: const TextStyle(
-                                                  fontSize: 11)),
-                                          backgroundColor: isDark
-                                              ? Colors.white12
-                                              : Colors.grey.shade200,
-                                        ),
-                                      ]),
-                                      const SizedBox(height: 4),
-                                      Row(children: [
-                                        if (p.paymentDate != null) ...[
-                                          Icon(Icons.calendar_today,
-                                              size: 14, color: labelColor),
-                                          const SizedBox(width: 4),
-                                          Text(p.paymentDate!,
+                        ...payments.map((p) => Material(
+                              color: isDark ? Colors.white10 : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _showPaymentDetail(ctx, p),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(children: [
+                                          Text(
+                                              '\u{FFE5}${p.amount.toStringAsFixed(2)}',
                                               style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: labelColor)),
-                                          const SizedBox(width: 16),
-                                        ],
-                                        if (p.refNo.isNotEmpty) ...[
-                                          Icon(Icons.tag,
-                                              size: 14, color: labelColor),
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: textColor)),
+                                          const Spacer(),
+                                          Chip(
+                                            label: Text(
+                                                _paymentMethodLabels[
+                                                        p.paymentMethod] ??
+                                                    p.paymentMethod,
+                                                style: const TextStyle(
+                                                    fontSize: 11)),
+                                            backgroundColor: isDark
+                                                ? Colors.white12
+                                                : Colors.grey.shade200,
+                                          ),
                                           const SizedBox(width: 4),
-                                          Expanded(
-                                              child: Text(p.refNo,
-                                                  style: TextStyle(
-                                                      fontSize: 13,
-                                                      color: labelColor),
-                                                  overflow: TextOverflow
-                                                      .ellipsis)),
-                                        ],
+                                          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                                        ]),
+                                        const SizedBox(height: 4),
+                                        Row(children: [
+                                          if (p.paymentDate != null) ...[
+                                            Icon(Icons.calendar_today,
+                                                size: 14, color: labelColor),
+                                            const SizedBox(width: 4),
+                                            Text(p.paymentDate!,
+                                                style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: labelColor)),
+                                            const SizedBox(width: 16),
+                                          ],
+                                          if (p.refNo.isNotEmpty) ...[
+                                            Icon(Icons.tag,
+                                                size: 14, color: labelColor),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                                child: Text(p.refNo,
+                                                    style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: labelColor),
+                                                    overflow: TextOverflow
+                                                        .ellipsis)),
+                                          ],
+                                        ]),
+                                        if (p.notes.isNotEmpty)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 4),
+                                            child: Text(p.notes,
+                                                style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: labelColor)),
+                                          ),
                                       ]),
-                                      if (p.notes.isNotEmpty)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 4),
-                                          child: Text(p.notes,
-                                              style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: labelColor)),
-                                        ),
-                                    ]),
+                                ),
                               ),
                             )),
                     ]),
@@ -749,7 +756,36 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     );
   }
 
-  // ─── Payment dialog (reusable from card + detail sheet) ───
+  // ─── Payment detail popup ───
+
+  void _showPaymentDetail(BuildContext context, PaymentData p) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final labelColor = isDark ? Colors.white70 : Colors.black54;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 16),
+          Text('收款详情', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+          const SizedBox(height: 20),
+          _detailRow('金额', '\u{FFE5}${p.amount.toStringAsFixed(2)}', labelColor, textColor),
+          _detailRow('日期', p.paymentDate ?? '未设置', labelColor, textColor),
+          _detailRow('方式', _paymentMethodLabels[p.paymentMethod] ?? p.paymentMethod, labelColor, textColor),
+          _detailRow('流水号', p.refNo.isNotEmpty ? p.refNo : '无', labelColor, textColor),
+          _detailRow('备注', p.notes.isNotEmpty ? p.notes : '无', labelColor, textColor),
+          const SizedBox(height: 16),
+        ]),
+      ),
+    );
+  }
+
+  // ─── Payment dialog (reusable from card) ───
 
   void _showPaymentDialog(BuildContext context, String invoiceId,
       double invoiceAmount, double alreadyPaid) {
