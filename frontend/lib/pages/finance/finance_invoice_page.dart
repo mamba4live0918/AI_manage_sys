@@ -26,17 +26,15 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const _statusOptions = ['', 'draft', 'issued', 'partial', 'paid', 'cancelled'];
+  static const _statusOptions = ['', 'issued', 'partial', 'paid', 'cancelled'];
   static const _statusLabels = {
     '': '全部',
-    'draft': '草稿',
     'issued': '已开票',
     'partial': '部分收款',
     'paid': '已收款',
     'cancelled': '已取消',
   };
   static const _statusColors = {
-    'draft': Colors.grey,
     'issued': Colors.orange,
     'partial': Colors.blue,
     'paid': Colors.green,
@@ -544,7 +542,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'seller_tax_id': sellerTaxIdCtrl.text,
                       'buyer_name': buyerNameCtrl.text,
                       'buyer_tax_id': buyerTaxIdCtrl.text,
-                      'status': 'draft',
+                      'status': 'issued',
                     };
                     if (projectIdCtrl.text.isNotEmpty) {
                       body['project_id'] = projectIdCtrl.text;
@@ -635,7 +633,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                             onPressed: () => setSheetState(() => isEditing = false),
                             child: const Text('取消编辑'),
                           )
-                        else
+                        else if (!inv.status.startsWith('partial') && inv.status != 'paid' && inv.status != 'cancelled')
                           TextButton.icon(
                             icon: const Icon(Icons.edit, size: 18),
                             label: const Text('编辑'),
