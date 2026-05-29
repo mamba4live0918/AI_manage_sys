@@ -1000,10 +1000,162 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   ],
                 ),
               ),
-              if (fileId != null)
-                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit_outlined,
+                        size: 18, color: labelColor),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    padding: EdgeInsets.zero,
+                    onPressed: () =>
+                        _showEditVoucherDescriptionDialog(context, v),
+                    tooltip: '编辑说明',
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline,
+                        size: 18, color: Colors.red.shade300),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _confirmDeleteVoucher(context, v),
+                    tooltip: '删除',
+                  ),
+                ],
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteVoucher(BuildContext context, Map<String, dynamic> v) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String? errorMsg;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('确认删除'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('确定要删除此凭证吗？'),
+              if (errorMsg != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(errorMsg!,
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 13))),
+                    ]),
+                  ),
+                ),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('取消')),
+              FilledButton(
+                style:
+                    FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  try {
+                    await _api.dio.delete('/finance/vouchers/${v['id']}');
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    await _loadAllPayments();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('凭证已删除')),
+                      );
+                    }
+                  } catch (e) {
+                    setDialogState(() => errorMsg = '删除失败: $e');
+                  }
+                },
+                child: const Text('删除'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditVoucherDescriptionDialog(
+      BuildContext context, Map<String, dynamic> v) {
+    final descCtrl =
+        TextEditingController(text: v['description'] as String? ?? '');
+    String? errorMsg;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('编辑凭证说明'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: descCtrl,
+              decoration: const InputDecoration(labelText: '说明'),
+              maxLines: 3,
+            ),
+            if (errorMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.error_outline,
+                        color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(errorMsg!,
+                            style: TextStyle(
+                                color: Colors.red.shade700, fontSize: 13))),
+                  ]),
+                ),
+              ),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消')),
+            FilledButton(
+              onPressed: () async {
+                final newDesc = descCtrl.text.trim();
+                try {
+                  await _api.dio.put('/finance/vouchers/${v['id']}',
+                      data: {'description': newDesc});
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _loadAllPayments();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('凭证说明已更新')),
+                    );
+                  }
+                } catch (e) {
+                  setDialogState(() => errorMsg = '更新失败: $e');
+                }
+              },
+              child: const Text('保存'),
+            ),
+          ],
         ),
       ),
     );
