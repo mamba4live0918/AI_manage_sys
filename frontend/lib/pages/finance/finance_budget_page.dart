@@ -661,10 +661,9 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   Widget _iconPickerRow(String currentIcon, ValueChanged<String> onChanged) {
     final icons = ['description', 'receipt', 'flight', 'directions_car', 'restaurant', 'devices', 'monetization_on', 'school', 'campaign', 'card_giftcard', 'local_shipping', 'medical_services', 'build', 'security', 'pets', 'emoji_events', 'construction', 'brush', 'cloud', 'more_horiz'];
-    return SingleChildScrollView(
+    return SizedBox(height: 44, child: ListView(
       scrollDirection: Axis.horizontal,
-      child: Row(
-        children: icons.map((name) {
+      children: icons.map((name) {
           final iconData = _iconFromName(name);
           final selected = currentIcon == name;
           return GestureDetector(
@@ -1152,7 +1151,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   Widget _colorPickerRow(String currentColor, ValueChanged<String> onChanged) {
     final presets = ['#FF0000', '#FF5722', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#3F51B5', '#9C27B0', '#E91E63', '#009688', '#607D8B'];
-    return SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
+    return SizedBox(height: 32, child: ListView(scrollDirection: Axis.horizontal, children: [
       ...presets.map((c) => GestureDetector(
         onTap: () => onChanged(c),
         child: Container(
