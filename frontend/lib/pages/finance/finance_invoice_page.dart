@@ -644,16 +644,6 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: textColor)),
-                        const Spacer(),
-                        TextButton.icon(
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('添加收款'),
-                          onPressed: () => _showPaymentDialog(
-                              ctx,
-                              inv.id,
-                              inv.amount,
-                              _paymentTotals[inv.id] ?? 0),
-                        ),
                       ]),
                       if (loadingPaymentsLocal)
                         const Center(
