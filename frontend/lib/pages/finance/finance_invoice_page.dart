@@ -863,35 +863,43 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Text('收款详情', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
-          const SizedBox(height: 20),
-          _detailRow('金额', '\u{FFE5}${p.amount.toStringAsFixed(2)}', labelColor, textColor),
-          _detailRow('日期', p.paymentDate ?? '未设置', labelColor, textColor),
-          _detailRow('方式', _paymentMethodLabels[p.paymentMethod] ?? p.paymentMethod, labelColor, textColor),
-          _detailRow('流水号', p.refNo.isNotEmpty ? p.refNo : '无', labelColor, textColor),
-          _detailRow('备注', p.notes.isNotEmpty ? p.notes : '无', labelColor, textColor),
-          // Vouchers for this invoice
-          Builder(builder: (_) {
-            final vouchers = p.invoiceId != null ? (_voucherCache[p.invoiceId!] ?? []) : <Map<String, dynamic>>[];
-            if (vouchers.isEmpty) return const SizedBox.shrink();
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(height: 8),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text('凭证 (${vouchers.length})', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
-              const SizedBox(height: 8),
-              ...vouchers.map((v) => _buildVoucherItem(v, isDark, textColor, labelColor, ctx)),
-            ]);
-          }),
-          const SizedBox(height: 8),
-        ]),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (_, scrollCtrl) => SingleChildScrollView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('收款详情', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+            const SizedBox(height: 20),
+            _detailRow('金额', '\u{FFE5}${p.amount.toStringAsFixed(2)}', labelColor, textColor),
+            _detailRow('日期', p.paymentDate ?? '未设置', labelColor, textColor),
+            _detailRow('方式', _paymentMethodLabels[p.paymentMethod] ?? p.paymentMethod, labelColor, textColor),
+            _detailRow('流水号', p.refNo.isNotEmpty ? p.refNo : '无', labelColor, textColor),
+            _detailRow('备注', p.notes.isNotEmpty ? p.notes : '无', labelColor, textColor),
+            // Vouchers for this invoice
+            Builder(builder: (_) {
+              final vouchers = p.invoiceId != null ? (_voucherCache[p.invoiceId!] ?? []) : <Map<String, dynamic>>[];
+              if (vouchers.isEmpty) return const SizedBox.shrink();
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const SizedBox(height: 8),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text('凭证 (${vouchers.length})', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+                const SizedBox(height: 8),
+                ...vouchers.map((v) => _buildVoucherItem(v, isDark, textColor, labelColor, ctx)),
+              ]);
+            }),
+            const SizedBox(height: 8),
+          ]),
+        ),
       ),
     );
   }
@@ -1009,233 +1017,50 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   }
 
   void _showVoucherPreview(
-      BuildContext context, Map<String, dynamic> voucher, bool isDark) {
+      BuildContext context, Map<String, dynamic> voucher, bool isDark) async {
     final fileId = voucher['file_id'] as String?;
     if (fileId == null) return;
 
-    final voucherType = (voucher['type'] as String?) ?? 'unknown';
-    final description = (voucher['description'] as String?) ?? '';
-    final createdAt = (voucher['created_at'] as String?) ?? '';
-    final typeLabels = {
-      'invoice': '发票',
-      'receipt': '收据',
-      'contract': '合同',
-      'other': '其他',
-    };
+    // Show loading
+    showDialog(context: context, barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()));
 
-    // Show dialog immediately, load file info inside
-    late String? fileUrl;
-    late String? mimeType;
-    late String? fileName;
-    late String? errorMsg;
-    late String? authToken;
-    bool loaded = false;
+    String? fileUrl, mimeType, fileName, errorMsg;
+    try {
+      final resp = await _api.dio.get('/preview/file/$fileId');
+      fileUrl = resp.data['url'] as String?;
+      mimeType = resp.data['mime_type'] as String?;
+      fileName = resp.data['name'] as String?;
+    } catch (e) {
+      errorMsg = '加载失败';
+    }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        if (!loaded) {
-          loaded = true;
-          Future.microtask(() async {
-            try {
-              authToken = await _api.loadToken();
-              final resp =
-                  await _api.dio.get('/preview/file/$fileId');
-              fileUrl = resp.data['url'];
-              mimeType = resp.data['mime_type'];
-              fileName = resp.data['name'];
-            } catch (e) {
-              errorMsg = '加载失败: $e';
-            }
-            // Rebuild dialog with loaded data
-            if (ctx.mounted) {
-              Navigator.pop(ctx);
-              _showVoucherPreviewDialog(
-                  context, isDark, typeLabels, voucherType,
-                  description, createdAt, fileId,
-                  authToken, fileUrl, mimeType, fileName, errorMsg);
-            }
-          });
-        }
+    // Dismiss loading
+    if (context.mounted) Navigator.of(context).pop();
+    await Future.delayed(const Duration(milliseconds: 100)); // wait for dismiss animation
 
-        return const AlertDialog(
-          content: SizedBox(
-            height: 100,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        );
-      },
-    );
-  }
+    if (!context.mounted) return;
 
-  void _showVoucherPreviewDialog(
-      BuildContext context,
-      bool isDark,
-      Map<String, String> typeLabels,
-      String voucherType,
-      String description,
-      String createdAt,
-      String fileId,
-      String? authToken,
-      String? fileUrl,
-      String? mimeType,
-      String? fileName,
-      String? errorMsg) {
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final labelColor = isDark ? Colors.white70 : Colors.black54;
+    final isImage = (mimeType ?? '').startsWith('image/');
+    final desc = (voucher['description'] as String?) ?? '';
+    final authToken = await _api.loadToken();
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          description.isNotEmpty ? description : '凭证详情',
-          style: TextStyle(color: textColor),
-        ),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _voucherDetailRow(
-                  '类型', typeLabels[voucherType] ?? voucherType,
-                  labelColor, textColor),
-              if (description.isNotEmpty)
-                _voucherDetailRow(
-                    '说明', description, labelColor, textColor),
-              if (createdAt.isNotEmpty)
-                _voucherDetailRow(
-                    '上传时间', _formatDate(createdAt),
-                    labelColor, textColor),
-              const SizedBox(height: 16),
-              if (errorMsg != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(errorMsg,
-                      style: TextStyle(
-                          color: Colors.red.shade700, fontSize: 13)),
-                )
-              else ...[
-                // Preview area
-                if (mimeType != null &&
-                    fileUrl != null &&
-                    mimeType.startsWith('image/'))
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      fileUrl,
-                      headers: authToken != null
-                          ? {'Authorization': 'Bearer $authToken'}
-                          : null,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white10
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(children: [
-                          const Icon(Icons.broken_image,
-                              size: 48, color: Colors.grey),
-                          const SizedBox(height: 8),
-                          Text('无法预览',
-                              style: TextStyle(color: labelColor)),
-                        ]),
-                      ),
-                    ),
-                  )
-                else if (fileName != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.white10
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(children: [
-                      Icon(Icons.insert_drive_file,
-                          size: 48,
-                          color: isDark
-                              ? Colors.white38
-                              : Colors.grey),
-                      const SizedBox(height: 8),
-                      Text(fileName,
-                          style: TextStyle(
-                              color: textColor, fontSize: 13),
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 4),
-                      Text(
-                        '无法预览此文件类型，请下载查看',
-                        style: TextStyle(
-                            color: labelColor, fontSize: 12),
-                      ),
-                    ]),
-                  ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text('下载文件'),
-                    onPressed: () async {
-                      try {
-                        await _api.dio.get(
-                          '/preview/download/$fileId',
-                          options: Options(
-                            responseType: ResponseType.bytes,
-                          ),
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                                  content: Text('文件已下载')));
-                        }
-                      } catch (_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                                  content: Text('下载失败')));
-                        }
-                      }
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('关闭')),
-        ],
-      ),
-    );
-  }
+    if (!context.mounted) return;
 
-  Widget _voucherDetailRow(
-      String label, String value, Color labelColor, Color textColor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-            width: 70,
-            child: Text(label,
-                style: TextStyle(color: labelColor, fontSize: 13))),
-        Expanded(
-            child: Text(value,
-                style: TextStyle(color: textColor, fontSize: 13))),
-      ]),
-    );
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: Text(desc.isNotEmpty ? desc : '凭证详情'),
+      content: SizedBox(width: 350, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (fileName != null) Text('文件: $fileName', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54)),
+        const SizedBox(height: 12),
+        if (errorMsg != null)
+          Text(errorMsg, style: const TextStyle(color: Colors.red, fontSize: 13))
+        else if (isImage && fileUrl != null)
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(fileUrl, fit: BoxFit.contain, headers: authToken != null ? {'Authorization': 'Bearer $authToken'} : {}))
+        else
+          Text(fileName ?? '未知文件', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54)),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+    ));
   }
 
   // ─── Payment dialog (reusable from card) ───
