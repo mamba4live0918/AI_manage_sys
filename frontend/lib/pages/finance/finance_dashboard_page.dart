@@ -137,36 +137,53 @@ class _KpiCards extends StatelessWidget {
       ),
     ];
 
-    return Row(
-      children: cards.map((c) {
-        final (label, value, sub, lightGrad, darkGrad) = c;
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(
-                colors: isDark ? darkGrad : lightGrad,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: isDark ? Border.all(color: lightGrad[0].withAlpha(40), width: 1) : null,
-              boxShadow: isDark ? [] : [BoxShadow(color: lightGrad[0].withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(210))),
-                const SizedBox(height: 6),
-                Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
-                const SizedBox(height: 4),
-                Text(sub, style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(170))),
-              ],
-            ),
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final cardWidth = isDesktop
+        ? null // Expanded fills Row
+        : (MediaQuery.of(context).size.width - 32 - 12) / 2; // 2 per row on mobile
+
+    return isDesktop
+        ? Row(
+            children: cards.map((c) => _buildCard(c, isDark, null)).toList(),
+          )
+        : Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: cards.map((c) => _buildCard(c, isDark, cardWidth)).toList(),
+          );
+  }
+
+  Widget _buildCard(
+    (String, String, String, List<Color>, List<Color>) c,
+    bool isDark,
+    double? width,
+  ) {
+    final (label, value, sub, lightGrad, darkGrad) = c;
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            colors: isDark ? darkGrad : lightGrad,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        );
-      }).toList(),
+          border: isDark ? Border.all(color: lightGrad[0].withAlpha(40), width: 1) : null,
+          boxShadow: isDark ? [] : [BoxShadow(color: lightGrad[0].withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(210))),
+            const SizedBox(height: 6),
+            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text(sub, style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(170))),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -181,6 +198,7 @@ class _RevenueTrendChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
     final trends = data.revenueTrend12m;
     if (trends.isEmpty) return const SizedBox.shrink();
 
@@ -201,7 +219,7 @@ class _RevenueTrendChart extends StatelessWidget {
         Text('近12月收入趋势', style: theme.textTheme.titleMedium),
         const SizedBox(height: 16),
         SizedBox(
-          height: 220,
+          height: isDesktop ? 220 : 180,
           child: LineChart(
             LineChartData(
               minY: 0,
@@ -372,6 +390,11 @@ class _QuickActions extends StatelessWidget {
       ('凭证管理', Icons.description_rounded, const Color(0xFFf5576c)),
     ];
 
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final itemWidth = isDesktop
+        ? (MediaQuery.of(context).size.width - 32 - 32) / 5
+        : (MediaQuery.of(context).size.width - 32 - 16) / 3;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 12),
@@ -384,7 +407,7 @@ class _QuickActions extends StatelessWidget {
           final i = e.key;
           final (label, icon, color) = e.value;
           return SizedBox(
-            width: (MediaQuery.of(context).size.width - 16 - 32) / 5,
+            width: itemWidth,
             child: Material(
               color: color.withAlpha(20),
               borderRadius: BorderRadius.circular(14),
