@@ -141,6 +141,8 @@ async def search(
             "k": 100,
             "num_candidates": 200,
         }
+        if filters:
+            body["knn"]["filter"] = filters
         body["rank"] = {"rrf": {}}
 
     try:
