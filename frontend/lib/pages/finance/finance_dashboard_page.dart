@@ -76,7 +76,7 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(width: double.infinity, child: _KpiCards(data: data, isDark: isDark)),
           const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: _RevenueTrendChart(data: data, isDark: isDark)),
+          SizedBox(width: double.infinity, child: Padding(padding: const EdgeInsets.only(left: 10), child: _RevenueTrendChart(data: data, isDark: isDark))),
           const SizedBox(height: 20),
           _BudgetUsageSection(data: data, isDark: isDark),
           const SizedBox(height: 20),
