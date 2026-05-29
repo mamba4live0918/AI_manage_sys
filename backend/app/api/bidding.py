@@ -1153,7 +1153,14 @@ async def list_suppliers(
     if type:
         query = query.where(Supplier.type == type)
     if search:
-        query = query.where(Supplier.name.ilike(f"%{search}%") | Supplier.expertise.cast(str).ilike(f"%{search}%"))
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="suppliers", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            query = query.where(Supplier.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": [], "total": 0}
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_supplier_row(s) for s in result.scalars().all()]}
 
@@ -1182,6 +1189,9 @@ async def create_supplier(
     await db.commit()
     await db.refresh(s)
     await audit_log(db, user, "supplier_create", "supplier", s.id, s.name, "success", request=request)
+    await es_index(str(s.id), "suppliers", s.name, ", ".join(s.expertise) if s.expertise else "",
+                   extra=f"{s.contact_person} {s.contact_phone} {s.contact_email}".strip(),
+                   department_id=str(user.department_id) if user.department_id else None)
     return _supplier_row(s)
 
 
@@ -1215,6 +1225,9 @@ async def update_supplier(
     await db.commit()
     await db.refresh(s)
     await audit_log(db, user, "supplier_update", "supplier", s.id, s.name, "success", request=request)
+    await es_index(str(s.id), "suppliers", s.name, ", ".join(s.expertise) if s.expertise else "",
+                   extra=f"{s.contact_person} {s.contact_phone} {s.contact_email}".strip(),
+                   department_id=str(user.department_id) if user.department_id else None)
     return _supplier_row(s)
 
 
@@ -1232,6 +1245,7 @@ async def delete_supplier(
     await db.delete(s)
     await db.commit()
     await audit_log(db, user, "supplier_delete", "supplier", s.id, s.name, "success", request=request)
+    await es_delete(str(s.id), "suppliers")
     return {"message": "已删除"}
 
 
@@ -1255,7 +1269,14 @@ async def list_instructors(
     if supplier_id:
         query = query.where(Instructor.supplier_id == uuid.UUID(supplier_id))
     if search:
-        query = query.where(Instructor.name.ilike(f"%{search}%") | Instructor.expertise.cast(str).ilike(f"%{search}%"))
+        from app.services.search import search as es_search
+        es_result = await es_search(query=search, module="instructors", size=200)
+        ids = [item["doc_id"] for item in es_result["items"]]
+        if ids:
+            from uuid import UUID
+            query = query.where(Instructor.id.in_([UUID(i) for i in ids]))
+        else:
+            return {"items": [], "total": 0}
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_instructor_row(i) for i in result.scalars().all()]}
 
