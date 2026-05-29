@@ -278,8 +278,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   }
 
   String _fmt(double val) {
-    if (val.abs() >= 10000) return '¥${(val / 10000).toStringAsFixed(1)}万';
-    return '¥${val.toStringAsFixed(0)}';
+    if (val.abs() >= 10000) return '\u{FFE5}${(val / 10000).toStringAsFixed(1)}万';
+    return '\u{FFE5}${val.toStringAsFixed(0)}';
   }
 
   String _categoryLabel(String cat) {
@@ -568,7 +568,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   }
 
   Widget _sectionTitle(String title, Color color) {
-    return Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color));
+    return Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color));
   }
 
   Widget _amountColumn(String label, double value, Color valueColor, Color labelColor) {

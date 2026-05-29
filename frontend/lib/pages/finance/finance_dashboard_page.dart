@@ -95,9 +95,9 @@ class _KpiCards extends StatelessWidget {
 
   String _fmtAmount(double v) {
     if (v >= 10000) {
-      return '¥${(v / 10000).toStringAsFixed(1)}万';
+      return '\u{FFE5}${(v / 10000).toStringAsFixed(1)}万';
     }
-    return '¥${v.toStringAsFixed(0)}';
+    return '\u{FFE5}${v.toStringAsFixed(0)}';
   }
 
   @override
@@ -158,7 +158,7 @@ class _KpiCards extends StatelessWidget {
             const SizedBox(height: 6),
             Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
             const SizedBox(height: 4),
-            Text(sub, style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(170))),
+            Text(sub, style: TextStyle(fontSize: 12, color: Colors.white.withAlpha(170))),
           ],
         ),
       );

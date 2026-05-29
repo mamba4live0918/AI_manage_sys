@@ -1599,7 +1599,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                     return;
                   }
                   if (amt > remaining) {
-                    setDialogState(() => errorMsg = '收款金额不能超过剩余应收款 ¥${remaining.toStringAsFixed(2)}');
+                    setDialogState(() => errorMsg = '收款金额不能超过剩余应收款 \u{FFE5}${remaining.toStringAsFixed(2)}');
                     return;
                   }
 
