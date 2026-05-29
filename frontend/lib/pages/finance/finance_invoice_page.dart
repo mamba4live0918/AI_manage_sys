@@ -1207,7 +1207,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
             try {
               final dir = Directory.systemTemp;
               final savePath = '${dir.path}${Platform.pathSeparator}${fileName ?? 'file'}';
-              await _api.dio.download(fileUrl!, savePath);
+              // Use bare Dio without auth headers for external MinIO URLs
+              await Dio().download(fileUrl!, savePath);
               await Process.run('cmd', ['/c', 'start', '', savePath]);
             } catch (_) {
               if (context.mounted) {
