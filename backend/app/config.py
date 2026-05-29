@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # ── Elasticsearch ──
     ES_URL: str = "http://localhost:9200"
 
+    # ── Embedding ──
+    EMBEDDING_MODEL: str = "deepseek-embedding"
+    EMBEDDING_DIM: int = 768
+
     # ── 权限 ──
     ROLE_CLEARANCE: dict = {
         "admin": 3,
