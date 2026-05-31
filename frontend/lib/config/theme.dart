@@ -88,14 +88,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: lightSurfaceSolid,
         indicatorColor: lightAccentBg,
-        selectedIconTheme: const IconThemeData(color: accent),
-        unselectedIconTheme: IconThemeData(color: lightTextSecondary),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: lightSurfaceSolid,
         indicatorColor: lightAccentBg,
-        selectedIconTheme: const IconThemeData(color: accent),
-        unselectedIconTheme: IconThemeData(color: lightTextSecondary),
       ),
     );
   }
@@ -146,14 +142,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkSurface,
         indicatorColor: darkAccentBg,
-        selectedIconTheme: const IconThemeData(color: accentLight),
-        unselectedIconTheme: IconThemeData(color: darkTextSecondary),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: darkSurface,
         indicatorColor: darkAccentBg,
-        selectedIconTheme: const IconThemeData(color: accentLight),
-        unselectedIconTheme: IconThemeData(color: darkTextSecondary),
       ),
     );
   }
