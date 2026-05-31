@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/finance_providers.dart';
+import '../../config/theme.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
 class FinanceInvoicePage extends ConsumerStatefulWidget {
@@ -116,6 +117,18 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       ),
       body: Column(
         children: [
+          // Breadcrumb
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: Row(children: [
+              Text('首页', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+              Text('财务', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+              Text('票据管理', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+            ]),
+          ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
@@ -148,13 +161,63 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 ? const Center(child: CircularProgressIndicator())
                 : state.items.isEmpty
                     ? _buildEmptyState(theme)
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: state.items.length,
-                        itemBuilder: (_, i) {
-                          final inv = state.items[i];
-                          return _buildInvoiceCard(inv, isDark, theme);
-                        },
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.resolveWith((states) =>
+                              isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
+                            dataRowMinHeight: 44,
+                            dataRowMaxHeight: 52,
+                            headingRowHeight: 40,
+                            horizontalMargin: 16,
+                            columnSpacing: 24,
+                            border: TableBorder(
+                              horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                            ),
+                            columns: const [
+                              DataColumn(label: Text('编号', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                              DataColumn(label: Text('金额', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)), numeric: true),
+                              DataColumn(label: Text('销售方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                              DataColumn(label: Text('购买方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                              DataColumn(label: Text('到期日', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                              DataColumn(label: Text('状态', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                            ],
+                            rows: state.items.map((inv) {
+                              final paid = _paymentTotals[inv.id] ?? 0;
+                              final total = inv.amount;
+                              final ratio = total > 0 ? (paid / total) : 0.0;
+                              return DataRow(
+                                onSelectChanged: (_) => _showDetailSheet(context, inv),
+                                cells: [
+                                  DataCell(Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent))),
+                                  DataCell(Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                                      if (paid > 0)
+                                        Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
+                                    ],
+                                  )),
+                                  DataCell(Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                  DataCell(Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                  DataCell(Text(inv.dueDate?.substring(0, 10) ?? '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                  DataCell(Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
+                                  )),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
           ),
         ],
