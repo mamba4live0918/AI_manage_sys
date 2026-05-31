@@ -175,8 +175,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
               // thin transparent toolbar so burger doesn't overlap content
               Container(
                 height: topPadding + 44,
-                padding: EdgeInsets.only(top: topPadding + 4, left: 12),
-                alignment: Alignment.centerLeft,
+                padding: EdgeInsets.only(top: topPadding + 4, right: 12),
+                alignment: Alignment.centerRight,
                 child: _MobileBurger(
                   isDark: isDark,
                   onTap: () => setState(() => _mobileDrawerOpen = true),
