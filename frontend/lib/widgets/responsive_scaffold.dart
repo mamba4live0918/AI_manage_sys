@@ -65,7 +65,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            width: collapsed ? 56 : 88,
+            width: collapsed ? 56 : 220,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -197,14 +197,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -79,
+            left: _mobileDrawerOpen ? 0 : -220,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 75,
+                  width: 220,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
@@ -347,18 +347,48 @@ class _SidebarNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (int i = 0; i < items.length; i++)
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final groupColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
+    final mainItems = items.take(4).toList();
+    final bizItems = items.length > 4 ? items.skip(4).toList() : <MapEntry<String, _NavItem>>[];
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _GroupLabel('MAIN', groupColor),
+      for (int i = 0; i < mainItems.length; i++)
+        _SidebarNavItem(
+          selected: currentIndex == i,
+          icon: mainItems[i].value.$1,
+          outline: mainItems[i].value.$2,
+          label: mainItems[i].value.$3,
+          onTap: () => onTap(i),
+        ),
+      if (bizItems.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        _GroupLabel('BUSINESS', groupColor),
+        for (int i = 0; i < bizItems.length; i++)
           _SidebarNavItem(
-            selected: currentIndex == i,
-            icon: items[i].value.$1,
-            outline: items[i].value.$2,
-            label: items[i].value.$3,
-            onTap: () => onTap(i),
+            selected: currentIndex == i + 4,
+            icon: bizItems[i].value.$1,
+            outline: bizItems[i].value.$2,
+            label: bizItems[i].value.$3,
+            onTap: () => onTap(i + 4),
           ),
       ],
+    ]);
+  }
+}
+
+class _GroupLabel extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _GroupLabel(this.text, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 4, 0, 6),
+      child: Text(text, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color, letterSpacing: 1.2)),
     );
   }
 }
@@ -421,46 +451,31 @@ class _SidebarNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = selected
+        ? (isDark ? AppTheme.accentLight : AppTheme.accent)
+        : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary);
+    final bg = selected
+        ? (isDark ? AppTheme.darkAccentBg : AppTheme.lightAccentBg)
+        : Colors.transparent;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(6),
           child: Container(
-            width: 64,
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: selected
-                  ? AppTheme.blue.withAlpha(isDark ? 30 : 20)
-                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              color: bg,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selected ? icon : outline,
-                  size: 22,
-                  color: selected
-                      ? AppTheme.blue
-                      : (isDark ? Colors.white : Colors.black).withAlpha(140),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? AppTheme.blue
-                        : (isDark ? Colors.white : Colors.black).withAlpha(140),
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ],
-            ),
+            child: Row(children: [
+              Icon(selected ? icon : outline, size: 18, color: fg),
+              const SizedBox(width: 10),
+              Text(label, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg)),
+            ]),
           ),
         ),
       ),
@@ -492,19 +507,16 @@ class _SidebarAction extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          width: 64,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(fontSize: 10, color: color, letterSpacing: -0.1)),
-            ],
-          ),
+          width: 204,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(fontSize: 12, color: color, letterSpacing: -0.1)),
+          ]),
         ),
       ),
     );
