@@ -88,7 +88,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 40),
                   // Login fields
-                  IosGroupedSection(
+                  AppGroupedSection(
                     children: [
                       TextField(
                         controller: _userCtrl,
@@ -106,7 +106,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 14),
                         ),
                       ),
-                      const IosSeparator(indent: 56),
+                      const AppSeparator(indent: 56),
                       TextField(
                         controller: _passCtrl,
                         obscureText: _obscure,
