@@ -12,7 +12,7 @@ import 'hr_approval_page.dart';
 import 'hr_interview_page.dart';
 
 const _statusLabel = {'active': '在职', 'probation': '试用期', 'resigned': '离职'};
-const _statusColor = {0: AppTheme.green, 1: AppTheme.blue, 2: Colors.grey};
+const _statusColor = {0: AppTheme.green, 1: AppTheme.accent, 2: Colors.grey};
 const _actionLabel = {
   'resume_create': '上传简历', 'resume_upload': '上传简历',
   'resume_match': '评估简历', 'resume_update': '更新简历',
@@ -94,6 +94,16 @@ class _HrDashboardPageState extends ConsumerState<HrDashboardPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Breadcrumb
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+            child: Row(children: [
+              Text('首页', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+              Text('HR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+            ]),
+          ),
           _KpiCards(data: data, isDark: isDark),
           const SizedBox(height: 20),
           _ChartsRow(data: data, isDark: isDark),
@@ -120,61 +130,32 @@ class _KpiCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      (
-        '在职员工',
-        '${data.totalEmployees}',
-        '+${data.newHiresThisMonth} 本月入职',
-        [const Color(0xFF667eea), const Color(0xFF764ba2)],
-        [const Color(0xFF667eea).withAlpha(60), const Color(0xFF764ba2).withAlpha(70)],
-      ),
-      (
-        '待审简历',
-        '${data.pendingResumes}',
-        '${data.newResumesToday} 份新投递',
-        [const Color(0xFFf093fb), const Color(0xFFf5576c)],
-        [const Color(0xFFf5576c).withAlpha(60), const Color(0xFFf093fb).withAlpha(50)],
-      ),
-      (
-        '待审批',
-        '${data.pendingApprovals}',
-        '${data.approvalsByType.fold<int>(0, (s, t) => s + t.count)} 条总计',
-        [const Color(0xFF4facfe), const Color(0xFF00f2fe)],
-        [const Color(0xFF4facfe).withAlpha(60), const Color(0xFF00f2fe).withAlpha(50)],
-      ),
-      (
-        '今日面试',
-        '${data.todayInterviews}',
-        '本周 ${data.weekInterviews} 场',
-        [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
-        [const Color(0xFF43e97b).withAlpha(50), const Color(0xFF38f9d7).withAlpha(50)],
-      ),
+      ('在职员工', '${data.totalEmployees}', '+${data.newHiresThisMonth} 本月入职'),
+      ('待审简历', '${data.pendingResumes}', '${data.newResumesToday} 份新投递'),
+      ('待审批', '${data.pendingApprovals}', '${data.approvalsByType.fold<int>(0, (s, t) => s + t.count)} 条总计'),
+      ('今日面试', '${data.todayInterviews}', '本周 ${data.weekInterviews} 场'),
     ];
 
     return Row(
       children: cards.map((c) {
-        final (label, value, sub, lightGrad, darkGrad) = c;
+        final (label, value, sub) = c;
         return Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(
-                colors: isDark ? darkGrad : lightGrad,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: isDark ? Border.all(color: lightGrad[0].withAlpha(40), width: 1) : null,
-              boxShadow: isDark ? [] : [BoxShadow(color: lightGrad[0].withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
+              borderRadius: BorderRadius.circular(8),
+              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+              border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : Border.all(color: AppTheme.lightBorder, width: 0.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(210))),
+                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                 const SizedBox(height: 6),
-                Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
                 const SizedBox(height: 4),
-                Text(sub, style: TextStyle(fontSize: 11, color: Colors.white.withAlpha(170))),
+                Text(sub, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
               ],
             ),
           ),
@@ -193,7 +174,7 @@ class _ChartsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final deptTotal = data.employeesByDepartment.fold<int>(0, (s, d) => s + d.count);
-    final pieColors = [AppTheme.blue, AppTheme.pink, AppTheme.orange, AppTheme.green, AppTheme.purple, AppTheme.teal];
+    final pieColors = [AppTheme.accent, AppTheme.pink, AppTheme.orange, AppTheme.green, AppTheme.purple, AppTheme.teal];
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +262,7 @@ class _ChartsRow extends StatelessWidget {
                       child: PieChart(
                         PieChartData(
                           sections: data.employeesByStatus.asMap().entries.map((e) {
-                            final color = _statusColor[e.key] ?? AppTheme.blue;
+                            final color = _statusColor[e.key] ?? AppTheme.accent;
                             final total = data.employeesByStatus.fold<int>(0, (s, st) => s + st.count);
                             final pct = total > 0 ? e.value.count / total : 0.0;
                             return PieChartSectionData(
@@ -304,7 +285,7 @@ class _ChartsRow extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: data.employeesByStatus.asMap().entries.map((e) {
-                        final color = _statusColor[e.key] ?? AppTheme.blue;
+                        final color = _statusColor[e.key] ?? AppTheme.accent;
                         final label = _statusLabel[e.value.status] ?? e.value.status;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
@@ -352,8 +333,8 @@ class _ApprovalOverview extends StatelessWidget {
         const SizedBox(height: 16),
         ...data.approvalsByType.map((t) {
           final label = {'leave': '请假', 'expense': '报销', 'regularization': '转正'}[t.type] ?? t.type;
-          final colors = {'leave': AppTheme.orange, 'expense': AppTheme.blue, 'regularization': AppTheme.green};
-          final color = colors[t.type] ?? AppTheme.blue;
+          final colors = {'leave': AppTheme.orange, 'expense': AppTheme.accent, 'regularization': AppTheme.green};
+          final color = colors[t.type] ?? AppTheme.accent;
           final pct = total > 0 ? t.count / total : 0.0;
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -470,7 +451,7 @@ class _RecentActivities extends StatelessWidget {
           } else if (a.action.contains('rejected') || a.action.contains('delete')) {
             iconColor = AppTheme.red;
           } else if (a.action.contains('update')) {
-            iconColor = AppTheme.blue;
+            iconColor = AppTheme.accent;
           } else {
             iconColor = AppTheme.orange;
           }
@@ -532,8 +513,8 @@ class _UpcomingInterviews extends StatelessWidget {
             child: Row(children: [
               Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.blue.withAlpha(20)),
-                child: const Icon(Icons.person_outline, color: AppTheme.blue, size: 20),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.accent.withAlpha(20)),
+                child: const Icon(Icons.person_outline, color: AppTheme.accent, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -543,7 +524,7 @@ class _UpcomingInterviews extends StatelessWidget {
                 ]),
               ),
               if (dateStr.isNotEmpty)
-                Text(dateStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.blue)),
+                Text(dateStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.accent)),
             ]),
           );
         }),

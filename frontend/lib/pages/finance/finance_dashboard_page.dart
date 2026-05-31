@@ -105,60 +105,45 @@ class _KpiCards extends StatelessWidget {
     final pendingTotal = data.pendingInvoices + data.pendingPayments + data.pendingExpenses;
 
     final cards = [
-      (
-        '本月收入',
-        _fmtAmount(data.monthlyRevenue),
-        '月度营收',
-        [const Color(0xFF667eea), const Color(0xFF764ba2)],
-        [const Color(0xFF667eea).withAlpha(60), const Color(0xFF764ba2).withAlpha(70)],
-      ),
-      (
-        '累计应收',
-        _fmtAmount(data.totalReceivable),
-        '待回款总额',
-        [const Color(0xFFf093fb), const Color(0xFFf5576c)],
-        [const Color(0xFFf5576c).withAlpha(60), const Color(0xFFf093fb).withAlpha(50)],
-      ),
-      (
-        '回款率',
-        '${(data.collectionRate * 100).toStringAsFixed(1)}%',
-        '收款效率',
-        [const Color(0xFF4facfe), const Color(0xFF00f2fe)],
-        [const Color(0xFF4facfe).withAlpha(60), const Color(0xFF00f2fe).withAlpha(50)],
-      ),
-      (
-        '待处理',
-        '$pendingTotal',
-        '${data.pendingInvoices} 票据 / ${data.pendingPayments} 待收款 / ${data.pendingExpenses} 待审批',
-        [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
-        [const Color(0xFF43e97b).withAlpha(50), const Color(0xFF38f9d7).withAlpha(50)],
-      ),
+      ('本月收入', _fmtAmount(data.monthlyRevenue), '月度营收'),
+      ('累计应收', _fmtAmount(data.totalReceivable), '待回款总额'),
+      ('回款率', '${(data.collectionRate * 100).toStringAsFixed(1)}%', '收款效率'),
+      ('待处理', '$pendingTotal',
+        '${data.pendingInvoices} 票据 / ${data.pendingPayments} 待收款 / ${data.pendingExpenses} 待审批'),
     ];
 
     final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     final cardWidgets = cards.map((c) {
-      final (label, value, sub, lightGrad, darkGrad) = c;
+      final (label, value, sub) = c;
       final card = Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-            colors: isDark ? darkGrad : lightGrad,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: isDark ? Border.all(color: lightGrad[0].withAlpha(40), width: 1) : null,
-          boxShadow: isDark ? [] : [BoxShadow(color: lightGrad[0].withAlpha(40), blurRadius: 12, offset: const Offset(0, 4))],
+          borderRadius: BorderRadius.circular(8),
+          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+          border: isDark
+              ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+              : Border.all(color: AppTheme.lightBorder, width: 0.5),
+          boxShadow: isDark
+              ? []
+              : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(210))),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w500,
+                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+            Text(value,
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700,
+                    color: isDark ? AppTheme.darkText : AppTheme.lightText)),
             const SizedBox(height: 4),
-            Text(sub, style: TextStyle(fontSize: 12, color: Colors.white.withAlpha(170))),
+            Text(sub,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
           ],
         ),
       );
@@ -196,15 +181,24 @@ class _RevenueTrendChart extends StatelessWidget {
 
     final maxRevenue = trends.map((t) => t.revenue).reduce((a, b) => a > b ? a : b);
 
+    final chartAccent = isDark ? AppTheme.accentLight : AppTheme.accent;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
+        borderRadius: BorderRadius.circular(8),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+            : Border.all(color: AppTheme.lightBorder, width: 0.5),
+        boxShadow: isDark
+            ? []
+            : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('近12月收入趋势', style: theme.textTheme.titleMedium),
+        Text('近12月收入趋势',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: isDark ? AppTheme.darkText : AppTheme.lightText,
+            )),
         const SizedBox(height: 16),
         SizedBox(
           height: isDesktop ? 220 : 180,
@@ -218,7 +212,7 @@ class _RevenueTrendChart extends StatelessWidget {
                 horizontalInterval: maxRevenue > 0 ? maxRevenue / 4 : 1,
                 getDrawingHorizontalLine: (value) {
                   return FlLine(
-                    color: isDark ? Colors.white12 : Colors.black12,
+                    color: isDark ? Colors.white10 : Colors.black.withAlpha(12),
                     strokeWidth: 1,
                   );
                 },
@@ -239,7 +233,10 @@ class _RevenueTrendChart extends StatelessWidget {
                           : trends[idx].month;
                       return Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text(label, style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54)),
+                        child: Text(label,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                       );
                     },
                   ),
@@ -251,10 +248,15 @@ class _RevenueTrendChart extends StatelessWidget {
                     interval: maxRevenue > 0 ? maxRevenue / 4 : 1,
                     getTitlesWidget: (value, meta) {
                       if (value == 0) return const SizedBox.shrink();
-                      final label = value >= 10000 ? '${(value / 10000).toStringAsFixed(0)}万' : '${value.toInt()}';
+                      final label = value >= 10000
+                          ? '${(value / 10000).toStringAsFixed(0)}万'
+                          : '${value.toInt()}';
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
-                        child: Text(label, style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : Colors.black54)),
+                        child: Text(label,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                       );
                     },
                   ),
@@ -266,7 +268,7 @@ class _RevenueTrendChart extends StatelessWidget {
                   spots: spots,
                   isCurved: true,
                   preventCurveOverShooting: true,
-                  color: AppTheme.blue,
+                  color: chartAccent,
                   barWidth: 2.5,
                   isStrokeCapRound: true,
                   dotData: FlDotData(
@@ -274,15 +276,17 @@ class _RevenueTrendChart extends StatelessWidget {
                     getDotPainter: (spot, percent, barData, index) {
                       return FlDotCirclePainter(
                         radius: 3,
-                        color: AppTheme.blue,
+                        color: chartAccent,
                         strokeWidth: 1.5,
-                        strokeColor: Colors.white,
+                        strokeColor: isDark ? AppTheme.darkSurface : Colors.white,
                       );
                     },
                   ),
                   belowBarData: BarAreaData(
                     show: true,
-                    color: AppTheme.blue.withAlpha(25),
+                    color: isDark
+                        ? AppTheme.accentLight.withAlpha(15)
+                        : AppTheme.accent.withAlpha(20),
                   ),
                 ),
               ],
@@ -310,12 +314,20 @@ class _BudgetUsageSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
+        borderRadius: BorderRadius.circular(8),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+            : Border.all(color: AppTheme.lightBorder, width: 0.5),
+        boxShadow: isDark
+            ? []
+            : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('预算使用情况', style: theme.textTheme.titleMedium),
+        Text('预算使用情况',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: isDark ? AppTheme.darkText : AppTheme.lightText,
+            )),
         const SizedBox(height: 16),
         ...budgets.map((b) {
           final pct = b.total > 0 ? (b.used / b.total).clamp(0.0, 1.0) : 0.0;
@@ -325,18 +337,23 @@ class _BudgetUsageSection extends StatelessWidget {
           } else if (pct >= 0.7) {
             barColor = AppTheme.orange;
           } else {
-            barColor = AppTheme.blue;
+            barColor = AppTheme.green;
           }
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(
-                  child: Text(b.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black87)),
+                  child: Text(b.name,
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w500,
+                          color: isDark ? AppTheme.darkText : AppTheme.lightText)),
                 ),
                 Text(
                   '${b.used.toStringAsFixed(0)} / ${b.total.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -350,7 +367,7 @@ class _BudgetUsageSection extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: pct,
                   minHeight: 8,
-                  backgroundColor: isDark ? AppTheme.darkElevated : Colors.grey.shade200,
+                  backgroundColor: isDark ? AppTheme.darkSurfaceAlt : Colors.grey.shade200,
                   valueColor: AlwaysStoppedAnimation(barColor),
                 ),
               ),
@@ -370,30 +387,36 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppTheme.accentLight : AppTheme.accent;
+    final accentBg = isDark ? AppTheme.accentLight.withAlpha(10) : AppTheme.accent.withAlpha(15);
+
     final actions = [
-      ('发票管理', Icons.receipt_long_rounded, const Color(0xFF667eea)),
-      ('预算管理', Icons.account_balance_wallet_rounded, const Color(0xFF4facfe)),
-      ('支出管理', Icons.attach_money_rounded, const Color(0xFFf093fb)),
-      ('凭证管理', Icons.description_rounded, const Color(0xFFf5576c)),
+      ('发票管理', Icons.receipt_long_rounded),
+      ('预算管理', Icons.account_balance_wallet_rounded),
+      ('支出管理', Icons.attach_money_rounded),
+      ('凭证管理', Icons.description_rounded),
     ];
 
     final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     final actionWidgets = actions.asMap().entries.map((e) {
       final i = e.key;
-      final (label, icon, color) = e.value;
+      final (label, icon) = e.value;
       final button = Material(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(14),
+        color: accentBg,
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(8),
           onTap: () => onSelect(i + 1),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Column(children: [
-              Icon(icon, color: color, size: 28),
+              Icon(icon, color: accent, size: 28),
               const SizedBox(height: 8),
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w500, color: accent)),
             ]),
           ),
         ),
@@ -411,7 +434,10 @@ class _QuickActions extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 12),
-        child: Text('快捷操作', style: Theme.of(context).textTheme.titleMedium),
+        child: Text('快捷操作',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: isDark ? AppTheme.darkText : AppTheme.lightText,
+                )),
       ),
       isDesktop ? Row(children: actionWidgets) : Wrap(spacing: 8, runSpacing: 8, children: actionWidgets),
     ]);
