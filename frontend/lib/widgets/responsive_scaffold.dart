@@ -342,9 +342,9 @@ class _SidebarLogo extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('AI_manage',
+          Text('AI 管理',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg, letterSpacing: -0.3)),
-          Text(auth.user?.department ?? 'Enterprise',
+          Text(auth.user?.department ?? '企业版',
               style: TextStyle(
                   fontSize: 9,
                   color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
@@ -369,7 +369,7 @@ class _SidebarNav extends StatelessWidget {
     final bizItems = items.length > 4 ? items.skip(4).toList() : <MapEntry<String, _NavItem>>[];
 
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      _GroupLabel('MAIN', groupColor),
+      _GroupLabel('主要', groupColor),
       for (int i = 0; i < mainItems.length; i++)
         _SidebarNavItem(
           selected: currentIndex == i,
@@ -380,7 +380,7 @@ class _SidebarNav extends StatelessWidget {
         ),
       if (bizItems.isNotEmpty) ...[
         const SizedBox(height: 16),
-        _GroupLabel('BUSINESS', groupColor),
+        _GroupLabel('业务', groupColor),
         for (int i = 0; i < bizItems.length; i++)
           _SidebarNavItem(
             selected: currentIndex == i + 4,
