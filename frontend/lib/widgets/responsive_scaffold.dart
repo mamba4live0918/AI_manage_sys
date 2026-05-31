@@ -246,16 +246,20 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                           ),
                         ),
                       ),
-                      _SidebarActionCompact(
+                      const Divider(height: 1, indent: 14, endIndent: 14),
+                      const SizedBox(height: 8),
+                      _SidebarAction(
                         icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        label: '主题',
                         onTap: () {
                           ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark);
                           setState(() => _mobileDrawerOpen = false);
                         },
                       ),
                       const SizedBox(height: 2),
-                      _SidebarActionCompact(
+                      _SidebarAction(
                         icon: Icons.logout_rounded,
+                        label: '退出',
                         onTap: () {
                           ref.read(authProvider.notifier).logout();
                           setState(() => _mobileDrawerOpen = false);
@@ -534,37 +538,6 @@ class _SidebarAction extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: color, letterSpacing: -0.1)),
           ]),
         ),
-      ),
-    );
-  }
-}
-
-// ── Sidebar action compact (icon only, for narrow sidebars) ──
-
-class _SidebarActionCompact extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool destructive;
-  const _SidebarActionCompact({required this.icon, required this.onTap, this.destructive = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = destructive
-        ? AppTheme.red
-        : (isDark ? Colors.white : Colors.black).withAlpha(140);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.transparent,
-        ),
-        child: Icon(icon, size: 20, color: color),
       ),
     );
   }
