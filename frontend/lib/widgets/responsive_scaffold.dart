@@ -484,7 +484,7 @@ class _SidebarNavItem extends StatelessWidget {
             child: Row(children: [
               Icon(selected ? icon : outline, size: 18, color: fg),
               const SizedBox(width: 10),
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg)),
+              Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg))),
             ]),
           ),
         ),
