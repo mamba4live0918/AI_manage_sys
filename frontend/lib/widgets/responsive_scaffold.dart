@@ -83,16 +83,13 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   child: Column(
                     children: [
                       const SizedBox(height: 12),
-                      // collapse toggle — right-aligned
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _CollapseToggle(
-                            collapsed: collapsed,
-                            isDark: isDark,
-                            onTap: () => setState(() => _sidebarCollapsed = !collapsed),
-                          ),
+                      // collapse toggle — left-aligned with content
+                      Padding(
+                        padding: const EdgeInsets.only(left: 14),
+                        child: _CollapseToggle(
+                          collapsed: collapsed,
+                          isDark: isDark,
+                          onTap: () => setState(() => _sidebarCollapsed = !collapsed),
                         ),
                       ),
                       const SizedBox(height: 12),
