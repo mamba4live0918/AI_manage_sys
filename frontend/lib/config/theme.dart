@@ -4,7 +4,11 @@ class AppTheme {
   AppTheme._();
 
   // ── Accent ──
-  static const accent = Color(0xFF3B82F6); // desaturated blue, not iOS #007AFF
+  static const accent = Color(0xFF3B82F6);
+  static const blue = accent;                // backward compat alias
+  static const lightBg = cream;              // backward compat
+  static const lightSurface = creamSurface;   // backward compat
+  static const lightGrouped = cream;          // backward compat
 
   // ── Semantic ──
   static const green = Color(0xFF22C55E);

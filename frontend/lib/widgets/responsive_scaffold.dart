@@ -65,7 +65,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            width: collapsed ? 56 : 88,
+            width: collapsed ? 64 : 220,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -321,7 +321,7 @@ class _SidebarAvatar extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.blue, Color(0xFF5856D6)],
+          colors: [AppTheme.accent, Color(0xFF5856D6)],
         ),
       ),
       child: Center(
@@ -386,14 +386,14 @@ class _SidebarNavCollapsed extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: currentIndex == i
-                    ? AppTheme.blue.withAlpha(isDark ? 30 : 20)
+                    ? AppTheme.accent.withAlpha(isDark ? 30 : 20)
                     : Colors.transparent,
               ),
               child: Icon(
                 currentIndex == i ? items[i].value.$1 : items[i].value.$2,
                 size: 22,
                 color: currentIndex == i
-                    ? AppTheme.blue
+                    ? AppTheme.accent
                     : (isDark ? Colors.white : Colors.black).withAlpha(140),
               ),
             ),
@@ -422,45 +422,42 @@ class _SidebarNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 12),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            width: 64,
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               color: selected
-                  ? AppTheme.blue.withAlpha(isDark ? 30 : 20)
+                  ? AppTheme.accent.withAlpha(isDark ? 25 : 15)
                   : Colors.transparent,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selected ? icon : outline,
-                  size: 22,
+            child: Row(children: [
+              Icon(
+                selected ? icon : outline,
+                size: 20,
+                color: selected
+                    ? AppTheme.accent
+                    : (isDark ? Colors.white : Colors.black).withAlpha(160),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected
-                      ? AppTheme.blue
-                      : (isDark ? Colors.white : Colors.black).withAlpha(140),
+                      ? AppTheme.accent
+                      : (isDark ? Colors.white : const Color(0xFF1A1A18)).withAlpha(180),
+                  letterSpacing: -0.1,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? AppTheme.blue
-                        : (isDark ? Colors.white : Colors.black).withAlpha(140),
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ]),
           ),
         ),
       ),
