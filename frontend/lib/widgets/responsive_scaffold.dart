@@ -82,21 +82,28 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
-                      // collapse toggle — left-aligned with content
-                      Padding(
-                        padding: const EdgeInsets.only(left: 14),
-                        child: _CollapseToggle(
-                          collapsed: collapsed,
-                          isDark: isDark,
-                          onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                      const SizedBox(height: 16),
+                      if (collapsed)
+                        Center(
+                          child: _CollapseToggle(
+                            collapsed: collapsed,
+                            isDark: isDark,
+                            onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(children: [
+                            Expanded(child: _SidebarLogo(auth: auth)),
+                            _CollapseToggle(
+                              collapsed: collapsed,
+                              isDark: isDark,
+                              onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                            ),
+                          ]),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (!collapsed) ...[
-                        _SidebarLogo(auth: auth),
-                        const SizedBox(height: 20),
-                      ],
+                      const SizedBox(height: 16),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
