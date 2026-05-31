@@ -91,7 +91,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                       ),
                       const SizedBox(height: 12),
                       if (!collapsed) ...[
-                        _SidebarAvatar(auth: auth),
+                        _SidebarLogo(auth: auth),
                         const SizedBox(height: 20),
                       ],
                       Expanded(
@@ -111,6 +111,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                         ),
                       ),
                       if (!collapsed) ...[
+                        const SizedBox(height: 8),
+                        const Divider(height: 1, indent: 14, endIndent: 14),
                         const SizedBox(height: 8),
                         _SidebarAction(
                           icon: Icons.search_rounded,
@@ -223,7 +225,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                         onTap: () => setState(() => _mobileDrawerOpen = false),
                         closeIcon: true,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+                      _SidebarLogo(auth: auth),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -307,34 +310,36 @@ class _CollapseToggle extends StatelessWidget {
 
 // ── Sidebar components ──
 
-class _SidebarAvatar extends StatelessWidget {
+class _SidebarLogo extends StatelessWidget {
   final AuthState auth;
-  const _SidebarAvatar({required this.auth});
+  const _SidebarLogo({required this.auth});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.blue, Color(0xFF5856D6)],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          auth.user?.username[0].toUpperCase() ?? '?',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            letterSpacing: -0.2,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = isDark ? AppTheme.darkText : AppTheme.lightText;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      child: Row(children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            gradient: const LinearGradient(colors: [AppTheme.accent, AppTheme.accentLight]),
           ),
+          child: const Icon(Icons.hexagon_rounded, color: Colors.white, size: 16),
         ),
-      ),
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('AI_manage',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg, letterSpacing: -0.3)),
+          Text(auth.user?.department ?? 'Enterprise',
+              style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        ]),
+      ]),
     );
   }
 }
@@ -387,8 +392,13 @@ class _GroupLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 4, 0, 6),
-      child: Text(text, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color, letterSpacing: 1.2)),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color.withAlpha(120),
+              letterSpacing: 1.5)),
     );
   }
 }
@@ -459,16 +469,16 @@ class _SidebarNavItem extends StatelessWidget {
         : Colors.transparent;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               color: bg,
             ),
             child: Row(children: [
