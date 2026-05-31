@@ -205,14 +205,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -200,
+            left: _mobileDrawerOpen ? 0 : -180,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 200,
+                  width: 180,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
@@ -236,7 +236,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
-                          child: _SidebarNavCollapsed(
+                          child: _SidebarNav(
                             items: items,
                             currentIndex: idx,
                             onTap: (i) {
