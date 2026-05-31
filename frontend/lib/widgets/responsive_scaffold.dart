@@ -93,7 +93,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                         )
                       else
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          padding: const EdgeInsets.only(left: 8),
                           child: Row(children: [
                             Expanded(child: _SidebarLogo(auth: auth)),
                             _CollapseToggle(
@@ -231,7 +231,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                     children: [
                       SizedBox(height: topPadding + 16),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.only(left: 8),
                         child: Row(children: [
                           Expanded(child: _SidebarLogo(auth: auth)),
                           _MobileBurger(
