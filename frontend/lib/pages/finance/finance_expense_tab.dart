@@ -44,6 +44,38 @@ Color _statusColor(String status) {
   }
 }
 
+class _TableHeader extends StatelessWidget {
+  final String text;
+  const _TableHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _TableCell(this.child, {required this.isDark, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+}
+
 class FinanceExpenseTab extends StatefulWidget {
   const FinanceExpenseTab({super.key});
 
@@ -994,55 +1026,106 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
       const SizedBox(height: 8),
 
       // ── Content: DataTable ──
-      Expanded(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _items.isEmpty
-                ? _buildEmptyState(theme)
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.resolveWith((states) =>
-                          isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
-                        dataRowMinHeight: 40,
-                        dataRowMaxHeight: 48,
-                        headingRowHeight: 36,
-                        horizontalMargin: 16,
-                        columnSpacing: 20,
-                        columns: const [
-                          DataColumn(label: Text('金额', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('类别', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('类型', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('描述', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('日期', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('状态', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                        ],
-                        rows: _items.map((e) {
-                          final status = e['status'] as String? ?? 'pending';
-                          final cat = e['category'] as String? ?? 'other';
-                          final type = e['expense_type'] as String? ?? 'reimbursement';
-                          return DataRow(
-                            onSelectChanged: (selected) {
-                              if (selected == true) {
-                                _showDetailSheet(e);
-                              }
-                            },
-                            cells: [
-                              DataCell(Text('\u{FFE5}${(e['amount'] as num?)?.toStringAsFixed(0) ?? '0'}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                              DataCell(Text(_categoryLabel(cat), style: const TextStyle(fontSize: 12))),
-                              DataCell(Text(type == 'direct' ? '直接支出' : '员工报销', style: const TextStyle(fontSize: 12))),
-                              DataCell(Text((e['description'] as String?) ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              DataCell(Text(((e['created_at'] as String?) ?? '').length >= 10 ? (e['created_at'] as String).substring(0, 10) : '', style: const TextStyle(fontSize: 12))),
-                              DataCell(Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status)))),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
+      if (_loading)
+        const Center(child: CircularProgressIndicator())
+      else if (_items.isEmpty)
+        Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 8),
+            Text('暂无支出记录', style: TextStyle(color: Colors.grey.shade500)),
+          ]),
+        )
+      else
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Table(
+              columnWidths: const {
+                0: FlexColumnWidth(1.2),  // 金额
+                1: FlexColumnWidth(0.8),  // 类别
+                2: FlexColumnWidth(0.8),  // 类型
+                3: FlexColumnWidth(1.6),  // 描述
+                4: FlexColumnWidth(1.1),  // 日期
+                5: FlexColumnWidth(1.0),  // 状态
+              },
+              border: TableBorder(
+                horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+              ),
+              children: [
+                // Header row
+                TableRow(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
                   ),
-      ),
+                  children: const [
+                    _TableHeader('金额'),
+                    _TableHeader('类别'),
+                    _TableHeader('类型'),
+                    _TableHeader('描述'),
+                    _TableHeader('日期'),
+                    _TableHeader('状态'),
+                  ],
+                ),
+                // Data rows
+                ..._items.map((e) {
+                  final status = e['status'] as String? ?? 'pending';
+                  final cat = e['category'] as String? ?? 'other';
+                  final type = e['expense_type'] as String? ?? 'reimbursement';
+                  final desc = e['description'] as String? ?? '';
+                  final date = (e['created_at'] as String? ?? '');
+                  return TableRow(
+                    children: [
+                      _TableCell(
+                        Text('\u{FFE5}${(e['amount'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                      _TableCell(
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          Container(width: 8, height: 8, decoration: BoxDecoration(color: _categoryColor(cat), shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text(_categoryLabel(cat), style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        ]),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                      _TableCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (type == 'direct' ? AppTheme.green : AppTheme.accent).withAlpha(isDark ? 25 : 15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(type == 'direct' ? '直接' : '报销', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: type == 'direct' ? AppTheme.green : AppTheme.accent)),
+                        ),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                      _TableCell(
+                        Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                      _TableCell(
+                        Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                      _TableCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _statusColor(status).withAlpha(isDark ? 30 : 20),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status))),
+                        ),
+                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
     ]);
   }
 
