@@ -336,9 +336,7 @@ class _SidebarLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fg = isDark ? AppTheme.darkText : AppTheme.lightText;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-      child: Row(children: [
+    return Row(children: [
         Container(
           width: 20,
           height: 20,
@@ -357,8 +355,7 @@ class _SidebarLogo extends StatelessWidget {
                   fontSize: 9,
                   color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
         ]),
-      ]),
-    );
+      ]);
   }
 }
 
