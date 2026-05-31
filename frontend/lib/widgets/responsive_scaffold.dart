@@ -65,7 +65,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            width: collapsed ? 56 : 220,
+            width: collapsed ? 56 : 200,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -195,8 +195,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
               child: GestureDetector(
                 onTap: () => setState(() => _mobileDrawerOpen = false),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  color: Colors.black.withAlpha(_mobileDrawerOpen ? 80 : 0),
+                  duration: const Duration(milliseconds: 200),
+                  color: Colors.black.withAlpha(_mobileDrawerOpen ? 120 : 0),
                 ),
               ),
             ),
@@ -205,14 +205,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -220,
+            left: _mobileDrawerOpen ? 0 : -200,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 220,
+                  width: 200,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
@@ -328,8 +328,8 @@ class _SidebarLogo extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
       child: Row(children: [
         Container(
-          width: 24,
-          height: 24,
+          width: 20,
+          height: 20,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6),
             gradient: const LinearGradient(colors: [AppTheme.accent, AppTheme.accentLight]),
@@ -339,10 +339,10 @@ class _SidebarLogo extends StatelessWidget {
         const SizedBox(width: 10),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('AI_manage',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg, letterSpacing: -0.3)),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg, letterSpacing: -0.3)),
           Text(auth.user?.department ?? 'Enterprise',
               style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
         ]),
       ]),
@@ -401,7 +401,7 @@ class _GroupLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
       child: Text(text,
           style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
               color: color.withAlpha(120),
               letterSpacing: 1.5)),
@@ -475,22 +475,22 @@ class _SidebarNavItem extends StatelessWidget {
         : Colors.transparent;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               color: bg,
             ),
             child: Row(children: [
-              Icon(selected ? icon : outline, size: 18, color: fg),
+              Icon(selected ? icon : outline, size: 16, color: fg),
               const SizedBox(width: 10),
-              Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg))),
+              Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg))),
             ]),
           ),
         ),

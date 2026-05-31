@@ -36,6 +36,17 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
     _router = _buildRouter();
   }
 
+  /// Determine home page based on user modules
+  String _homeRoute(AuthState auth) {
+    final modules = auth.user?.accessibleModules ?? [];
+    // Admin/all-modules or multi-module -> overview dashboard
+    if (modules.contains('dashboard') || modules.length > 3) return '/dashboard';
+    // Single module -> go directly to that module
+    if (modules.length == 1) return '/${modules.first}';
+    // Default
+    return '/dashboard';
+  }
+
   String? _routeModule(String location) {
     if (location.startsWith('/dashboard')) return 'dashboard';
     if (location.startsWith('/files')) return 'files';
@@ -58,17 +69,17 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
 
         if (!auth.isInitialized) return '/loading';
         if (loc == '/loading') {
-          return auth.isLoggedIn ? '/dashboard' : '/login';
+          return auth.isLoggedIn ? _homeRoute(auth) : '/login';
         }
         if (!auth.isLoggedIn && loc != '/login') return '/login';
-        if (auth.isLoggedIn && loc == '/login') return '/dashboard';
+        if (auth.isLoggedIn && loc == '/login') return _homeRoute(auth);
         if (loc == '/users') return '/hr';
 
         // module access check
         if (auth.isLoggedIn && auth.user != null && !auth.user!.isAdmin) {
           final module = _routeModule(loc);
           if (module != null && !auth.user!.accessibleModules.contains(module)) {
-            return '/dashboard';
+            return _homeRoute(auth);
           }
         }
         return null;
@@ -185,13 +196,15 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
     ref.listen(authProvider, (prev, next) {
       // Handle initial auth check completion
       if (prev?.isInitialized != true && next.isInitialized) {
-        appLog('[APP] auth initialized, going to ${next.isLoggedIn ? '/dashboard' : '/login'}');
-        _router.go(next.isLoggedIn ? '/dashboard' : '/login');
+        final home = _homeRoute(next);
+        appLog('[APP] auth initialized, going to ${next.isLoggedIn ? home : '/login'}');
+        _router.go(next.isLoggedIn ? home : '/login');
         return;
       }
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
-        appLog('[APP] redirect: /dashboard');
-        _router.go('/dashboard');
+        final home = _homeRoute(next);
+        appLog('[APP] redirect: $home');
+        _router.go(home);
       } else if (prev?.isLoggedIn == true && !next.isLoggedIn) {
         appLog('[APP] redirect: /login');
         _router.go('/login');
