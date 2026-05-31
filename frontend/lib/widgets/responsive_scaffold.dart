@@ -230,13 +230,17 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   child: Column(
                     children: [
                       SizedBox(height: topPadding + 16),
-                      _MobileBurger(
-                        isDark: isDark,
-                        onTap: () => setState(() => _mobileDrawerOpen = false),
-                        closeIcon: true,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(children: [
+                          Expanded(child: _SidebarLogo(auth: auth)),
+                          _MobileBurger(
+                            isDark: isDark,
+                            onTap: () => setState(() => _mobileDrawerOpen = false),
+                            closeIcon: true,
+                          ),
+                        ]),
                       ),
-                      const SizedBox(height: 8),
-                      _SidebarLogo(auth: auth),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
