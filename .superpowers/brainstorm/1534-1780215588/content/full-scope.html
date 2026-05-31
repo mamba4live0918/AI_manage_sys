@@ -1,0 +1,175 @@
+<h2>SaaS UI 改造 — 完整范围（全模块）</h2>
+<p class="subtitle">不是只改财务，是整个系统从移动端延伸 → 专业企业后台</p>
+
+<div class="section">
+  <h3>对比一览</h3>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前 — 移动端延伸</div>
+    <div class="mockup-body" style="font-size:11px">
+      <div style="background:#F2F2F7;padding:6px;border-radius:4px">
+        <div style="display:flex;margin-bottom:4px">
+          <div style="width:44px;background:#fff;border-radius:4px;padding:6px 2px;text-align:center;margin-right:3px">
+            <div style="font-size:16px;margin:6px 0">🏠</div><div style="font-size:16px;margin:6px 0">📁</div>
+            <div style="font-size:16px;margin:6px 0">✨</div><div style="font-size:16px;margin:6px 0">📋</div>
+            <div style="font-size:16px;margin:6px 0">📊</div><div style="font-size:16px;margin:6px 0">⚖️</div>
+            <div style="font-size:16px;margin:6px 0">🛠</div><div style="font-size:16px;margin:6px 0">👥</div>
+            <div style="font-size:16px;margin:6px 0;color:#007AFF">💰</div>
+          </div>
+          <div style="flex:1">
+            <div style="background:#fff;border-radius:4px;padding:8px;margin-bottom:3px">
+              <div style="font-weight:600;font-size:10px;margin-bottom:4px">财务 Dashboard</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
+                <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:4px;padding:6px;color:#fff;font-size:8px">本月收入<br/><b style="font-size:12px">¥0</b></div>
+                <div style="background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:4px;padding:6px;color:#fff;font-size:8px">累计应收<br/><b style="font-size:12px">¥0</b></div>
+              </div>
+              <div style="display:flex;gap:3px;margin-top:4px">
+                <div style="flex:1;background:#667eea18;border-radius:4px;padding:4px;text-align:center;font-size:7px">📋票据</div>
+                <div style="flex:1;background:#4facfe18;border-radius:4px;padding:4px;text-align:center;font-size:7px">💰预算</div>
+                <div style="flex:1;background:#f093fb18;border-radius:4px;padding:4px;text-align:center;font-size:7px">💳支出</div>
+                <div style="flex:1;background:#f5576c18;border-radius:4px;padding:4px;text-align:center;font-size:7px">📎凭证</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
+              <div style="background:#fff;border-radius:4px;padding:6px;font-size:8px">
+                <div style="font-weight:600;margin-bottom:3px">其他模块</div>
+                <div style="color:#999">HR Dashboard</div>
+                <div style="color:#999;margin-bottom:2px">KPI卡片+饼图</div>
+                <div style="color:#999">项目管理</div>
+                <div style="color:#999">TabBar切换</div>
+              </div>
+              <div style="background:#fff;border-radius:4px;padding:6px;font-size:8px">
+                <div style="font-weight:600;margin-bottom:3px">票据列表</div>
+                <div style="border:1px solid #eee;border-radius:3px;padding:3px;margin-bottom:2px;font-size:7px">卡片堆叠</div>
+                <div style="border:1px solid #eee;border-radius:3px;padding:3px;margin-bottom:2px;font-size:7px">进度条+按钮</div>
+                <div style="border:1px solid #eee;border-radius:3px;padding:3px;font-size:7px">浮窗弹窗</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;color:#999;font-size:8px;padding:4px">
+          56px纯图标侧边栏 · 紫色渐变KPI · 全屏切换 · 卡片列表 · 彩色图标 · 大圆角
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">目标 — SaaS 企业后台</div>
+    <div class="mockup-body" style="font-size:11px">
+      <div style="background:#141414;padding:6px;border-radius:4px;color:#fff">
+        <div style="display:flex;margin-bottom:4px">
+          <div style="width:150px;background:#1A1A1A;border-radius:4px;padding:10px 8px;margin-right:4px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #262626">
+              <div style="width:18px;height:18px;background:#3B82F6;border-radius:4px"></div>
+              <div style="font-size:10px;font-weight:600">AI_manage</div>
+            </div>
+            <div style="font-size:8px;color:#666;margin-bottom:4px;padding:0 6px">MAIN</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">🏠 首页</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">📁 文件管理</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">✨ 讲师IP</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">📋 审计日志</div>
+            <div style="font-size:8px;color:#666;margin:8px 0 4px;padding:0 6px">BUSINESS</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">📊 市场部</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">⚖ 招投标</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">🛠 项目管理</div>
+            <div style="padding:5px 6px;border-radius:4px;margin-bottom:1px;font-size:9px">👥 HR</div>
+            <div style="padding:5px 6px;border-radius:4px;background:#3B82F6;margin-bottom:1px;font-size:9px">💰 财务</div>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div style="font-size:8px;color:#666">首页</div>
+              <div style="font-size:8px;color:#444">›</div>
+              <div style="font-size:8px;color:#888">财务</div>
+            </div>
+            <div style="display:flex;gap:2px;margin-bottom:6px;border-bottom:1px solid #262626">
+              <div style="font-size:8px;color:#3B82F6;border-bottom:2px solid #3B82F6;padding-bottom:3px;padding:4px 6px">概览</div>
+              <div style="font-size:8px;color:#666;padding:4px 6px">票据</div>
+              <div style="font-size:8px;color:#666;padding:4px 6px">预算</div>
+              <div style="font-size:8px;color:#666;padding:4px 6px">支出</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px">
+              <div style="background:#1A1A1A;border:1px solid #262626;border-radius:4px;padding:8px">
+                <div style="font-size:8px;color:#888">本月收入</div>
+                <div style="font-size:16px;font-weight:700">¥0</div>
+              </div>
+              <div style="background:#1A1A1A;border:1px solid #262626;border-radius:4px;padding:8px">
+                <div style="font-size:8px;color:#888">待收款</div>
+                <div style="font-size:16px;font-weight:700">¥0</div>
+              </div>
+              <div style="background:#1A1A1A;border:1px solid #262626;border-radius:4px;padding:8px">
+                <div style="font-size:8px;color:#888">待审批</div>
+                <div style="font-size:16px;font-weight:700">0</div>
+              </div>
+            </div>
+            <div style="background:#1A1A1A;border:1px solid #262626;border-radius:4px;padding:6px;margin-bottom:3px">
+              <div style="display:flex;justify-content:space-between;font-size:7px;color:#888;margin-bottom:3px;border-bottom:1px solid #262626;padding-bottom:3px">
+                <div style="width:20%">编号</div><div style="width:15%">金额</div><div style="width:20%">购买方</div><div style="width:20%">销售方</div><div style="width:15%">状态</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:7px;padding:2px 0;border-bottom:1px solid #202020">
+                <div style="width:20%;color:#3B82F6">INV-001</div><div style="width:15%">¥50K</div><div style="width:20%">甲公司</div><div style="width:20%;color:#888">—</div><div style="width:15%;color:#22C55E">已收款</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:7px;padding:2px 0">
+                <div style="width:20%;color:#3B82F6">INV-002</div><div style="width:15%">¥12.8K</div><div style="width:20%;color:#888">—</div><div style="width:20%;color:#888">—</div><div style="width:15%;color:#F59E0B">已开票</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;color:#666;font-size:8px;padding:4px">
+          220px宽侧边栏 · 分组导航 · 面包屑 · Tab切换 · 数据表格 · 无渐变 · 统一蓝色强调
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改什么（6个组件，覆盖全系统）</h3>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>ResponsiveScaffold — 侧边栏重构</h3>
+      <p>56→220px，图标+文字横向排列，模块分组（Main/Business），当前模块背景高亮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="theme" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>AppTheme — 全局主题升级</h3>
+      <p>去掉所有紫色/粉色/绿色渐变KPI卡片，统一蓝灰配色，微阴影替代彩色边框</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>页面内Tab — 全模块改造</h3>
+      <p>财/HR/市场/招投标/PM 所有Dashboard用Tab切换子页面，替代Navigator.push全屏跳转</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tables" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>DataTable — 列表页表格化</h3>
+      <p>票据/支出/凭证/客户/项目/供应商/讲师 全部改为紧凑DataTable，支持排序筛选</p>
+    </div>
+  </div>
+  <div class="option" data-choice="breadcrumb" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>面包屑导航</h3>
+      <p>所有子页面顶部显示 首页 > 财务 > 票据管理，而不是只有返回按钮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="density" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>信息密度提升</h3>
+      <p>减少留白、缩小字号、紧凑间距，让一屏显示更多内容，专业工具感</p>
+    </div>
+  </div>
+</div>
