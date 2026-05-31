@@ -21,18 +21,18 @@ class AppTheme {
   static const lightBgEnd = Color(0xFFEBEDF3);
   static const lightSurface = Color(0x7AFFFFFF);
   static const lightSurfaceSolid = Color(0xFFFFFFFF);
-  static const lightBorder = Color(0x1F6366F1);
-  static const lightText = Color(0xFF1E1E3D);
-  static const lightTextSecondary = Color(0xFF8B8BB0);
+  static const lightBorder = Color(0x2E6366F1);
+  static const lightText = Color(0xFF1A1A2E);
+  static const lightTextSecondary = Color(0xFF6B6B8A);
   static const lightAccentBg = Color(0x144F46E5);
 
   // Dark — Clean charcoal
-  static const darkBg = Color(0xFF0F1115);
+  static const darkBg = Color(0xFF0D0F13);
   static const darkSurface = Color(0xFF16181D);
-  static const darkSurfaceAlt = Color(0xFF1A1D22);
-  static const darkBorder = Color(0xFF202328);
-  static const darkText = Color(0xFFE8E8E8);
-  static const darkTextSecondary = Color(0xFF6A6A6A);
+  static const darkSurfaceAlt = Color(0xFF1F2228);
+  static const darkBorder = Color(0xFF2A2D33);
+  static const darkText = Color(0xFFEDEDED);
+  static const darkTextSecondary = Color(0xFF9CA3AF);
   static const darkAccentBg = Color(0x1A4F46E5);
 
   // ── Backward compatibility aliases ──

@@ -62,7 +62,7 @@ class _TableCell extends StatelessWidget {
   final Widget child;
   final bool isDark;
   final VoidCallback? onTap;
-  const _TableCell(this.child, {required this.isDark, this.onTap});
+  _TableCell(this.child, {required this.isDark, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1079,7 +1079,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                       _TableCell(
                         Text('\u{FFE5}${(e['amount'] as num?)?.toStringAsFixed(0) ?? '0'}',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1087,7 +1087,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                           const SizedBox(width: 6),
                           Text(_categoryLabel(cat), style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                         ]),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Container(
@@ -1098,15 +1098,15 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                           ),
                           child: Text(type == 'direct' ? '直接' : '报销', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: type == 'direct' ? AppTheme.green : AppTheme.accent)),
                         ),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Container(
@@ -1117,7 +1117,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                           ),
                           child: Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status))),
                         ),
-                        isDark: isDark, onTap: () => _showDetailSheet(context, e),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                     ],
                   );
