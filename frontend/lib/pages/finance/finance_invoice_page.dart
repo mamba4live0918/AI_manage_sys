@@ -24,6 +24,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final Map<String, double> _paymentTotals = {};
   final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingPayments = false;
+  List<Map<String, dynamic>> _projectList = [];
+  bool _projectsLoaded = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   int _page = 0;
@@ -517,6 +519,15 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     );
   }
 
+  Future<void> _loadProjects() async {
+    if (_projectsLoaded) return;
+    try {
+      final resp = await _api.dio.get('/pm/projects', queryParameters: {'limit': '200'});
+      _projectList = List<Map<String, dynamic>>.from(resp.data['items'] ?? []);
+      _projectsLoaded = true;
+    } catch (_) {}
+  }
+
   // ─── Create dialog ───
 
   void _showCreateDialog(BuildContext context) {
@@ -581,9 +592,30 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true)),
               const SizedBox(height: 8),
-              TextField(
-                  controller: projectIdCtrl,
-                  decoration: const InputDecoration(labelText: '关联项目ID')),
+              FutureBuilder(
+                future: _loadProjects(),
+                builder: (_, __) => Autocomplete<Map<String, dynamic>>(
+                  displayStringForOption: (p) => p['name'] as String? ?? '',
+                  optionsBuilder: (textEditingValue) {
+                    if (textEditingValue.text.isEmpty) return _projectList;
+                    return _projectList.where((p) =>
+                      (p['name'] as String? ?? '').toLowerCase().contains(textEditingValue.text.toLowerCase())
+                    ).toList();
+                  },
+                  onSelected: (p) {
+                    projectIdCtrl.text = p['id'] as String? ?? '';
+                  },
+                  fieldViewBuilder: (ctx, ctrl, node) => TextField(
+                    controller: ctrl,
+                    focusNode: node,
+                    decoration: InputDecoration(
+                      labelText: '关联项目',
+                      hintText: '搜索并选择项目',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
