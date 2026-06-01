@@ -1,0 +1,176 @@
+<h2>预算图表设计 — 已用 vs 总额</h2>
+<p class="subtitle">Indigo Glass 风格 · 两版方案 · 当前页面的 stacked progress bar 升级</p>
+
+<div class="cards">
+  <div class="card" data-choice="horizontal" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:16px;border-radius:10px;min-height:300px">
+        <div style="font-size:10px;font-weight:600;color:#1E1E3D;margin-bottom:12px">预算使用概览</div>
+
+        <!-- Horizontal stacked bar approach -->
+        <div style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#8B8BB0;margin-bottom:4px">
+            <span>办公费</span><span>¥238,000 / ¥500,000 (47.6%)</span>
+          </div>
+          <div style="height:28px;background:rgba(0,0,0,0.04);border-radius:6px;overflow:hidden;position:relative">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:6px 0 0 6px"></div>
+            <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px;justify-content:space-between">
+              <span style="font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.2)">¥238K</span>
+              <span style="font-size:9px;color:#8B8BB0">余额 ¥262K</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#8B8BB0;margin-bottom:4px">
+            <span>差旅费</span><span>¥45,000 / ¥80,000 (56.3%)</span>
+          </div>
+          <div style="height:28px;background:rgba(0,0,0,0.04);border-radius:6px;overflow:hidden;position:relative">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:56.3%;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:6px 0 0 6px"></div>
+            <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px;justify-content:space-between">
+              <span style="font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.2)">¥45K</span>
+              <span style="font-size:9px;color:#8B8BB0">余额 ¥35K</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#8B8BB0;margin-bottom:4px">
+            <span>设备费</span><span>¥12,000 / ¥50,000 (24.0%)</span>
+          </div>
+          <div style="height:28px;background:rgba(0,0,0,0.04);border-radius:6px;overflow:hidden;position:relative">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:24%;background:linear-gradient(135deg,#14B8A6,#5EEAD4);border-radius:6px 0 0 6px"></div>
+            <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px;justify-content:space-between">
+              <span style="font-size:10px;color:#1E1E3D;font-weight:600">¥12K</span>
+              <span style="font-size:9px;color:#8B8BB0">余额 ¥38K</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#8B8BB0;margin-bottom:4px">
+            <span>培训费</span><span>¥3,500 / ¥30,000 (11.7%)</span>
+          </div>
+          <div style="height:28px;background:rgba(0,0,0,0.04);border-radius:6px;overflow:hidden;position:relative">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:11.7%;background:linear-gradient(135deg,#8B5CF6,#A78BFA);border-radius:6px 0 0 6px"></div>
+            <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px">
+              <span style="font-size:10px;color:#1E1E3D;font-weight:600">¥3.5K</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:8px;color:#8B8BB0;text-align:center;margin-top:4px">
+          水平堆叠条 — 已用金额浮在条上，余额在右
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 水平堆叠进度条</h3>
+      <p>保留现有 stacked bar 风格，加厚到 28px，已用金额叠加在色块上，余额标注在右侧。简单直观，不占空间。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="vertical" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:16px;border-radius:10px;min-height:300px">
+        <div style="font-size:10px;font-weight:600;color:#1E1E3D;margin-bottom:12px">预算使用概览</div>
+
+        <!-- Vertical grouped bar chart -->
+        <div style="height:220px;position:relative;padding-left:60px;padding-bottom:20px">
+          <!-- Y axis labels -->
+          <div style="position:absolute;left:0;top:0;bottom:20px;width:55px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding-right:8px">
+            <span style="font-size:8px;color:#8B8BB0">500K</span>
+            <span style="font-size:8px;color:#8B8BB0">375K</span>
+            <span style="font-size:8px;color:#8B8BB0">250K</span>
+            <span style="font-size:8px;color:#8B8BB0">125K</span>
+            <span style="font-size:8px;color:#8B8BB0">0</span>
+          </div>
+          <!-- Grid lines -->
+          <div style="position:absolute;left:60px;right:8px;top:0;bottom:20px">
+            <div style="position:absolute;top:0;left:0;right:0;height:0.5px;background:rgba(0,0,0,0.06)"></div>
+            <div style="position:absolute;top:25%;left:0;right:0;height:0.5px;background:rgba(0,0,0,0.06)"></div>
+            <div style="position:absolute;top:50%;left:0;right:0;height:0.5px;background:rgba(0,0,0,0.06)"></div>
+            <div style="position:absolute;top:75%;left:0;right:0;height:0.5px;background:rgba(0,0,0,0.06)"></div>
+          </div>
+          <!-- Bars -->
+          <div style="display:flex;align-items:flex-end;justify-content:space-around;height:200px;padding:0 20px">
+            <!-- Office -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:160px">
+                <div style="width:24px;height:76px;background:rgba(79,70,229,0.15);border-radius:4px 4px 0 0;border:1px dashed rgba(79,70,229,0.3);border-bottom:none"></div>
+                <div style="width:24px;height:76px;background:#4F46E5;border-radius:4px 4px 0 0;position:relative">
+                  <span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:600;color:#4F46E5">238K</span>
+                </div>
+              </div>
+              <span style="font-size:8px;color:#8B8BB0">办公</span>
+            </div>
+            <!-- Travel -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:160px">
+                <div style="width:24px;height:26px;background:rgba(245,158,11,0.12);border-radius:4px 4px 0 0;border:1px dashed rgba(245,158,11,0.3);border-bottom:none"></div>
+                <div style="width:24px;height:90px;background:#F59E0B;border-radius:4px 4px 0 0;position:relative">
+                  <span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:600;color:#F59E0B">45K</span>
+                </div>
+              </div>
+              <span style="font-size:8px;color:#8B8BB0">差旅</span>
+            </div>
+            <!-- Equipment -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:160px">
+                <div style="width:24px;height:60px;background:rgba(20,184,166,0.12);border-radius:4px 4px 0 0;border:1px dashed rgba(20,184,166,0.3);border-bottom:none"></div>
+                <div style="width:24px;height:38px;background:#14B8A6;border-radius:4px 4px 0 0;position:relative">
+                  <span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:600;color:#14B8A6">12K</span>
+                </div>
+              </div>
+              <span style="font-size:8px;color:#8B8BB0">设备</span>
+            </div>
+            <!-- Training -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:160px">
+                <div style="width:24px;height:44px;background:rgba(139,92,246,0.12);border-radius:4px 4px 0 0;border:1px dashed rgba(139,92,246,0.3);border-bottom:none"></div>
+                <div style="width:24px;height:19px;background:#8B5CF6;border-radius:4px 4px 0 0;position:relative">
+                  <span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:600;color:#8B5CF6">3.5K</span>
+                </div>
+              </div>
+              <span style="font-size:8px;color:#8B8BB0">培训</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#8B8BB0">
+            <div style="width:12px;height:12px;background:#4F46E5;border-radius:2px"></div> 已使用
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#8B8BB0">
+            <div style="width:12px;height:12px;background:rgba(79,70,229,0.15);border:1px dashed rgba(79,70,229,0.3);border-radius:2px"></div> 预算总额
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 垂直分组柱状图</h3>
+      <p>每个预算项目两根柱子：已用(实色) + 总额(虚线边框)。顶部标注金额。fl_chart BarChart 实现。更有"看数据"的感觉。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>A 和 B 可以共存吗？</h3>
+  <p class="subtitle">A 放在列表上每个卡片里（紧凑内嵌），B 放在页面顶部作为概览图表。</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a-only" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>只要水平条</h3><p>不改结构，加厚美观即可</p></div>
+  </div>
+  <div class="option" data-choice="b-only" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>只要柱状图</h3><p>页面顶部加BarChart概览</p></div>
+  </div>
+  <div class="option" data-choice="both" onclick="toggleSelect(this)">
+    <div class="letter">A+B</div>
+    <div class="content"><h3>两者都做</h3><p>水平条在卡片 + 柱状图在顶部</p></div>
+  </div>
+</div>

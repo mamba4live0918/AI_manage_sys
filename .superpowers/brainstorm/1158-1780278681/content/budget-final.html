@@ -1,0 +1,140 @@
+<h2>预算条 — 最终设计</h2>
+<p class="subtitle">已用 = 灰色棋盘格(左) · 剩余 = 分类彩色(右) · 阅读顺序：花了多少 → 还剩多少</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:20px;border-radius:12px;min-height:380px">
+
+  <!-- Item 1: 办公费 -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#4F46E5"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">办公费</span>
+      </div>
+      <span style="font-size:10px;color:#8B8BB0">剩余 ¥262K / 总额 ¥500K</span>
+    </div>
+    <div style="height:36px;background:rgba(99,102,241,0.08);border-radius:8px;overflow:hidden;position:relative">
+      <!-- Grey checkerboard = USED (left, 47.6%) -->
+      <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background-color:#D4D4DC;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px),
+                         repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+        border-radius:8px 0 0 8px;border-right:1px solid rgba(0,0,0,0.08)">
+      </div>
+      <!-- Colored = REMAINING (right, 52.4%) -->
+      <div style="position:absolute;left:47.6%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 8px 8px 0">
+      </div>
+      <!-- Labels -->
+      <div style="position:absolute;left:10px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#6B6B8A">已用 ¥238K</span>
+      </div>
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.15)">剩余 ¥262K</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item 2: 差旅费 (预警) -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#F59E0B"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">差旅费</span>
+        <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(239,68,68,0.1);color:#EF4444;font-weight:500">超80%</span>
+      </div>
+      <span style="font-size:10px;color:#8B8BB0">剩余 ¥35K / 总额 ¥80K</span>
+    </div>
+    <div style="height:36px;background:rgba(245,158,11,0.08);border-radius:8px;overflow:hidden;position:relative">
+      <!-- 56.3% used -->
+      <div style="position:absolute;left:0;top:0;bottom:0;width:56.3%;background-color:#D4D4DC;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px),
+                         repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+        border-radius:8px 0 0 8px;border-right:1px solid rgba(0,0,0,0.08)">
+      </div>
+      <div style="position:absolute;left:56.3%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:0 8px 8px 0"></div>
+      <div style="position:absolute;left:10px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#6B6B8A">已用 ¥45K</span>
+      </div>
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.15)">剩余 ¥35K</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item 3: 设备费 (safe) -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#14B8A6"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">设备费</span>
+      </div>
+      <span style="font-size:10px;color:#8B8BB0">剩余 ¥38K / 总额 ¥50K</span>
+    </div>
+    <div style="height:36px;background:rgba(20,184,166,0.08);border-radius:8px;overflow:hidden;position:relative">
+      <!-- 24% used -->
+      <div style="position:absolute;left:0;top:0;bottom:0;width:24%;background-color:#D4D4DC;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px),
+                         repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+        border-radius:8px 0 0 8px;border-right:1px solid rgba(0,0,0,0.08)">
+      </div>
+      <div style="position:absolute;left:24%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#14B8A6,#5EEAD4);border-radius:0 8px 8px 0"></div>
+      <div style="position:absolute;left:10px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#6B6B8A">已用 ¥12K</span>
+      </div>
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#1E1E3D">剩余 ¥38K</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:16px;justify-content:center;margin-top:16px">
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#8B8BB0">
+      <div style="width:24px;height:16px;background-color:#D4D4DC;border-radius:3px;position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 3px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 3px)"></div>
+      </div>
+      已支出(棋盘格)
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#8B8BB0">
+      <div style="width:24px;height:16px;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:3px"></div>
+      剩余预算(彩色)
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Flutter 实现</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>棋盘格 pattern</h4>
+    <ul>
+      <li>用 CustomPainter 画交叉斜线</li>
+      <li>或者用 Container + ClipPath 裁剪</li>
+      <li>灰色底 #D4D4DC + 半透明斜线</li>
+      <li>已用区宽度 = (used/total) * 100%</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>条参数</h4>
+    <ul>
+      <li>高度 36px · 圆角 8px</li>
+      <li>已用=左(棋盘灰) · 剩余=右(彩色渐变)</li>
+      <li>使用量<30%时已用区文字可能溢出 → 不显示</li>
+      <li>>80%时显示红色预警标签</li>
+      <li>替换现有 _buildStackedProgressBar</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="confirm" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认 — 棋盘格+彩色剩余</h3>
+      <p>已用=灰色棋盘格(左) · 剩余=分类彩色渐变(右) · 36px高 · 预警标签</p>
+    </div>
+  </div>
+</div>

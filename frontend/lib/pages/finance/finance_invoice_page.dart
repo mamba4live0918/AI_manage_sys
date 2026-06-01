@@ -605,7 +605,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   onSelected: (p) {
                     projectIdCtrl.text = p['id'] as String? ?? '';
                   },
-                  fieldViewBuilder: (ctx, ctrl, node) => TextField(
+                  fieldViewBuilder: (ctx, ctrl, node, _) => TextField(
                     controller: ctrl,
                     focusNode: node,
                     decoration: InputDecoration(
