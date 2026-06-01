@@ -1292,7 +1292,10 @@ async def finance_dashboard(
     collection_rate = round(total_paid / total_invoiced, 4) if total_invoiced > 0 else 0.0
 
     # Budget usage
-    budget_query = select(Budget).where(Budget.status == "active").order_by(Budget.total_amount.desc())
+    budget_query = select(Budget).where(
+        Budget.status == "active",
+        Budget.parent_id.is_(None),  # root budgets only — children roll up via propagation
+    ).order_by(Budget.total_amount.desc())
     if dept_cond:
         budget_query = budget_query.where(Budget.department_id == user.department_id)
     budgets = (await db.execute(budget_query)).scalars().all()

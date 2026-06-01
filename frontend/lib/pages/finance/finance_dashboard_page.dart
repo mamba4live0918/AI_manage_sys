@@ -382,27 +382,16 @@ class _RevenueTrendChart extends StatelessWidget {
 
 // ── Budget Usage Section ──
 
-class _BudgetUsageSection extends StatefulWidget {
+class _BudgetUsageSection extends StatelessWidget {
   final FinanceDashboardData data;
   final bool isDark;
   const _BudgetUsageSection({required this.data, required this.isDark});
 
   @override
-  State<_BudgetUsageSection> createState() => _BudgetUsageSectionState();
-}
-
-class _BudgetUsageSectionState extends State<_BudgetUsageSection> {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = widget.isDark;
-    final all = widget.data.budgetUsage;
-    if (all.isEmpty) return const SizedBox.shrink();
-
-    final budgets = _expanded ? all : all.take(5).toList();
-    final hasMore = all.length > 5;
+    final budgets = data.budgetUsage;
+    if (budgets.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -417,18 +406,10 @@ class _BudgetUsageSectionState extends State<_BudgetUsageSection> {
             : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('预算使用情况',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: isDark ? AppTheme.darkText : AppTheme.lightText,
-              )),
-          const Spacer(),
-          if (hasMore)
-            TextButton(
-              onPressed: () => setState(() => _expanded = !_expanded),
-              child: Text(_expanded ? '收起' : '查看全部 (${all.length})', style: const TextStyle(fontSize: 12)),
-            ),
-        ]),
+        Text('预算使用情况',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: isDark ? AppTheme.darkText : AppTheme.lightText,
+            )),
         const SizedBox(height: 12),
         ...budgets.map((b) {
           final pct = b.total > 0 ? (b.used / b.total).clamp(0.0, 1.0) : 0.0;
