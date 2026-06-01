@@ -21,6 +21,7 @@ class Department(Base):
     description: Mapped[str] = mapped_column(String(256), default="")
     leader_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     accessible_modules: Mapped[list] = mapped_column(JSON, default=list)
+    color: Mapped[str] = mapped_column(String(32), default="#2196F3")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     leader: Mapped["User | None"] = relationship(foreign_keys=[leader_id], lazy="selectin")

@@ -199,6 +199,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
       ]);
       final deptList = List<Map<String, dynamic>>.from(results[1].data['items']);
       _deptNames = {for (var d in deptList) d['id'] as String: d['name'] as String? ?? ''};
+      _deptColors = {for (var d in deptList) d['id'] as String: _parseDeptColor(d['color'] as String?)};
       final budgetList = List<Map<String, dynamic>>.from(results[2].data['items']);
       _budgetMap = {for (var b in budgetList) b['id'] as String: b};
       setState(() {
@@ -1068,17 +1069,16 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     ));
   }
 
-  static const _deptPalette = [
-    Colors.blue, Colors.teal, Colors.orange, Colors.purple,
-    Colors.green, Colors.pink, Colors.indigo, Colors.cyan,
-    Colors.amber, Colors.deepOrange, Colors.lightGreen, Colors.deepPurple,
-  ];
+  Map<String, Color> _deptColors = {};
+
+  Color _parseDeptColor(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.blue;
+    try { return Color(int.parse(hex.replaceFirst('#', '0xff'))); } catch (_) { return Colors.blue; }
+  }
 
   Color _deptColor(String? deptId) {
     if (deptId == null) return Colors.grey;
-    final keys = _deptNames.keys.toList();
-    final idx = keys.indexOf(deptId);
-    return _deptPalette[idx >= 0 ? idx % _deptPalette.length : 0];
+    return _deptColors[deptId] ?? Colors.blue;
   }
 
   String _resolveDept(String? deptId) {
