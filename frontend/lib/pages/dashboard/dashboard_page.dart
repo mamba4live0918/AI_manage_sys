@@ -207,6 +207,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: Text('首页', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+          ),
           Text('主首页', style: theme.appBarTheme.titleTextStyle),
           const SizedBox(height: 20),
           _StatCardsRow(theme: theme, isDark: isDark, isDesktop: isDesktop),
@@ -334,8 +339,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        borderRadius: BorderRadius.circular(8),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+            : Border.all(color: AppTheme.lightBorder, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,15 +363,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(9),
-                        color: color.withAlpha(20),
-                      ),
-                      child: Icon(_typeIcon(type), size: 20, color: color),
-                    ),
+                    Icon(_typeIcon(type), size: 20, color: color),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -428,98 +428,101 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         if (items.isEmpty)
           _emptyHint('暂无最近活动')
         else
-          ...items.map((item) {
-            final action = item['action'] as String? ?? '';
-            final color = _actionColor(action);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {},
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(9),
-                            color: color.withAlpha(20),
-                          ),
-                          child: Icon(_actionIcon(action),
-                              size: 20, color: color),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['resource_name'] as String? ?? '',
-                                style: theme.textTheme.bodyMedium,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+              border: isDark
+                  ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+                  : Border.all(color: AppTheme.lightBorder, width: 0.5),
+            ),
+            child: Column(
+              children: items.map((item) {
+                final action = item['action'] as String? ?? '';
+                final color = _actionColor(action);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(_actionIcon(action),
+                                size: 20, color: color),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      borderRadius:
-                                          BorderRadius.circular(4),
-                                      color: color.withAlpha(25),
-                                    ),
-                                    child: Text(
-                                      _actionLabel(action),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: color,
+                                  Text(
+                                    item['resource_name'] as String? ?? '',
+                                    style: theme.textTheme.bodyMedium,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          color: color.withAlpha(25),
+                                        ),
+                                        child: Text(
+                                          _actionLabel(action),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: color,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item['username'] as String? ?? '',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: (isDark
-                                              ? Colors.white
-                                              : Colors.black)
-                                          .withAlpha(100),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    _timeAgo(
-                                        item['created_at'] as String?),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: (isDark
-                                              ? Colors.white
-                                              : Colors.black)
-                                          .withAlpha(80),
-                                    ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        item['username'] as String? ?? '',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: (isDark
+                                                  ? Colors.white
+                                                  : Colors.black)
+                                              .withAlpha(100),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        _timeAgo(
+                                            item['created_at'] as String?),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: (isDark
+                                                  ? Colors.white
+                                                  : Colors.black)
+                                              .withAlpha(80),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-            );
-          }),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }
@@ -558,21 +561,16 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: color.withAlpha(isDark ? 20 : 15),
+        borderRadius: BorderRadius.circular(8),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+            : Border.all(color: AppTheme.lightBorder, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9),
-              color: color.withAlpha(25),
-            ),
-            child: Icon(icon, size: 20, color: color),
-          ),
+          Icon(icon, size: 24, color: AppTheme.accent),
           const SizedBox(height: 12),
           Text(
             value,
@@ -581,7 +579,7 @@ class _StatCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
               height: 1.2,
-              color: isDark ? Colors.white : Colors.black,
+              color: AppTheme.accent,
             ),
           ),
           const SizedBox(height: 4),
