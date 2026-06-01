@@ -63,6 +63,14 @@ class ExpenseCreate(BaseModel):
 class ExpenseApprove(BaseModel):
     status: str  # approved or rejected
 
+class ExpenseUpdate(BaseModel):
+    amount: float | None = None
+    category: str | None = None
+    expense_type: str | None = None
+    description: str | None = None
+    budget_id: str | None = None
+    status: str | None = None
+
 
 class VoucherCreate(BaseModel):
     settlement_id: str | None = None
@@ -555,7 +563,7 @@ async def create_expense(
 @router.put("/expenses/{expense_id}")
 async def approve_expense(
     expense_id: str,
-    body: ExpenseApprove,
+    body: ExpenseUpdate,
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -566,14 +574,26 @@ async def approve_expense(
     if not e:
         raise HTTPException(404, "报销不存在")
     await _check_department(db, user, e.department_id, "审批")
-    if body.status not in ("approved", "rejected", "paid"):
-        raise HTTPException(400, "状态必须是 approved、rejected 或 paid")
-    e.status = body.status
+    old_status = e.status
+    update_data = body.model_dump(exclude_unset=True)
+    status_changed = False
+    for k, v in update_data.items():
+        if k == "budget_id":
+            setattr(e, k, uuid.UUID(v) if v else None)
+        elif k == "status" and v is not None:
+            if v not in ("approved", "rejected", "paid", "pending"):
+                raise HTTPException(400, "无效状态")
+            e.status = v
+            status_changed = True
+        elif v is not None:
+            setattr(e, k, v)
     e.updated_at = _now()
     await db.commit()
-    await _recalc_budget_usage(db)
+    if status_changed or e.status in ("approved", "paid"):
+        await _recalc_budget_usage(db)
     await db.refresh(e)
-    await audit_log(db, user, f"expense_{body.status}", "expense", e.id, e.category, request=request)
+    action = f"expense_{e.status}" if status_changed else "expense_update"
+    await audit_log(db, user, action, "expense", e.id, e.category, request=request)
     return _expense_row(e)
 
 
