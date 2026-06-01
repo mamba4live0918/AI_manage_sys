@@ -315,6 +315,24 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
                                 const SizedBox(height: 6),
                               ],
                               Text(a['content'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+                              if (status == 'pending') ...[
+                                const SizedBox(height: 8),
+                                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                  TextButton.icon(
+                                    onPressed: () => _approve(a['id'] as String, 'rejected'),
+                                    icon: const Icon(Icons.close, size: 14, color: AppTheme.red),
+                                    label: const Text('驳回', style: TextStyle(fontSize: 12, color: AppTheme.red)),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  FilledButton.icon(
+                                    onPressed: () => _approve(a['id'] as String, 'approved'),
+                                    icon: const Icon(Icons.check, size: 14),
+                                    label: const Text('通过', style: TextStyle(fontSize: 12)),
+                                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                  ),
+                                ]),
+                              ],
                             ]),
                           ),
                         ),
