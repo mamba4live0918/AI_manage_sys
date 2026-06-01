@@ -462,72 +462,117 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     const SizedBox(height: 20),
 
                     // Budget items breakdown
-                    _sectionTitle('预算项目详情', textColor),
+                    Row(children: [
+                      _sectionTitle('预算项目详情', textColor),
+                      const Spacer(),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('添加分类'),
+                        onPressed: () => _showAddCategoryItemDialog(ctx, b),
+                      ),
+                    ]),
                     const SizedBox(height: 8),
                     if (snapshot.connectionState == ConnectionState.waiting)
                       const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
-                    else if (b.items.isEmpty)
-                      _emptyHint('暂无预算项目', isDark)
-                    else
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: _cardDecoration(isDark),
-                        child: Column(children: [
-                          ...b.items.map((item) {
-                            final itemPct = b.totalAmount > 0 ? (item.amount / b.totalAmount * 100).clamp(0.0, 100.0) : 0.0;
-                            final usedPct = item.amount > 0 ? (item.usedAmount / item.amount * 100).clamp(0.0, 100.0) : 0.0;
-                            final catColor = _itemColor(item);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Row(children: [
-                                  Icon(_iconFromName(item.icon), size: 16, color: catColor),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(item.name.isNotEmpty ? '${_categoryLabel(item.category)} - ${item.name}' : _categoryLabel(item.category),
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: textColor)),
-                                  ),
-                                  Text(_fmt(item.amount), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
-                                ]),
-                                const SizedBox(height: 4),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(3),
-                                  child: SizedBox(
-                                    height: 6,
-                                    child: Stack(children: [
-                                      Container(color: catColor.withValues(alpha: 0.12)),
-                                      if (usedPct > 0)
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: FractionallySizedBox(
-                                            widthFactor: usedPct / 100,
-                                            child: CustomPaint(
-                                              painter: _CheckerboardPainter(isDark: isDark),
-                                              child: const SizedBox.expand(),
+                    else ...[
+                      if (b.items.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: _cardDecoration(isDark),
+                          child: Column(children: [
+                            ...b.items.map((item) {
+                              final itemPct = b.totalAmount > 0 ? (item.amount / b.totalAmount * 100).clamp(0.0, 100.0) : 0.0;
+                              final usedPct = item.amount > 0 ? (item.usedAmount / item.amount * 100).clamp(0.0, 100.0) : 0.0;
+                              final catColor = _itemColor(item);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Row(children: [
+                                    Icon(_iconFromName(item.icon), size: 16, color: catColor),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(item.name.isNotEmpty ? '${_categoryLabel(item.category)} - ${item.name}' : _categoryLabel(item.category),
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: textColor)),
+                                    ),
+                                    Text(_fmt(item.amount), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                                  ]),
+                                  const SizedBox(height: 4),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(3),
+                                    child: SizedBox(
+                                      height: 6,
+                                      child: Stack(children: [
+                                        Container(color: catColor.withValues(alpha: 0.12)),
+                                        if (usedPct > 0)
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: FractionallySizedBox(
+                                              widthFactor: usedPct / 100,
+                                              child: CustomPaint(
+                                                painter: _CheckerboardPainter(isDark: isDark),
+                                                child: const SizedBox.expand(),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                    ]),
+                                      ]),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(children: [
-                                  Text('已用 ${_fmt(item.usedAmount)}', style: TextStyle(fontSize: 11, color: labelColor)),
-                                  const Spacer(),
-                                  Text('${itemPct.toStringAsFixed(0)}% / ${usedPct.toStringAsFixed(0)}%',
-                                      style: TextStyle(fontSize: 11, color: usedPct > 90 ? Colors.red : labelColor)),
+                                  const SizedBox(height: 2),
+                                  Row(children: [
+                                    Text('已用 ${_fmt(item.usedAmount)}', style: TextStyle(fontSize: 11, color: labelColor)),
+                                    const Spacer(),
+                                    Text('${itemPct.toStringAsFixed(0)}% / ${usedPct.toStringAsFixed(0)}%',
+                                        style: TextStyle(fontSize: 11, color: usedPct > 90 ? Colors.red : labelColor)),
+                                  ]),
                                 ]),
-                              ]),
-                            );
-                          }),
-                          const Divider(height: 20),
-                          Row(children: [
-                            Text('预算总额', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
-                            const Spacer(),
-                            Text(_fmt(b.totalAmount), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                              );
+                            }),
+                            const Divider(height: 16),
                           ]),
+                        ),
+                      // Unallocated amount
+                      Builder(builder: (_) {
+                        final itemTotal = b.items.fold(0.0, (s, i) => s + i.amount);
+                        final unallocated = b.totalAmount - itemTotal;
+                        if (unallocated > 0) {
+                          return Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                              color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade50,
+                            ),
+                            child: Row(children: [
+                              Container(
+                                width: 16, height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(Icons.remove, size: 10, color: Colors.white),
+                              ),
+                              const SizedBox(width: 10),
+                              Text('未分配', style: TextStyle(fontSize: 13, color: labelColor)),
+                              const Spacer(),
+                              Text(_fmt(unallocated), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                            ]),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }),
+                      // Total
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: _cardDecoration(isDark),
+                        child: Row(children: [
+                          Text('预算总额', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const Spacer(),
+                          Text(_fmt(b.totalAmount), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
                         ]),
                       ),
+                    ],
                     const SizedBox(height: 20),
 
                     // Expense breakdown
@@ -1029,40 +1074,143 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     );
   }
 
+  // ── Add Category Item Dialog ──
+
+  void _showAddCategoryItemDialog(BuildContext parentContext, BudgetData budget) {
+    final nameCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String selectedCategory = 'other';
+    String selectedColor = '#4CAF50';
+    String selectedIcon = 'description';
+    String? amountError;
+
+    final itemTotal = budget.items.fold(0.0, (s, i) => s + i.amount);
+    final remaining = budget.totalAmount - itemTotal;
+
+    showDialog(
+      context: parentContext,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('添加分类项目'),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(parentContext).size.height * 0.55),
+            child: SizedBox(
+              width: 380,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('剩余可分配: ${_fmt(remaining)}', style: TextStyle(fontSize: 13, color: Colors.blue.shade600, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(labelText: '类别'),
+                    items: _categoryLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                    onChanged: (v) => setDialogState(() => selectedCategory = v ?? 'other'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: '项目名称', hintText: '例如：Google Ads投放'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: amountCtrl,
+                    decoration: InputDecoration(
+                      labelText: '金额',
+                      errorText: amountError,
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  Text('颜色', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  const SizedBox(height: 4),
+                  _colorPickerRow(selectedColor, (c) => setDialogState(() => selectedColor = c)),
+                  const SizedBox(height: 8),
+                  Text('图标', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  const SizedBox(height: 4),
+                  _iconPickerRow(selectedIcon, (ic) => setDialogState(() => selectedIcon = ic)),
+                ]),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            FilledButton(onPressed: () async {
+              final amount = double.tryParse(amountCtrl.text);
+              if (amount == null || amount <= 0) {
+                setDialogState(() => amountError = '请输入有效金额');
+                return;
+              }
+              if (amount > remaining) {
+                setDialogState(() => amountError = '不能超过剩余可分配金额 (${_fmt(remaining)})');
+                return;
+              }
+              try {
+                final newItems = <Map<String, dynamic>>[];
+                for (final item in budget.items) {
+                  newItems.add({
+                    'category': item.category,
+                    'name': item.name,
+                    'amount': item.amount,
+                    'color': item.color,
+                    'icon': item.icon,
+                  });
+                }
+                newItems.add({
+                  'category': selectedCategory,
+                  'name': nameCtrl.text,
+                  'amount': amount,
+                  'color': selectedColor,
+                  'icon': selectedIcon,
+                });
+                await _api.dio.put('/finance/budgets/${budget.id}', data: {
+                  'items': newItems,
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                _consumptionCache.remove(budget.id);
+                ref.read(financeBudgetProvider.notifier).load();
+                _loadSummary();
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(const SnackBar(content: Text('分类项目添加成功')));
+                }
+              } catch (e) {
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text('添加失败: $e')));
+                }
+              }
+            }, child: const Text('保存')),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Create Dialog ──
 
   void _showCreateDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
     final yearCtrl = TextEditingController(text: '2026');
     final quarterCtrl = TextEditingController();
+    final totalAmountCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     String? selectedProjectId;
     String selectedStatus = 'active';
-    // Line items: list of {category, nameCtrl, amountCtrl}
-    final List<Map<String, dynamic>> items = [
-      _newItemEntry('other', '', '0'),
-    ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final itemTotal = items.fold<double>(0, (s, item) {
-            final amt = double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0;
-            return s + amt;
-          });
-
           return AlertDialog(
-            title: const Text('创建预算'),
+            title: const Text('创建预算（资金池）'),
             content: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
               child: SizedBox(
                 width: 420,
                 child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称')),
+                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称', hintText: '例如：2026年Q1市场部预算')),
                   TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
                   TextField(controller: quarterCtrl, decoration: const InputDecoration(labelText: '季度 (1-4, 留空=全年)'), keyboardType: TextInputType.number),
+                  TextField(controller: totalAmountCtrl, decoration: const InputDecoration(labelText: '预算总额'), keyboardType: TextInputType.number),
                   const SizedBox(height: 8),
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: _loadProjects(),
@@ -1083,106 +1231,20 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: notesCtrl,
-                    decoration: const InputDecoration(labelText: '备注说明'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedStatus,
                     decoration: const InputDecoration(labelText: '状态'),
                     items: _statusLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                     onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'active'),
                   ),
-                  const SizedBox(height: 16),
-                  // ── Line Items Section ──
-                  Row(children: [
-                    const Text('预算项目', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    const Spacer(),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('添加'),
-                      onPressed: () {
-                        setDialogState(() {
-                          items.add(_newItemEntry('other', '', '0'));
-                        });
-                      },
-                    ),
-                  ]),
-                  const SizedBox(height: 4),
-                  ...List.generate(items.length, (i) {
-                    final item = items[i];
-                    final catCtrl = item['cat'] as String;
-                    final nameCtrl = item['nameCtrl'] as TextEditingController;
-                    final amountCtrl = item['amountCtrl'] as TextEditingController;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(children: [
-                          Row(children: [
-                            Expanded(
-                              flex: 2,
-                              child: DropdownButtonFormField<String>(
-                                initialValue: catCtrl,
-                                isDense: true,
-                                decoration: const InputDecoration(labelText: '类别', contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
-                                items: _categoryLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13)))).toList(),
-                                onChanged: (v) => setDialogState(() => items[i]['cat'] = v ?? 'other'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 3,
-                              child: TextField(
-                                controller: nameCtrl,
-                                decoration: const InputDecoration(labelText: '名称', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
-                              ),
-                            ),
-                          ]),
-                          const SizedBox(height: 4),
-                          Row(children: [
-                            Expanded(
-                              child: TextField(
-                                controller: amountCtrl,
-                                decoration: const InputDecoration(labelText: '金额', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
-                                keyboardType: TextInputType.number,
-                                onChanged: (_) => setDialogState(() {}),
-                              ),
-                            ),
-                            if (items.length > 1)
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                                onPressed: () => setDialogState(() => items.removeAt(i)),
-                              ),
-                          ]),
-                          const SizedBox(height: 4),
-                          _colorPickerRow(item['color'] as String, (c) => setDialogState(() => items[i]['color'] = c)),
-                          const SizedBox(height: 4),
-                          _iconPickerRow(item['icon'] as String, (ic) => setDialogState(() => items[i]['icon'] = ic)),
-                        ]),
-                      ),
-                    );
-                  }),
-                  // Total
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '合计: ${_fmt(itemTotal)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.blue),
-                      textAlign: TextAlign.center,
-                    ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(labelText: '备注说明'),
+                    maxLines: 2,
                   ),
+                  const SizedBox(height: 12),
+                  Text('创建后可添加分类项目', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                 ]),
               ),
             ),
@@ -1190,24 +1252,24 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
               FilledButton(onPressed: () async {
+                final totalAmount = double.tryParse(totalAmountCtrl.text);
+                if (totalAmount == null || totalAmount <= 0) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效的预算总额')));
+                  }
+                  return;
+                }
                 try {
                   int? quarter;
                   if (quarterCtrl.text.isNotEmpty) {
                     quarter = int.tryParse(quarterCtrl.text);
                   }
-                  final itemsList = items.map((item) => {
-                    'category': item['cat'] as String,
-                    'name': (item['nameCtrl'] as TextEditingController).text,
-                    'amount': double.tryParse((item['amountCtrl'] as TextEditingController).text) ?? 0,
-                    'color': item['color'] as String,
-                    'icon': item['icon'] as String,
-                  }).toList();
                   final data = <String, dynamic>{
                     'name': nameCtrl.text,
                     'year': int.tryParse(yearCtrl.text) ?? 2026,
                     'quarter': quarter,
+                    'total_amount': totalAmount,
                     'status': selectedStatus,
-                    'items': itemsList,
                   };
                   if (selectedProjectId != null) data['project_id'] = selectedProjectId;
                   if (notesCtrl.text.isNotEmpty) data['notes'] = notesCtrl.text;
@@ -1215,6 +1277,9 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   if (ctx.mounted) Navigator.pop(ctx);
                   ref.read(financeBudgetProvider.notifier).load();
                   _loadSummary();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('预算创建成功')));
+                  }
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('创建失败: $e')));
