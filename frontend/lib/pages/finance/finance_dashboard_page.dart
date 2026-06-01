@@ -362,14 +362,40 @@ class _BudgetUsageSection extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: pct,
-                  minHeight: 8,
-                  backgroundColor: isDark ? AppTheme.darkSurfaceAlt : Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation(barColor),
+              Container(
+                height: 28,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: barColor.withAlpha(isDark ? 20 : 12),
                 ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(children: [
+                  Positioned(
+                    left: 0, top: 0, bottom: 0,
+                    width: pct * double.infinity,
+                    child: CustomPaint(
+                      painter: _DashCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                    ),
+                  ),
+                  Positioned(
+                    left: pct * double.infinity, top: 0, bottom: 0, right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.only(topRight: Radius.circular(6), bottomRight: Radius.circular(6)),
+                        gradient: LinearGradient(colors: [barColor, barColor.withAlpha(180)]),
+                      ),
+                    ),
+                  ),
+                  if (pct > 0.15)
+                    Positioned(left: 10, top: 0, bottom: 0, child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('${b.used.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6B6B8A))),
+                    )),
+                  Positioned(right: 10, top: 0, bottom: 0, child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('剩余 ${(b.total - b.used).toStringAsFixed(0)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: pct > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))),
+                  )),
+                ]),
               ),
             ]),
           );
@@ -442,4 +468,27 @@ class _QuickActions extends StatelessWidget {
       isDesktop ? Row(children: actionWidgets) : Wrap(spacing: 8, runSpacing: 8, children: actionWidgets),
     ]);
   }
+}
+
+// ── Checkerboard painter for budget bars ──
+
+class _DashCheckerPainter extends CustomPainter {
+  final Color baseColor;
+  _DashCheckerPainter({this.baseColor = const Color(0xFFD4D4DC)});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = baseColor);
+    final linePaint = Paint()..color = const Color(0x0F000000)..strokeWidth = 0.5;
+    const cellSize = 4.0;
+    for (double x = 0; x < size.width; x += cellSize * 2) {
+      for (double y = 0; y < size.height; y += cellSize * 2) {
+        canvas.drawLine(Offset(x + cellSize, y), Offset(x, y + cellSize), linePaint);
+        canvas.drawLine(Offset(x, y), Offset(x + cellSize, y + cellSize), linePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

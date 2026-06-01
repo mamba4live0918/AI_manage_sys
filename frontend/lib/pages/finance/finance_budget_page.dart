@@ -252,7 +252,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 alignment: Alignment.centerLeft,
                 child: FractionallySizedBox(
                   widthFactor: pct,
-                  child: Container(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                  child: CustomPaint(
+                    painter: _CheckerboardPainter(isDark: isDark),
+                    child: const SizedBox.expand(),
+                  ),
                 ),
               ),
           ]),
@@ -287,7 +290,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                         alignment: Alignment.centerLeft,
                         child: FractionallySizedBox(
                           widthFactor: spentPct,
-                          child: Container(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                          child: CustomPaint(
+                            painter: _CheckerboardPainter(isDark: isDark),
+                            child: const SizedBox.expand(),
+                          ),
                         ),
                       ),
                   ]),
@@ -414,7 +420,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                                   alignment: Alignment.centerLeft,
                                   child: FractionallySizedBox(
                                     widthFactor: pct,
-                                    child: Container(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                    child: CustomPaint(
+                                      painter: _CheckerboardPainter(isDark: isDark),
+                                      child: const SizedBox.expand(),
+                                    ),
                                   ),
                                 ),
                             ]),
@@ -473,7 +482,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                                           alignment: Alignment.centerLeft,
                                           child: FractionallySizedBox(
                                             widthFactor: usedPct / 100,
-                                            child: Container(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                            child: CustomPaint(
+                                              painter: _CheckerboardPainter(isDark: isDark),
+                                              child: const SizedBox.expand(),
+                                            ),
                                           ),
                                         ),
                                     ]),
@@ -1477,31 +1489,35 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   Widget _buildBudgetBar(double used, double total, Color color, bool isDark, {double height = 28}) {
     final ratio = total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0;
-    final r = height / 3;
-    final showLeftLabel = ratio > 0.15;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(r),
-      child: SizedBox(height: height, child: Row(children: [
+    return Container(
+      height: height,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(height / 3), color: color.withAlpha(isDark ? 20 : 15)),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(children: [
         if (ratio > 0)
-          Expanded(
-            flex: (ratio * 1000).round(),
-            child: Container(
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 10),
-              color: color,
-              child: showLeftLabel ? Text('\u{FFE5}${_fmt(used)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)) : null,
+          Positioned(
+            left: 0, top: 0, bottom: 0,
+            child: FractionallySizedBox(
+              widthFactor: ratio,
+              child: CustomPaint(
+                painter: _BarCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
-        Expanded(
-          flex: ((1 - ratio) * 1000).round().clamp(1, 1000),
+        Positioned(
+          left: 0, top: 0, bottom: 0, right: 0,
           child: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 10),
-            color: isDark ? Colors.white10 : Colors.grey.shade200,
-            child: Text('剩余 \u{FFE5}${_fmt(total - used)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(height / 3),
+              gradient: LinearGradient(colors: [color.withAlpha(0), color.withAlpha(80)]),
+            ),
           ),
         ),
-      ])),
+        if (ratio > 0.12)
+          Positioned(left: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerLeft, child: Text('\u{FFE5}${_fmt(used)}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF6B6B8A))))),
+        Positioned(right: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerRight, child: Text('剩余 \u{FFE5}${_fmt(total - used)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: ratio > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))))),
+      ]),
     );
   }
 
@@ -1512,4 +1528,62 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       return AppTheme.accent;
     }
   }
+}
+
+// ── Checkerboard Pattern (Photoshop canvas texture — spent budget indicator) ──
+class _CheckerboardPainter extends CustomPainter {
+  final bool isDark;
+  _CheckerboardPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final light = Paint()
+      ..color = isDark
+          ? Colors.white.withValues(alpha: 0.12)
+          : Colors.white.withValues(alpha: 0.25);
+    final dark = Paint()
+      ..color = isDark
+          ? Colors.black.withValues(alpha: 0.30)
+          : Colors.black.withValues(alpha: 0.22);
+    const grid = 5.0;
+    final cols = (size.width / grid).ceil();
+    final rows = (size.height / grid).ceil();
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        final rect = Rect.fromLTWH(col * grid, row * grid, grid, grid);
+        canvas.drawRect(rect, (row + col) % 2 == 0 ? light : dark);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckerboardPainter old) => old.isDark != isDark;
+}
+
+// ── Budget Bar Checker Pattern (diagonal cross-hatch on solid background) ──
+class _BarCheckerPainter extends CustomPainter {
+  final Color baseColor;
+  _BarCheckerPainter({this.baseColor = const Color(0xFFD4D4DC)});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = baseColor;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
+    final linePaint = Paint()
+      ..color = const Color(0x0F000000)
+      ..strokeWidth = 0.5;
+
+    const double cellSize = 4;
+    for (double x = 0; x < size.width; x += cellSize * 2) {
+      for (double y = 0; y < size.height; y += cellSize * 2) {
+        canvas.drawLine(Offset(x + cellSize, y), Offset(x, y + cellSize), linePaint);
+        canvas.drawLine(Offset(x, y), Offset(x + cellSize, y + cellSize), linePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
