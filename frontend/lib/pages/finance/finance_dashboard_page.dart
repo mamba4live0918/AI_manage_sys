@@ -369,16 +369,17 @@ class _BudgetUsageSection extends StatelessWidget {
                   color: barColor.withAlpha(isDark ? 20 : 12),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Stack(children: [
-                  Positioned(
-                    left: 0, top: 0, bottom: 0,
-                    width: pct * double.infinity,
-                    child: CustomPaint(
-                      painter: _DashCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                child: LayoutBuilder(builder: (_, c) => Stack(children: [
+                  if (pct > 0)
+                    Positioned(
+                      left: 0, top: 0, bottom: 0,
+                      width: c.maxWidth * pct,
+                      child: CustomPaint(
+                        painter: _DashCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                      ),
                     ),
-                  ),
                   Positioned(
-                    left: pct * double.infinity, top: 0, bottom: 0, right: 0,
+                    left: c.maxWidth * pct, top: 0, bottom: 0, right: 0,
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: const BorderRadius.only(topRight: Radius.circular(6), bottomRight: Radius.circular(6)),
@@ -395,7 +396,7 @@ class _BudgetUsageSection extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: Text('剩余 ${(b.total - b.used).toStringAsFixed(0)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: pct > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))),
                   )),
-                ]),
+                ])),
               ),
             ]),
           );
