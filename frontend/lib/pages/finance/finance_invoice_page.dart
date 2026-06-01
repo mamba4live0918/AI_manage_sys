@@ -136,48 +136,29 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       ),
       body: Column(
         children: [
-          // Breadcrumb
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: Row(children: [
-              Text('首页', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
-              Text('财务', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
-              Text('票据管理', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: '搜索发票号、名称...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onSubmitted: (v) {
+                    setState(() { _page = 0; _searchQuery = v; });
+                    ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildFilterBar(theme, isDark),
             ]),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '搜索发票号、销售方或购买方名称',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                          _page = 0;
-                        });
-                        ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
-                      })
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              onChanged: (v) {
-                setState(() => _searchQuery = v);
-              },
-              onSubmitted: (v) {
-                setState(() => _page = 0);
-                ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
-              },
-            ),
-          ),
-          _buildFilterBar(theme, isDark),
           const Divider(height: 1),
           Expanded(
             child: state.loading
@@ -191,19 +172,16 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               child: Table(
                                 columnWidths: const {
-                                  0: FlexColumnWidth(1.2),  // 编号
-                                  1: FlexColumnWidth(1.2),  // 金额
-                                  2: FlexColumnWidth(1.4),  // 销售方
-                                  3: FlexColumnWidth(1.4),  // 购买方
-                                  4: FlexColumnWidth(0.8),  // 到期日
-                                  5: FlexColumnWidth(0.7),  // 状态
-                                  6: FixedColumnWidth(120),  // 操作
+                                  0: FlexColumnWidth(1.0),  // 编号
+                                  1: FlexColumnWidth(1.8),  // 金额+进度条
+                                  2: FlexColumnWidth(0.8),  // 到期日
+                                  3: FlexColumnWidth(0.8),  // 状态
+                                  4: FixedColumnWidth(110),  // 操作
                                 },
                                 border: TableBorder(
                                   horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
                                 ),
                                 children: [
-                                  // Header row
                                   TableRow(
                                     decoration: BoxDecoration(
                                       color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
@@ -211,18 +189,18 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                     children: const [
                                       _TableHeader('编号'),
                                       _TableHeader('金额'),
-                                      _TableHeader('销售方'),
-                                      _TableHeader('购买方'),
                                       _TableHeader('到期日'),
                                       _TableHeader('状态'),
                                       _TableHeader('操作'),
                                     ],
                                   ),
-                                  // Data rows
                                   ..._pagedItems.map((inv) {
                                     final paid = _paymentTotals[inv.id] ?? 0;
                                     final total = inv.amount;
+                                    final payPct = total > 0 ? (paid / total).clamp(0.0, 1.0) : 0.0;
                                     final remaining = total - paid;
+                                    final statusColor = _statusColors[inv.status] ?? Colors.grey;
+                                    final statusLabel = _statusLabels[inv.status] ?? inv.status;
                                     return TableRow(
                                       children: [
                                         _TableCell(
@@ -232,20 +210,21 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                         ),
                                         _TableCell(
                                           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                                            Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
-                                            if (paid > 0 && paid < total)
-                                              Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
-                                            if (paid >= total && total > 0)
-                                              Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
+                                            Row(children: [
+                                              Text('\u{FFE5}${total.toStringAsFixed(0)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                                              const Spacer(),
+                                              Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: payPct >= 1 ? AppTheme.green : isDark ? Colors.white54 : Colors.black54)),
+                                            ]),
+                                            const SizedBox(height: 3),
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(2),
+                                              child: LinearProgressIndicator(
+                                                value: payPct, minHeight: 4,
+                                                backgroundColor: (isDark ? Colors.white : Colors.black).withAlpha(15),
+                                                valueColor: AlwaysStoppedAnimation(payPct >= 1 ? AppTheme.green : AppTheme.accent),
+                                              ),
+                                            ),
                                           ]),
-                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
-                                        ),
-                                        _TableCell(
-                                          Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
-                                        ),
-                                        _TableCell(
-                                          Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                                           isDark: isDark, onTap: () => _showDetailSheet(context, inv),
                                         ),
                                         _TableCell(
@@ -254,19 +233,17 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                         ),
                                         _TableCell(
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
+                                              color: statusColor.withAlpha(isDark ? 30 : 20),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
-                                            child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
+                                            child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: statusColor)),
                                           ),
                                           isDark: isDark, onTap: () => _showDetailSheet(context, inv),
                                         ),
                                         _InvoiceActionCell(
-                                          invoiceId: inv.id,
-                                          status: inv.status,
-                                          remaining: remaining,
+                                          invoiceId: inv.id, status: inv.status, remaining: remaining,
                                           isDark: isDark,
                                           onPay: () => _showPaymentDialog(context, inv.id, total, paid),
                                           onDetail: () => _showDetailSheet(context, inv),
@@ -303,48 +280,34 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   }
 
   Widget _buildFilterBar(ThemeData theme, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isDark ? Colors.white10 : theme.colorScheme.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _statusOptions.map((s) {
-            final selected = _selectedStatus == s;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  _statusLabels[s]!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: selected
-                        ? Colors.white
-                        : (isDark ? Colors.white70 : Colors.black87),
-                  ),
-                ),
-                selected: selected,
-                selectedColor: theme.colorScheme.primary,
-                backgroundColor:
-                    isDark ? Colors.white12 : Colors.grey.shade200,
-                side: BorderSide.none,
-                onSelected: (v) {
-                  if (v) {
-                    setState(() {
-                      _selectedStatus = s;
-                      _page = 0;
-                    });
-                    ref
-                        .read(financeInvoiceProvider.notifier)
-                        .load(status: s);
-                  }
-                },
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _statusOptions.map((s) {
+          final selected = _selectedStatus == s;
+          return Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: ChoiceChip(
+              label: Text(
+                _statusLabels[s]!,
+                style: TextStyle(fontSize: 12, color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
               ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
+              selected: selected,
+              selectedColor: theme.colorScheme.primary,
+              backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: BorderSide.none,
+              onSelected: (v) {
+                if (v) {
+                  setState(() { _selectedStatus = s; _page = 0; });
+                  ref.read(financeInvoiceProvider.notifier).load(status: s);
+                }
+              },
+            ),
+          );
+        }).toList(),
+    ));
   }
 
   Widget _buildEmptyState(ThemeData theme) {
