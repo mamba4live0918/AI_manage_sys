@@ -241,7 +241,7 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
             IconButton(icon: const Icon(Icons.chevron_right_rounded, size: 20), onPressed: () => setState(() => _selectedDay = DateTime(_selectedDay.year, _selectedDay.month + 1, _selectedDay.day.clamp(1, 28))), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32)),
           ],
           const Spacer(),
-          Text('${_selectedDay.month}/${_selectedDay.day} (${events.length})', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade600)),
+          Text('${_selectedDay.month}/${_selectedDay.day} (${events.length})', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.lightTextSecondary)),
           const SizedBox(width: 8),
           SegmentedButton<bool>(
             segments: const [
@@ -282,7 +282,7 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
                     Row(
                       children: weekdayLabels.map((l) => SizedBox(
                         width: cellW,
-                        child: Center(child: Text(l, style: TextStyle(fontSize: 11, color: Colors.grey.shade500))),
+                        child: Center(child: Text(l, style: TextStyle(fontSize: 11, color: AppTheme.lightTextSecondary))),
                       )).toList(),
                     ),
                     const SizedBox(height: 2),
@@ -368,7 +368,7 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
                           border: !isSelected ? Border.all(color: Colors.grey.withAlpha(40)) : null,
                         ),
                         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Text(DateFormat('E').format(d).substring(0, 1), style: TextStyle(fontSize: 10, color: isSelected ? Colors.white70 : Colors.grey.shade500)),
+                          Text(DateFormat('E').format(d).substring(0, 1), style: TextStyle(fontSize: 10, color: isSelected ? Colors.white70 : AppTheme.lightTextSecondary)),
                           const SizedBox(height: 4),
                           Text('${d.day}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : null)),
                           if (count > 0) Text('$count场', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.orange)),
@@ -389,7 +389,7 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : events.isEmpty
-                ? Center(child: Text('当日无面试安排', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)))
+                ? Center(child: Text('当日无面试安排', style: TextStyle(color: AppTheme.lightTextSecondary, fontSize: 13)))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: events.length,
@@ -413,7 +413,7 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text(e['candidate_name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 2),
-                                  Text('${e['position'] ?? ''}  ·  $timeStr  ·  ${dur}分钟', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                  Text('${e['position'] ?? ''}  ·  $timeStr  ·  ${dur}分钟', style: TextStyle(fontSize: 12, color: AppTheme.lightTextSecondary)),
                                 ]),
                               ),
                               Container(

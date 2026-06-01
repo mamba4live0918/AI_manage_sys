@@ -136,10 +136,17 @@ class _KpiCards extends StatelessWidget {
       ('今日面试', '${data.todayInterviews}', '本周 ${data.weekInterviews} 场'),
     ];
 
-    return Row(
-      children: cards.map((c) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    return isDesktop
+        ? Row(children: _buildCards(cards, isDark))
+        : Wrap(spacing: 8, runSpacing: 8, children: _buildCards(cards, isDark));
+  }
+
+  List<Widget> _buildCards(List<(String, String, String)> cards, bool isDark) {
+    return cards.map((c) {
         final (label, value, sub) = c;
-        return Expanded(
+        return SizedBox(
+          width: 220,
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
             padding: const EdgeInsets.all(16),
@@ -147,6 +154,7 @@ class _KpiCards extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
               border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : Border.all(color: AppTheme.lightBorder, width: 0.5),
+              boxShadow: isDark ? null : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,8 +168,7 @@ class _KpiCards extends StatelessWidget {
             ),
           ),
         );
-      }).toList(),
-    );
+    }).toList();
   }
 }
 
@@ -184,7 +191,7 @@ class _ChartsRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
               border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
             ),
@@ -246,7 +253,7 @@ class _ChartsRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
               border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
             ),
@@ -324,7 +331,7 @@ class _ApprovalOverview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
       ),
@@ -369,10 +376,10 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      ('员工管理', Icons.people_rounded, const Color(0xFF667eea)),
-      ('简历管理', Icons.article_rounded, const Color(0xFFf5576c)),
-      ('审批管理', Icons.fact_check_rounded, const Color(0xFF4facfe)),
-      ('面试安排', Icons.event_available_rounded, const Color(0xFF43e97b)),
+      ('员工管理', Icons.people_rounded, AppTheme.accent),
+      ('简历管理', Icons.article_rounded, AppTheme.pink),
+      ('审批管理', Icons.fact_check_rounded, AppTheme.orange),
+      ('面试安排', Icons.event_available_rounded, AppTheme.green),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -389,9 +396,9 @@ class _QuickActions extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Material(
                 color: color.withAlpha(20),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(8),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => onSelect(i + 1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -435,7 +442,7 @@ class _RecentActivities extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
       ),
@@ -495,7 +502,7 @@ class _UpcomingInterviews extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         border: isDark ? Border.all(color: AppTheme.darkElevated) : null,
       ),
