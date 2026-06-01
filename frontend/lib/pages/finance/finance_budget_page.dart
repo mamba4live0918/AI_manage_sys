@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../config/theme.dart';
 import '../../providers/finance_providers.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
@@ -17,6 +19,8 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   final Map<String, Map<String, dynamic>> _consumptionCache = {};
   final Map<String, List<Map<String, dynamic>>> _projectListCache = {};
   bool _loadingProjects = false;
+  Map<String, dynamic>? _summary;
+  bool _summaryExpanded = false;
 
   static const _statusLabels = {
     'active': '进行中',
@@ -42,7 +46,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(financeBudgetProvider.notifier).load());
+    Future.microtask(() {
+      ref.read(financeBudgetProvider.notifier).load();
+      _loadSummary();
+    });
   }
 
   Future<List<Map<String, dynamic>>> _loadProjects() async {
@@ -72,6 +79,13 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     }
   }
 
+  Future<void> _loadSummary() async {
+    try {
+      final resp = await _api.dio.get('/finance/budgets/summary');
+      if (mounted) setState(() => _summary = resp.data);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(financeBudgetProvider);
@@ -99,11 +113,17 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   ]),
                 )
               : RefreshIndicator(
-                  onRefresh: () async => ref.read(financeBudgetProvider.notifier).load(),
+                  onRefresh: () async {
+                    ref.read(financeBudgetProvider.notifier).load();
+                    _loadSummary();
+                  },
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
-                    itemCount: state.items.length,
-                    itemBuilder: (_, i) => _buildBudgetCard(context, state.items[i]),
+                    padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
+                    itemCount: state.items.length + 1,
+                    itemBuilder: (_, i) {
+                      if (i == 0) return _buildSummaryCard(context);
+                      return _buildBudgetCard(context, state.items[i - 1]);
+                    },
                   ),
                 ),
     );
@@ -219,16 +239,26 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   Widget _buildStackedProgressBar(BudgetData b, bool isDark) {
     final items = b.items.where((i) => i.amount > 0).toList();
     final pct = b.totalAmount > 0 ? (b.usedAmount / b.totalAmount).clamp(0.0, 1.0) : 0.0;
-    final warnColor = pct > 0.9 ? Colors.red : pct > 0.7 ? Colors.orange : Colors.green;
 
     if (items.isEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: LinearProgressIndicator(
-          value: pct,
-          minHeight: 10,
-          backgroundColor: Colors.grey.shade200,
-          valueColor: AlwaysStoppedAnimation(warnColor),
+        child: SizedBox(
+          height: 10,
+          child: Stack(children: [
+            Container(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            if (pct > 0)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: pct,
+                  child: CustomPaint(
+                    painter: _CheckerboardPainter(isDark: isDark),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+          ]),
         ),
       );
     }
@@ -242,24 +272,39 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
             final totalW = constraints.maxWidth;
             final itemSum = items.fold<double>(0, (s, i) => s + i.amount);
             final displayTotal = itemSum > 0 ? (itemSum < b.totalAmount ? b.totalAmount : itemSum) : (b.totalAmount > 0 ? b.totalAmount : 1);
-            if (items.isEmpty && b.totalAmount <= 0) return Container(color: Colors.grey.shade200);
             final sorted = List<BudgetItemData>.from(items)
               ..sort((a, b) => b.amount.compareTo(a.amount));
             final segments = <Widget>[];
             double usedW = 0;
             for (final item in sorted) {
-              final w = (item.amount / displayTotal) * totalW;
-              if (w >= 2) {
-                usedW += w;
-                segments.add(SizedBox(width: w, child: Container(color: _itemColor(item))));
+              final segW = (item.amount / displayTotal) * totalW;
+              if (segW >= 2) {
+                usedW += segW;
+                final spentPct = item.amount > 0 ? (item.usedAmount / item.amount).clamp(0.0, 1.0) : 0.0;
+                segments.add(SizedBox(
+                  width: segW,
+                  child: Stack(children: [
+                    Container(color: _itemColor(item)),
+                    if (spentPct > 0)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: spentPct,
+                          child: CustomPaint(
+                            painter: _CheckerboardPainter(isDark: isDark),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ),
+                  ]),
+                ));
               }
             }
-            // Unallocated amount in grey
             final unallocated = b.totalAmount - itemSum;
             if (unallocated > 0 && totalW - usedW >= 2) {
               segments.add(SizedBox(width: totalW - usedW, child: Container(color: Colors.grey.shade400)));
             }
-            if (segments.isEmpty) return Container(color: Colors.grey.shade200);
+            if (segments.isEmpty) return Container(color: isDark ? Colors.white12 : Colors.grey.shade200);
             return Row(children: segments);
           },
         ),
@@ -366,11 +411,22 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                         // Progress
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: pct,
-                            minHeight: 14,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation(warnColor),
+                          child: SizedBox(
+                            height: 14,
+                            child: Stack(children: [
+                              Container(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                              if (pct > 0)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: pct,
+                                    child: CustomPaint(
+                                      painter: _CheckerboardPainter(isDark: isDark),
+                                      child: const SizedBox.expand(),
+                                    ),
+                                  ),
+                                ),
+                            ]),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -417,11 +473,22 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                                 const SizedBox(height: 4),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(3),
-                                  child: LinearProgressIndicator(
-                                    value: usedPct / 100,
-                                    minHeight: 6,
-                                    backgroundColor: catColor.withValues(alpha: 0.12),
-                                    valueColor: AlwaysStoppedAnimation(catColor),
+                                  child: SizedBox(
+                                    height: 6,
+                                    child: Stack(children: [
+                                      Container(color: catColor.withValues(alpha: 0.12)),
+                                      if (usedPct > 0)
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: FractionallySizedBox(
+                                            widthFactor: usedPct / 100,
+                                            child: CustomPaint(
+                                              painter: _CheckerboardPainter(isDark: isDark),
+                                              child: const SizedBox.expand(),
+                                            ),
+                                          ),
+                                        ),
+                                    ]),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -848,6 +915,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   if (ctx.mounted) Navigator.pop(ctx);
                   _consumptionCache.remove(budget.id);
                   ref.read(financeBudgetProvider.notifier).load();
+                  _loadSummary();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('更新成功')));
                   }
@@ -926,6 +994,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 if (ctx.mounted) Navigator.pop(ctx);
                 _consumptionCache.remove(budget.id);
                 ref.read(financeBudgetProvider.notifier).load();
+                _loadSummary();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('预算调整成功')));
                 }
@@ -1126,6 +1195,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   await _api.dio.post('/finance/budgets', data: data);
                   if (ctx.mounted) Navigator.pop(ctx);
                   ref.read(financeBudgetProvider.notifier).load();
+                  _loadSummary();
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('创建失败: $e')));
@@ -1294,6 +1364,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 if (ctx.mounted) Navigator.pop(ctx);
                 _consumptionCache.remove(id);
                 ref.read(financeBudgetProvider.notifier).load();
+                _loadSummary();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('删除成功')));
                 }
@@ -1309,4 +1380,210 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       ),
     );
   }
+
+  // ── Budget Summary Card ──
+
+  Widget _buildSummaryCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_summary == null) return const SizedBox.shrink();
+
+    final total = (_summary!['total_budget'] as num?)?.toDouble() ?? 0;
+    final used = (_summary!['total_used'] as num?)?.toDouble() ?? 0;
+    final unallocated = (_summary!['unallocated'] as num?)?.toDouble() ?? 0;
+    final uncategorized = (_summary!['uncategorized_used'] as num?)?.toDouble() ?? 0;
+    final items = (_summary!['items'] as List?) ?? [];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Material(
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => setState(() => _summaryExpanded = !_summaryExpanded),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Row(children: [
+                Container(width: 12, height: 12, decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(3))),
+                const SizedBox(width: 8),
+                Text('预算总览', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                const Spacer(),
+                Text('总额 \u{FFE5}${_fmt(total)}', style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                const SizedBox(width: 8),
+                Icon(_summaryExpanded ? Icons.expand_less : Icons.expand_more, size: 18, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+              ]),
+              const SizedBox(height: 12),
+              _buildBudgetBar(used, total, AppTheme.accent, isDark, height: 44),
+              const SizedBox(height: 8),
+              Wrap(spacing: 12, runSpacing: 4, children: [
+                ...items.take(6).map<Widget>((item) {
+                  final color = _parseColor(item['color'] as String? ?? '#4F46E5');
+                  return Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 16, height: 3, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 4),
+                    Text('${item['name']}', style: TextStyle(fontSize: 8, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                  ]);
+                }),
+                if (unallocated > 0)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 16, height: 3, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 4),
+                    Text('未分配', style: TextStyle(fontSize: 8, color: Colors.grey)),
+                  ]),
+              ]),
+              if (_summaryExpanded) ...[
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                ...items.map((item) {
+                  final bgt = (item['budget'] as num?)?.toDouble() ?? 0;
+                  final usd = (item['used'] as num?)?.toDouble() ?? 0;
+                  final color = _parseColor(item['color'] as String? ?? '#4F46E5');
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Text('${item['name']}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                        const Spacer(),
+                        Text('已用 \u{FFE5}${_fmt(usd)} · 剩余 \u{FFE5}${_fmt(bgt - usd)}', style: TextStyle(fontSize: 9, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                      ]),
+                      const SizedBox(height: 4),
+                      _buildBudgetBar(usd, bgt, color, isDark),
+                    ]),
+                  );
+                }),
+                if (unallocated > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Row(children: [
+                        Text('未分配预算', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey)),
+                        Spacer(),
+                        Text('\u{FFE5}0', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                      ]),
+                      const SizedBox(height: 4),
+                      Container(height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade300, width: 1), color: Colors.grey.shade50.withAlpha(100))),
+                    ]),
+                  ),
+                if (uncategorized > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        const Text('未归类支出', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey)),
+                        const Spacer(),
+                        Text('\u{FFE5}${_fmt(uncategorized)}', style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                      ]),
+                      const SizedBox(height: 4),
+                      _buildBudgetBar(uncategorized, uncategorized, Colors.grey, isDark),
+                    ]),
+                  ),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetBar(double used, double total, Color color, bool isDark, {double height = 28}) {
+    final ratio = total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0;
+    return Container(
+      height: height,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(height / 3), color: color.withAlpha(isDark ? 20 : 15)),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(children: [
+        if (ratio > 0)
+          Positioned(
+            left: 0, top: 0, bottom: 0,
+            child: FractionallySizedBox(
+              widthFactor: ratio,
+              child: CustomPaint(
+                painter: _BarCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        Positioned(
+          left: 0, top: 0, bottom: 0, right: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(height / 3),
+              gradient: LinearGradient(colors: [color.withAlpha(0), color.withAlpha(80)]),
+            ),
+          ),
+        ),
+        if (ratio > 0.12)
+          Positioned(left: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerLeft, child: Text('\u{FFE5}${_fmt(used)}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF6B6B8A))))),
+        Positioned(right: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerRight, child: Text('剩余 \u{FFE5}${_fmt(total - used)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: ratio > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))))),
+      ]),
+    );
+  }
+
+  Color _parseColor(String hex) {
+    try {
+      return Color(int.parse(hex.replaceFirst('#', '0xff')));
+    } catch (_) {
+      return AppTheme.accent;
+    }
+  }
+}
+
+// ── Checkerboard Pattern (Photoshop canvas texture — spent budget indicator) ──
+class _CheckerboardPainter extends CustomPainter {
+  final bool isDark;
+  _CheckerboardPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final light = Paint()
+      ..color = isDark
+          ? Colors.white.withValues(alpha: 0.12)
+          : Colors.white.withValues(alpha: 0.25);
+    final dark = Paint()
+      ..color = isDark
+          ? Colors.black.withValues(alpha: 0.30)
+          : Colors.black.withValues(alpha: 0.22);
+    const grid = 5.0;
+    final cols = (size.width / grid).ceil();
+    final rows = (size.height / grid).ceil();
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        final rect = Rect.fromLTWH(col * grid, row * grid, grid, grid);
+        canvas.drawRect(rect, (row + col) % 2 == 0 ? light : dark);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckerboardPainter old) => old.isDark != isDark;
+}
+
+// ── Budget Bar Checker Pattern (diagonal cross-hatch on solid background) ──
+class _BarCheckerPainter extends CustomPainter {
+  final Color baseColor;
+  _BarCheckerPainter({this.baseColor = const Color(0xFFD4D4DC)});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = baseColor;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
+    final linePaint = Paint()
+      ..color = const Color(0x0F000000)
+      ..strokeWidth = 0.5;
+
+    const double cellSize = 4;
+    for (double x = 0; x < size.width; x += cellSize * 2) {
+      for (double y = 0; y < size.height; y += cellSize * 2) {
+        canvas.drawLine(Offset(x + cellSize, y), Offset(x, y + cellSize), linePaint);
+        canvas.drawLine(Offset(x, y), Offset(x + cellSize, y + cellSize), linePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1016,6 +1016,52 @@ async def delete_budget(
     return {"ok": True}
 
 
+@router.get("/budgets/summary")
+async def budgets_summary(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    query = select(Budget).where(Budget.status == "active")
+    if user.role != "admin" and user.department_id:
+        query = query.where(Budget.department_id == user.department_id)
+
+    budgets = (await db.execute(query)).scalars().all()
+
+    total_budget = 0.0
+    total_used = 0.0
+    items = []
+    allocated = 0.0
+    categorized_used = 0.0
+
+    for b in budgets:
+        total_budget += b.total_amount
+        total_used += b.used_amount
+        budget_items = (await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))).scalars().all()
+        for item in budget_items:
+            allocated += item.amount
+            categorized_used += item.used_amount
+            items.append({
+                "name": item.name if item.name else item.category,
+                "category": item.category,
+                "budget": item.amount,
+                "used": item.used_amount,
+                "color": item.color,
+                "icon": item.icon,
+            })
+
+    unallocated = max(0, total_budget - allocated)
+    uncategorized_used = max(0, total_used - categorized_used)
+
+    return {
+        "total_budget": total_budget,
+        "total_used": total_used,
+        "items": items,
+        "unallocated": unallocated,
+        "uncategorized_used": uncategorized_used,
+    }
+
+
 @router.get("/budgets/{budget_id}/consumption")
 async def budget_consumption(
     budget_id: str,
