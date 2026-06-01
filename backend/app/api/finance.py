@@ -118,6 +118,7 @@ class BudgetItemCreate(BaseModel):
 class BudgetCreate(BaseModel):
     department_id: str | None = None
     project_id: str | None = None
+    parent_id: str | None = None
     name: str = ""
     year: int = 2026
     quarter: int | None = None
@@ -133,6 +134,7 @@ class BudgetUpdate(BaseModel):
     total_amount: float | None = None
     status: str | None = None
     notes: str | None = None
+    parent_id: str | None = None
     items: list[BudgetItemCreate] | None = None
 
 
@@ -239,6 +241,7 @@ async def _budget_row(b: Budget, db: AsyncSession) -> dict:
         "id": str(b.id),
         "department_id": str(b.department_id) if b.department_id else None,
         "project_id": str(b.project_id) if b.project_id else None,
+        "parent_id": str(b.parent_id) if b.parent_id else None,
         "name": b.name,
         "year": b.year,
         "quarter": b.quarter,
@@ -863,6 +866,7 @@ async def delete_payment(
 @router.get("/budgets")
 async def list_budgets(
     department_id: str = "",
+    parent_id: str = "",
     year: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -874,6 +878,8 @@ async def list_budgets(
             query = query.where(Budget.department_id == user.department_id)
     if department_id:
         query = query.where(Budget.department_id == department_id)
+    if parent_id:
+        query = query.where(Budget.parent_id == parent_id)
     if year:
         query = query.where(Budget.year == year)
     result = await db.execute(query)
@@ -893,6 +899,7 @@ async def create_budget(
 ):
     dept_id = uuid.UUID(body.department_id) if body.department_id else user.department_id
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    parent_id = uuid.UUID(body.parent_id) if body.parent_id else None
 
     # Auto-calculate total_amount from items if items are provided
     total_amount = body.total_amount
@@ -924,7 +931,7 @@ async def create_budget(
                 raise HTTPException(400, f"项目预算总和({proj_budgets + total_amount:.0f})超过部门预算({dept_budget:.0f})")
 
     b = Budget(
-        department_id=dept_id, project_id=project_id, name=body.name,
+        department_id=dept_id, project_id=project_id, parent_id=parent_id, name=body.name,
         year=body.year, quarter=body.quarter, total_amount=total_amount,
         status=body.status, notes=body.notes, created_by=user.id,
     )

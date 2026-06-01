@@ -400,3 +400,6 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_tax_id VARCHAR(64) DEFAULT '
 
 -- 2026-05-29: expense_type field — reimbursement vs direct
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_type VARCHAR(32) DEFAULT 'reimbursement';
+
+-- 2026-06-01: hierarchical budget parent_id
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES budgets(id) ON DELETE CASCADE;
