@@ -22,6 +22,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   bool _loadingProjects = false;
   Map<String, dynamic>? _summary;
   bool _summaryExpanded = false;
+  final Set<String> _expandedNodes = {};
 
   static const _statusLabels = {
     'active': '进行中',
@@ -118,24 +119,68 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     ref.read(financeBudgetProvider.notifier).load();
                     _loadSummary();
                   },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
-                    itemCount: state.items.length + 1,
-                    itemBuilder: (_, i) {
-                      if (i == 0) return _buildSummaryCard(context);
-                      return _buildBudgetCard(context, state.items[i - 1]);
-                    },
-                  ),
+                  child: _buildBudgetTree(context, state.items),
                 ),
     );
   }
 
-  Widget _buildBudgetCard(BuildContext context, BudgetData b) {
+  Widget _buildBudgetTree(BuildContext context, List<BudgetData> items) {
+    final roots = items.where((b) => b.parentId == null).toList();
+
+    if (roots.isEmpty && items.isNotEmpty) {
+      // All budgets have parents but no roots found — show flat list
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        itemCount: items.length + 1,
+        itemBuilder: (_, i) {
+          if (i == 0) return _buildSummaryCard(context);
+          return _buildBudgetCard(context, items[i - 1]);
+        },
+      );
+    }
+
+    // Build flat list from tree
+    final flatList = <Widget>[];
+    flatList.add(_buildSummaryCard(context));
+    for (final root in roots) {
+      flatList.add(_buildBudgetCard(context, root));
+      if (_expandedNodes.contains(root.id)) {
+        final children = items.where((b) => b.parentId == root.id).toList();
+        for (final child in children) {
+          flatList.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 24),
+              child: _buildBudgetCard(context, child, isChild: true),
+            ),
+          );
+          if (_expandedNodes.contains(child.id)) {
+            final grandchildren = items.where((b) => b.parentId == child.id).toList();
+            for (final gc in grandchildren) {
+              flatList.add(
+                Padding(
+                  padding: const EdgeInsets.only(left: 48),
+                  child: _buildBudgetCard(context, gc, isChild: true),
+                ),
+              );
+            }
+          }
+        }
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      children: flatList,
+    );
+  }
+
+  Widget _buildBudgetCard(BuildContext context, BudgetData b, {bool isChild = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final pct = b.totalAmount > 0 ? (b.usedAmount / b.totalAmount).clamp(0.0, 1.0) : 0.0;
     final statusLabel = _statusLabels[b.status] ?? b.status;
     final statusColor = _statusColors[b.status] ?? Colors.grey;
     final warnColor = pct > 0.9 ? Colors.red : pct > 0.7 ? Colors.orange : Colors.green;
+    final hasChildren = ref.watch(financeBudgetProvider).items.any((i) => i.parentId == b.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -143,7 +188,15 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       elevation: 2,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showBudgetDetail(context, b),
+        onTap: () {
+          setState(() {
+            if (_expandedNodes.contains(b.id)) {
+              _expandedNodes.remove(b.id);
+            } else {
+              _expandedNodes.add(b.id);
+            }
+          });
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -153,6 +206,28 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
               Row(children: [
                 Expanded(
                   child: Row(children: [
+                    if (isChild) ...[
+                      if (b.quarter != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('季', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.blue)),
+                        ),
+                      if (b.departmentId != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('部', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
+                        ),
+                    ],
                     Flexible(
                       child: Text(b.name,
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
@@ -172,6 +247,15 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     ),
                   ]),
                 ),
+                if (hasChildren)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(
+                      _expandedNodes.contains(b.id) ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                      size: 18,
+                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
