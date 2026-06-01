@@ -214,12 +214,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                       _TableHeader('购买方'),
                                       _TableHeader('到期日'),
                                       _TableHeader('状态'),
+                                      _TableHeader('操作'),
                                     ],
                                   ),
                                   // Data rows
                                   ..._pagedItems.map((inv) {
                                     final paid = _paymentTotals[inv.id] ?? 0;
                                     final total = inv.amount;
+                                    final remaining = total - paid;
                                     return TableRow(
                                       children: [
                                         _TableCell(
@@ -259,6 +261,14 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                             child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
                                           ),
                                           isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _InvoiceActionCell(
+                                          invoiceId: inv.id,
+                                          status: inv.status,
+                                          remaining: remaining,
+                                          isDark: isDark,
+                                          onPay: () => _showPaymentDialog(context, inv.id, total, paid),
+                                          onDetail: () => _showDetailSheet(context, inv),
                                         ),
                                       ],
                                     );
@@ -1936,6 +1946,58 @@ class _TableCell extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: child,
+      ),
+    );
+  }
+}
+
+class _InvoiceActionCell extends StatelessWidget {
+  final String invoiceId;
+  final String status;
+  final double remaining;
+  final bool isDark;
+  final VoidCallback onPay;
+  final VoidCallback onDetail;
+
+  const _InvoiceActionCell({
+    required this.invoiceId, required this.status, required this.remaining,
+    required this.isDark, required this.onPay, required this.onDetail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (status != 'paid' && status != 'cancelled')
+          _MiniBtn(Icons.payment, '收款', AppTheme.green, onPay),
+        const SizedBox(width: 4),
+        _MiniBtn(Icons.visibility, '详情', isDark ? Colors.white54 : Colors.black54, onDetail),
+      ]),
+    );
+  }
+}
+
+class _MiniBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _MiniBtn(this.icon, this.label, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 14, color: color),
+        label: Text(label, style: TextStyle(fontSize: 11, color: color)),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }

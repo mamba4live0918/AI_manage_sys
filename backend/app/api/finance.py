@@ -756,11 +756,7 @@ async def list_invoices(
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Invoice).order_by(Invoice.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Invoice.department_id == user.department_id)
-        else:
-            query = query.where(Invoice.created_by == user.id)
+    # Finance module users can see all invoices for approval
     if project_id:
         query = query.where(Invoice.project_id == project_id)
     if status:
@@ -1295,6 +1291,7 @@ async def finance_dashboard(
     budget_query = select(Budget).where(
         Budget.status == "active",
         Budget.parent_id.is_(None),  # root budgets only — children roll up via propagation
+        Budget.year == now.year,
     ).order_by(Budget.total_amount.desc())
     if dept_cond:
         budget_query = budget_query.where(Budget.department_id == user.department_id)
