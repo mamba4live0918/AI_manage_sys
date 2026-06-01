@@ -272,55 +272,69 @@ def _budget_date_range(b):
 
 
 async def _recalc_budget_usage(db: AsyncSession):
-    """Recalculate used_amount for all active budgets and their items."""
-    budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
-    budgets = budgets_result.scalars().all()
-    for b in budgets:
-        # Skip budgets without a department — can't match expenses
-        if b.department_id is None:
-            continue
+    """Recalculate used_amount for all active budgets.
+    Department isolation: budgets with department_id match only same-dept expenses.
+    Parent budgets (no dept) aggregate ALL expenses in their date range.
+    Upward propagation: parent.used_amount = sum of children.used_amount."""
+    all_budgets = (await db.execute(select(Budget).where(Budget.status == "active"))).scalars().all()
+    if not all_budgets:
+        return
+
+    # Step 1: Direct calculation for each budget
+    for b in all_budgets:
         ym_start, ym_end = _budget_date_range(b)
-        conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
-        if b.project_id:
-            conditions.append(Expense.project_id == b.project_id)
-        if ym_start:
-            conditions.append(Expense.created_at >= ym_start)
-            conditions.append(Expense.created_at < ym_end)
-        exp_result = await db.execute(
-            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*conditions)
-        )
-        expense_total = exp_result.scalar() or 0.0
+        if not ym_start:
+            continue
 
-        stl_conditions = [Settlement.department_id == b.department_id, Settlement.status.in_(["completed", "settled"])]
-        if b.project_id:
-            stl_conditions.append(Settlement.project_id == b.project_id)
-        if ym_start:
-            stl_conditions.append(Settlement.created_at >= ym_start)
-            stl_conditions.append(Settlement.created_at < ym_end)
-        stl_result = await db.execute(
+        # Expenses
+        exp_conditions = [Expense.status.in_(["approved", "paid"])]
+        exp_conditions.append(Expense.created_at >= ym_start)
+        exp_conditions.append(Expense.created_at < ym_end)
+        if b.department_id is not None:
+            exp_conditions.append(Expense.department_id == b.department_id)
+        b.used_amount = (await db.execute(
+            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*exp_conditions)
+        )).scalar() or 0.0
+
+        # Settlements
+        stl_conditions = [Settlement.status.in_(["completed", "settled"])]
+        stl_conditions.append(Settlement.created_at >= ym_start)
+        stl_conditions.append(Settlement.created_at < ym_end)
+        if b.department_id is not None:
+            stl_conditions.append(Settlement.department_id == b.department_id)
+        b.used_amount += (await db.execute(
             select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
-        )
-        settlement_total = stl_result.scalar() or 0.0
+        )).scalar() or 0.0
 
-        b.used_amount = expense_total + settlement_total
-
-        # Recalculate per-item used_amount by matching expense category
+        # Per-item used_amount
         items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
         for item in items_result.scalars().all():
-            item_conditions = [
-                Expense.department_id == b.department_id,
+            item_cond = [
                 Expense.status.in_(["approved", "paid"]),
+                Expense.created_at >= ym_start,
+                Expense.created_at < ym_end,
                 Expense.category == item.category,
             ]
-            if b.project_id:
-                item_conditions.append(Expense.project_id == b.project_id)
-            if ym_start:
-                item_conditions.append(Expense.created_at >= ym_start)
-                item_conditions.append(Expense.created_at < ym_end)
-            item_exp = await db.execute(
-                select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_conditions)
-            )
-            item.used_amount = item_exp.scalar() or 0.0
+            if b.department_id is not None:
+                item_cond.append(Expense.department_id == b.department_id)
+            item.used_amount = (await db.execute(
+                select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_cond)
+            )).scalar() or 0.0
+
+    # Step 2: Upward propagation — parent used_amount = sum of children
+    children_map = {}
+    for b in all_budgets:
+        if b.parent_id:
+            children_map.setdefault(str(b.parent_id), []).append(b)
+    changed = True
+    while changed:
+        changed = False
+        for b in all_budgets:
+            if str(b.id) in children_map:
+                child_sum = sum(c.used_amount for c in children_map[str(b.id)])
+                if abs(b.used_amount - child_sum) > 0.01:
+                    b.used_amount = child_sum
+                    changed = True
     await db.commit()
 
 
@@ -930,6 +944,21 @@ async def create_budget(
             if proj_budgets + total_amount > dept_budget:
                 raise HTTPException(400, f"项目预算总和({proj_budgets + total_amount:.0f})超过部门预算({dept_budget:.0f})")
 
+    # Validate: child budgets sum must not exceed parent budget
+    if parent_id:
+        parent_result = await db.execute(select(Budget).where(Budget.id == parent_id))
+        parent_b = parent_result.scalar_one_or_none()
+        if parent_b:
+            siblings_result = await db.execute(
+                select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                    Budget.parent_id == parent_id,
+                    Budget.status == "active",
+                )
+            )
+            siblings_total = siblings_result.scalar() or 0.0
+            if siblings_total + total_amount > parent_b.total_amount:
+                raise HTTPException(400, f"子预算总和({siblings_total + total_amount:.0f})超过父预算总额({parent_b.total_amount:.0f})")
+
     b = Budget(
         department_id=dept_id, project_id=project_id, parent_id=parent_id, name=body.name,
         year=body.year, quarter=body.quarter, total_amount=total_amount,
@@ -1000,6 +1029,33 @@ async def update_budget(
             db.add(item)
             total += item_data.get("amount", 0.0)
         b.total_amount = total
+
+    # Validate: budget with parent must not exceed parent total
+    if b.parent_id:
+        parent = await db.execute(select(Budget).where(Budget.id == b.parent_id))
+        parent_b = parent.scalar_one_or_none()
+        if parent_b:
+            sib_result = await db.execute(
+                select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                    Budget.parent_id == b.parent_id,
+                    Budget.id != b.id,
+                    Budget.status == "active",
+                )
+            )
+            sib_total = sib_result.scalar() or 0.0
+            if sib_total + b.total_amount > parent_b.total_amount:
+                raise HTTPException(400, f"子预算总和({sib_total + b.total_amount:.0f})超过父预算总额({parent_b.total_amount:.0f})")
+
+    # Validate: parent budget must not be less than sum of children
+    children_result = await db.execute(
+        select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+            Budget.parent_id == b.id,
+            Budget.status == "active",
+        )
+    )
+    children_sum = children_result.scalar() or 0.0
+    if children_sum > b.total_amount:
+        raise HTTPException(400, f"预算总额({b.total_amount:.0f})不能小于子预算总和({children_sum:.0f})")
 
     await db.commit()
     await _recalc_budget_usage(db)

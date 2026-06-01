@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
+
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/finance_providers.dart';
@@ -272,14 +272,24 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     if (v == 'edit') _showEditDialog(context, b);
                     if (v == 'delete') _confirmDelete(context, b.id, b.name);
                     if (v == 'adjust') _showAdjustDialog(context, b);
-                    if (v == 'add_child') _showCreateDialog(context, parentId: b.id);
+                    if (v == 'add_child') _showCreateDialog(context, parent: b);
+                    if (v == 'add_category') _showAddCategoryItemDialog(context, b);
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
-                    const PopupMenuItem(value: 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text('创建子项', style: TextStyle(color: AppTheme.accent))])),
-                    const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
-                    const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
-                  ],
+                  itemBuilder: (_) {
+                    final isLeaf = b.quarter != null && b.departmentId != null;
+                    final isQuarter = b.quarter != null && b.departmentId == null;
+                    final childLabel = isLeaf
+                        ? '添加分类预算'
+                        : isQuarter
+                            ? '添加Q${b.quarter}部门预算'
+                            : '添加季度预算';
+                    return [
+                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
+                      PopupMenuItem(value: isLeaf ? 'add_category' : 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text(childLabel, style: const TextStyle(color: AppTheme.accent))])),
+                      const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
+                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
+                    ];
+                  },
                 ),
               ]),
               const SizedBox(height: 12),
@@ -1273,12 +1283,20 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   // ── Create Dialog ──
 
-  void _showCreateDialog(BuildContext context, {String? parentId}) {
+  void _showCreateDialog(BuildContext context, {BudgetData? parent}) {
     final authState = ref.read(authProvider);
     final currentUser = authState.user;
-    final nameCtrl = TextEditingController();
-    final yearCtrl = TextEditingController(text: '2026');
-    final quarterCtrl = TextEditingController();
+    final dialogTitle = _childBudgetTitle(parent);
+    final defaultName = parent != null
+        ? (parent.quarter == null
+            ? 'Q'
+            : '${parent.name} Q${parent.quarter} - ')
+        : '';
+    final nameCtrl = TextEditingController(text: defaultName);
+    final yearCtrl = TextEditingController(text: parent?.year.toString() ?? '2026');
+    final quarterCtrl = TextEditingController(
+      text: parent?.quarter?.toString() ?? '',
+    );
     final totalAmountCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     String? selectedProjectId;
@@ -1292,7 +1310,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: Text(parentId != null ? '创建子预算' : '创建预算（资金池）'),
+            title: Text(dialogTitle),
             content: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
               child: SizedBox(
@@ -1433,7 +1451,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   };
                   if (selectedDeptId != null) data['department_id'] = selectedDeptId;
                   if (selectedProjectId != null) data['project_id'] = selectedProjectId;
-                  if (parentId != null) data['parent_id'] = parentId;
+                  if (parent != null) data['parent_id'] = parent.id;
                   if (notesCtrl.text.isNotEmpty) data['notes'] = notesCtrl.text;
                   await _api.dio.post('/finance/budgets', data: data);
                   if (ctx.mounted) Navigator.pop(ctx);
@@ -1453,6 +1471,13 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
         },
       ),
     );
+  }
+
+  String _childBudgetTitle(BudgetData? parent) {
+    if (parent == null) return '创建预算（资金池）';
+    if (parent.quarter == null) return '添加季度预算';
+    if (parent.departmentId == null) return '添加Q${parent.quarter}部门预算';
+    return '添加分类预算';
   }
 
   Map<String, dynamic> _newItemEntry(String cat, String name, String amount, {String color = '#FF0000', String icon = 'description'}) {
