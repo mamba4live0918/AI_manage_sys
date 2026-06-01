@@ -47,30 +47,48 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
               return AlertDialog(
                 title: const Text('部门颜色'),
                 content: SizedBox(
-                  width: 320,
+                  width: 340,
                   child: SingleChildScrollView(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: depts.map((d) {
+                    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: depts.map((d) {
                       final deptId = d['id'] as String;
                       final name = d['name'] as String? ?? '';
                       String colorStr = d['color'] as String? ?? '#2196F3';
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(children: [
-                          Expanded(child: Text(name, style: const TextStyle(fontSize: 14))),
-                          ..._colorPresets.map((c) => GestureDetector(
-                            onTap: () {
-                              setDlg(() => colorStr = c);
-                              _api.dio.put('/departments/$deptId', data: {'color': c});
-                            },
-                            child: Container(
-                              width: 24, height: 24, margin: const EdgeInsets.only(left: 4),
-                              decoration: BoxDecoration(
-                                color: Color(int.parse(c.replaceFirst('#', '0xff'))),
-                                shape: BoxShape.circle,
-                                border: colorStr == c ? Border.all(color: Colors.white, width: 2) : null,
-                              ),
+                      final curColor = Color(int.parse(colorStr.replaceFirst('#', '0xff')));
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: curColor.withAlpha(15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border(left: BorderSide(color: curColor, width: 3)),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: curColor)),
+                          const SizedBox(height: 10),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: _colorPresets.map((c) {
+                                final sel = colorStr == c;
+                                return GestureDetector(
+                                  onTap: () {
+                                    setDlg(() => colorStr = c);
+                                    _api.dio.put('/departments/$deptId', data: {'color': c});
+                                  },
+                                  child: Container(
+                                    width: 32, height: 32, margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+                                      shape: BoxShape.circle,
+                                      border: sel ? Border.all(color: Colors.white, width: 3) : null,
+                                      boxShadow: sel ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(80), blurRadius: 6, spreadRadius: 1)] : null,
+                                    ),
+                                    child: sel ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                                  ),
+                                );
+                              }).toList(),
                             ),
-                          )),
+                          ),
                         ]),
                       );
                     }).toList()),
