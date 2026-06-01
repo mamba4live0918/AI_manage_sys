@@ -363,9 +363,11 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
       child: SizedBox(
-        height: 10,
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
+        height: 16,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LayoutBuilder(
+            builder: (ctx, constraints) {
             final totalW = constraints.maxWidth;
             final itemSum = items.fold<double>(0, (s, i) => s + i.amount);
             final displayTotal = itemSum > 0 ? (itemSum < b.totalAmount ? b.totalAmount : itemSum) : (b.totalAmount > 0 ? b.totalAmount : 1);
@@ -406,6 +408,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
           },
         ),
       ),
+    ),
     );
   }
 
