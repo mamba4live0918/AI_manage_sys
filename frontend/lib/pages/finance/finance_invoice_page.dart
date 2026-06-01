@@ -1928,7 +1928,7 @@ class _TableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
     );
   }
@@ -1967,11 +1967,11 @@ class _InvoiceActionCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (status != 'paid' && status != 'cancelled')
           _MiniBtn(Icons.payment, '收款', AppTheme.green, onPay),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
         _MiniBtn(Icons.visibility, '详情', isDark ? Colors.white54 : Colors.black54, onDetail),
       ]),
     );
