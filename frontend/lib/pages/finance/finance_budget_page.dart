@@ -341,9 +341,9 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: SizedBox(
-          height: 10,
+          height: 16,
           child: Stack(children: [
-            Container(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            Container(color: AppTheme.green.withAlpha(isDark ? 20 : 15)),
             if (pct > 0)
               Align(
                 alignment: Alignment.centerLeft,
@@ -401,9 +401,9 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
             }
             final unallocated = b.totalAmount - itemSum;
             if (unallocated > 0 && totalW - usedW >= 2) {
-              segments.add(SizedBox(width: totalW - usedW, child: Container(color: Colors.grey.shade400)));
+              segments.add(SizedBox(width: totalW - usedW, child: Container(color: AppTheme.green.withAlpha(isDark ? 25 : 18))));
             }
-            if (segments.isEmpty) return Container(color: isDark ? Colors.white12 : Colors.grey.shade200);
+            if (segments.isEmpty) return Container(color: AppTheme.green.withAlpha(isDark ? 20 : 15));
             return Row(children: segments);
           },
         ),
