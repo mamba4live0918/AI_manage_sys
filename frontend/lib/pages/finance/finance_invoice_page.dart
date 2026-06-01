@@ -191,12 +191,13 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               child: Table(
                                 columnWidths: const {
-                                  0: FlexColumnWidth(1.4),  // 编号
-                                  1: FlexColumnWidth(1.8),  // 金额(含已收)
-                                  2: FlexColumnWidth(1.6),  // 销售方
-                                  3: FlexColumnWidth(1.6),  // 购买方
-                                  4: FlexColumnWidth(1.2),  // 到期日
-                                  5: FlexColumnWidth(1.0),  // 状态
+                                  0: FlexColumnWidth(1.2),  // 编号
+                                  1: FlexColumnWidth(1.2),  // 金额
+                                  2: FlexColumnWidth(1.4),  // 销售方
+                                  3: FlexColumnWidth(1.4),  // 购买方
+                                  4: FlexColumnWidth(0.8),  // 到期日
+                                  5: FlexColumnWidth(0.7),  // 状态
+                                  6: FixedColumnWidth(120),  // 操作
                                 },
                                 border: TableBorder(
                                   horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
