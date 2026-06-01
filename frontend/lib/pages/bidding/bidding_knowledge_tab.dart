@@ -196,10 +196,10 @@ class _BiddingKnowledgeTabState extends State<BiddingKnowledgeTab> {
   Color _fileIconColor(String? fileName) {
     if (fileName == null) return AppTheme.purple;
     final ext = fileName.toLowerCase();
-    if (ext.endsWith('.pdf')) return Colors.red;
-    if (ext.endsWith('.docx') || ext.endsWith('.doc')) return Colors.blue;
-    if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) return Colors.green;
-    if (ext.endsWith('.pptx') || ext.endsWith('.ppt')) return Colors.orange;
+    if (ext.endsWith('.pdf')) return AppTheme.red;
+    if (ext.endsWith('.docx') || ext.endsWith('.doc')) return AppTheme.blue;
+    if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) return AppTheme.green;
+    if (ext.endsWith('.pptx') || ext.endsWith('.ppt')) return AppTheme.orange;
     return AppTheme.purple;
   }
 

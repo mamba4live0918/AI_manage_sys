@@ -67,6 +67,7 @@ class _BiddingContractTabState extends State<BiddingContractTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     final statusLabels = {'draft': '草稿', 'pending': '待签署', 'signed': '已签署', 'expired': '已过期', 'archived': '已归档'};
 
@@ -126,9 +127,9 @@ class _BiddingContractTabState extends State<BiddingContractTab> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFFF3E8FF),
-                            child: Icon(Icons.article_rounded, color: AppTheme.purple, size: 20),
+                          leading: CircleAvatar(
+                            backgroundColor: AppTheme.purple.withAlpha(isDark ? 25 : 15),
+                            child: const Icon(Icons.article_rounded, color: AppTheme.purple, size: 20),
                           ),
                           title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: Text([counterparty, 'v${c['current_version']}'].where((s) => s.isNotEmpty).join(' · ')),
@@ -226,6 +227,7 @@ class _TemplateListPageState extends State<_TemplateListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('合同模板管理')),
@@ -244,9 +246,9 @@ class _TemplateListPageState extends State<_TemplateListPage> {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 4),
                   child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFF3E8FF),
-                      child: Icon(Icons.description_rounded, color: AppTheme.purple, size: 20),
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.purple.withAlpha(isDark ? 25 : 15),
+                      child: const Icon(Icons.description_rounded, color: AppTheme.purple, size: 20),
                     ),
                     title: Text(t['name'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(t['type'] as String? ?? '', maxLines: 1),

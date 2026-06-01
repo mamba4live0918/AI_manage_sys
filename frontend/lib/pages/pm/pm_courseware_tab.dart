@@ -39,6 +39,7 @@ class _PmCoursewareTabState extends State<PmCoursewareTab> {
   Future<void> _upload() async {
     final titleCtrl = TextEditingController();
     String type = 'document';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
@@ -65,7 +66,7 @@ class _PmCoursewareTabState extends State<PmCoursewareTab> {
                 const SizedBox(width: 8),
                 Expanded(child: Text(picked.name, overflow: TextOverflow.ellipsis)),
                 Text('${(picked.size / 1024).toStringAsFixed(0)} KB',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
               ]),
               const SizedBox(height: 12),
               TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '课件标题')),
@@ -136,6 +137,7 @@ class _PmCoursewareTabState extends State<PmCoursewareTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(children: [
       Padding(
@@ -166,7 +168,7 @@ class _PmCoursewareTabState extends State<PmCoursewareTab> {
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: fileId != null ? const Color(0xFFFFEBEE) : const Color(0xFFFCE4EC),
+                            backgroundColor: AppTheme.red.withAlpha(isDark ? 25 : 15),
                             child: Icon(
                               fileId != null ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
                               color: AppTheme.red, size: 20,

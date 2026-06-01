@@ -1,0 +1,134 @@
+<h2>预算管理 V3 — 全层级展开</h2>
+<p class="subtitle">总预算 → 季度 → 部门 → 分类项 — 每层都可折叠/展开</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:16px;border-radius:10px">
+
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.12);border-radius:8px;padding:14px 16px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:#1E1E3D">2026年 预算总览 · ¥2,000,000 · 已用 ¥850K · 剩余 ¥1.15M</div>
+  </div>
+
+  <!-- Root: 2026总预算 -->
+  <div style="border-left:3px solid #4F46E5;margin-bottom:8px">
+    <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:rgba(255,255,255,0.5);border-radius:0 8px 0 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px;color:#4F46E5">▼</span>
+        <span style="font-size:12px;font-weight:700;color:#1E1E3D">2026年总预算</span>
+        <span style="font-size:9px;color:#8B8BB0">¥2,000,000</span>
+      </div>
+      <span style="font-size:9px;color:#4F46E5">+ 子预算</span>
+    </div>
+    <div style="padding:0 32px 8px">
+      <div style="height:22px;border-radius:5px;overflow:hidden;position:relative;background:rgba(79,70,229,0.05)">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:42.5%;background:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);border-radius:5px 0 0 5px"></div>
+        <div style="position:absolute;left:42.5%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 5px 5px 0"></div>
+        <div style="position:absolute;left:8px;top:0;bottom:0;display:flex;align-items:center;font-size:8px;font-weight:700;color:#6B6B8A">已用 ¥850K</div>
+        <div style="position:absolute;right:8px;top:0;bottom:0;display:flex;align-items:center;font-size:8px;font-weight:600;color:#fff">剩余 ¥1.15M</div>
+      </div>
+    </div>
+
+    <!-- Q1 expanded -->
+    <div style="margin-left:24px;border-left:2px solid #818CF8">
+      <div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:14px;color:#818CF8">▼</span>
+          <span style="font-size:8px;color:#fff;background:#818CF8;padding:1px 5px;border-radius:3px">季</span>
+          <span style="font-size:11px;font-weight:700;color:#1E1E3D">Q1 · ¥500K</span>
+          <span style="font-size:8px;color:#8B8BB0">已用¥230K</span>
+        </div>
+        <span style="font-size:8px;color:#4F46E5">+子预算</span>
+      </div>
+      <div style="padding:0 12px 6px">
+        <div style="height:18px;border-radius:4px;overflow:hidden;position:relative;background:rgba(129,140,248,0.05)">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:46%;background:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 1.5px,rgba(0,0,0,0.04) 1.5px,rgba(0,0,0,0.04) 2.5px);border-radius:4px 0 0 4px"></div>
+          <div style="position:absolute;left:46%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#818CF8,#A5B4FC);border-radius:0 4px 4px 0"></div>
+        </div>
+      </div>
+
+      <!-- 技术部 expanded -->
+      <div style="margin-left:20px;border-left:1.5px solid #C7D2FE">
+        <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:12px;color:#6366F1">▼</span>
+            <span style="font-size:7px;color:#fff;background:#6366F1;padding:1px 5px;border-radius:3px">部</span>
+            <span style="font-size:10px;font-weight:600;color:#1E1E3D">技术部 · ¥300K</span>
+            <span style="font-size:8px;color:#8B8BB0">已用¥150K</span>
+          </div>
+          <span style="font-size:8px;color:#8B8BB0">+ 分类</span>
+        </div>
+        <div style="padding:0 10px 4px">
+          <div style="height:14px;border-radius:3px;overflow:hidden;position:relative;background:rgba(99,102,241,0.04)">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:50%;background:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 1px,rgba(0,0,0,0.04) 1px,rgba(0,0,0,0.04) 2px);border-radius:3px 0 0 3px"></div>
+            <div style="position:absolute;left:50%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#6366F1,#818CF8);border-radius:0 3px 3px 0"></div>
+          </div>
+        </div>
+
+        <!-- 分类项 expanded -->
+        <div style="margin-left:16px;border-left:1px solid #E0E7FF;padding-left:10px">
+          <div style="font-size:9px;padding:4px 8px;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.3);border-radius:4px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:7px;height:7px;border-radius:2px;background:#4F46E5"></div>
+              <span style="color:#1E1E3D;font-weight:500">办公费 ¥150K</span>
+              <span style="color:#8B8BB0">已用 ¥80K</span>
+            </div>
+            <span style="font-size:8px;color:#EF4444">53%</span>
+          </div>
+          <div style="font-size:9px;padding:4px 8px;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.3);border-radius:4px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:7px;height:7px;border-radius:2px;background:#F59E0B"></div>
+              <span style="color:#1E1E3D;font-weight:500">差旅费 ¥150K</span>
+              <span style="color:#8B8BB0">已用 ¥70K</span>
+            </div>
+            <span style="font-size:8px;color:#8B8BB0">47%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 市场部 collapsed -->
+      <div style="margin-left:20px;border-left:1.5px solid #FDE68A;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:12px;color:#8B8BB0">▶</span>
+          <span style="font-size:7px;color:#fff;background:#F59E0B;padding:1px 5px;border-radius:3px">部</span>
+          <span style="font-size:10px;font-weight:600;color:#1E1E3D">市场部 · ¥200K</span>
+          <span style="font-size:8px;color:#8B8BB0">已用¥80K</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 collapsed -->
+    <div style="margin-left:24px;border-left:2px solid #22C55E;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px;color:#8B8BB0">▶</span>
+        <span style="font-size:8px;color:#fff;background:#22C55E;padding:1px 5px;border-radius:3px">季</span>
+        <span style="font-size:11px;font-weight:600;color:#1E1E3D">Q2 · ¥500K</span>
+        <span style="font-size:8px;color:#8B8BB0">未拆分</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:10px;color:#4F46E5;font-size:10px;font-weight:500;border:1.5px dashed rgba(99,102,241,0.2);border-radius:8px">+ 新建预算池</div>
+</div>
+
+<div class="section">
+  <h3>层级设计</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>每层都有</h4>
+    <ul>
+      <li>左侧色条区分层级 (总=紫 / 季=蓝 / 部=靛)</li>
+      <li>标签标注类型 (季/部)</li>
+      <li>自身棋盘格进度条</li>
+      <li>used_amount 从子节点向上汇总</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>分类项(叶子)</h4>
+    <ul>
+      <li>显示单个分类的已用/总额</li>
+      <li>百分比标签</li>
+      <li>不能继续展开</li>
+      <li>从 Expense 实际数据匹配</li>
+    </ul>
+  </div>
+</div>

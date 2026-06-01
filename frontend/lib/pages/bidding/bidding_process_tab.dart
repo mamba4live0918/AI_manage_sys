@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/theme.dart';
 import '../../services/api_client.dart';
 
 const _stageLabels = {
@@ -12,12 +13,12 @@ const _stageLabels = {
 };
 
 const _stageColors = {
-  'preparation': Colors.blue,
-  'bidding': Colors.orange,
-  'evaluation': Colors.purple,
-  'negotiation': Colors.teal,
-  'won': Colors.green,
-  'lost': Colors.red,
+  'preparation': AppTheme.blue,
+  'bidding': AppTheme.orange,
+  'evaluation': AppTheme.purple,
+  'negotiation': AppTheme.teal,
+  'won': AppTheme.green,
+  'lost': AppTheme.red,
   'closed': Colors.grey,
 };
 
@@ -176,9 +177,9 @@ class _BiddingProcessTabState extends State<BiddingProcessTab> {
                                       if (deadline != null) ...[
                                         const SizedBox(height: 4),
                                         Row(children: [
-                                          Icon(Icons.access_time_rounded, size: 12, color: isOverdue ? Colors.red : theme.colorScheme.onSurface.withAlpha(120)),
+                                          Icon(Icons.access_time_rounded, size: 12, color: isOverdue ? AppTheme.red : theme.colorScheme.onSurface.withAlpha(120)),
                                           const SizedBox(width: 4),
-                                          Text(deadline.substring(0, 10), style: TextStyle(fontSize: 11, color: isOverdue ? Colors.red : theme.colorScheme.onSurface.withAlpha(120))),
+                                          Text(deadline.substring(0, 10), style: TextStyle(fontSize: 11, color: isOverdue ? AppTheme.red : theme.colorScheme.onSurface.withAlpha(120))),
                                         ]),
                                       ],
                                       if ((p['notes'] as String? ?? '').isNotEmpty) ...[

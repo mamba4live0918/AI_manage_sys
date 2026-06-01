@@ -74,6 +74,7 @@ class _PmVisitLogTabState extends State<PmVisitLogTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(children: [
       Padding(
@@ -119,9 +120,9 @@ class _PmVisitLogTabState extends State<PmVisitLogTab> {
                           return Card(
                             margin: const EdgeInsets.only(bottom: 4),
                             child: ListTile(
-                              leading: const CircleAvatar(
-                                backgroundColor: Color(0xFFE8F0FE),
-                                child: Icon(Icons.location_on_rounded, color: AppTheme.blue, size: 20),
+                              leading: CircleAvatar(
+                                backgroundColor: AppTheme.accent.withAlpha(isDark ? 25 : 15),
+                                child: const Icon(Icons.location_on_rounded, color: AppTheme.blue, size: 20),
                               ),
                               title: Text(l['location'] as String? ?? '', maxLines: 1),
                               subtitle: Text(l['content'] as String? ?? '', maxLines: 2),

@@ -140,9 +140,9 @@ class _SummaryCards extends StatelessWidget {
             child: Column(children: [
               Icon(icon, size: 22, color: color),
               const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black)),
+              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
               const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 12, color: (isDark ? Colors.white : Colors.black).withAlpha(150))),
+              Text(label, style: TextStyle(fontSize: 12, color: (isDark ? AppTheme.darkText : AppTheme.lightText).withAlpha(150))),
             ]),
           ),
         );
@@ -214,7 +214,7 @@ class _StagePieChart extends StatelessWidget {
                       Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
                       const SizedBox(width: 6),
                       Expanded(child: Text(_stageNames[stage] ?? stage, style: const TextStyle(fontSize: 13))),
-                      Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black)),
+                      Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
                     ]),
                   );
                 }).toList(),
@@ -353,7 +353,7 @@ class _ProjectCalendar extends StatelessWidget {
           headerStyle: HeaderStyle(
             formatButtonVisible: false,
             titleCentered: true,
-            titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
+            titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText),
           ),
           calendarBuilders: CalendarBuilders(
             markerBuilder: (context, date, events) {

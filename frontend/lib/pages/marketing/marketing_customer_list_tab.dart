@@ -219,7 +219,7 @@ class _MarketingCustomerListTabState extends State<MarketingCustomerListTab> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
                 filled: true,
-                fillColor: Colors.grey.withAlpha(15),
+                fillColor: isDark ? Colors.white.withAlpha(10) : Colors.grey.withAlpha(15),
               ),
               onChanged: (v) {
                 _search = v;
@@ -255,20 +255,28 @@ class _MarketingCustomerListTabState extends State<MarketingCustomerListTab> {
                   color: isDark
                       ? AppTheme.darkTextSecondary
                       : AppTheme.lightTextSecondary)),
-          const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
+          Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text('›',
-                  style: TextStyle(fontSize: 12, color: Colors.grey))),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary))),
           Text('市场部',
               style: TextStyle(
                   fontSize: 12,
                   color: isDark
                       ? AppTheme.darkTextSecondary
                       : AppTheme.lightTextSecondary)),
-          const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
+          Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text('›',
-                  style: TextStyle(fontSize: 12, color: Colors.grey))),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary))),
           Text('客户管理',
               style: TextStyle(
                   fontSize: 12,
