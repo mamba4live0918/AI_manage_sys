@@ -831,10 +831,8 @@ class _DepartmentCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
               child: Row(children: const [
-                SizedBox(width: 40, child: Text('姓名/角色', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey))),
-                Spacer(),
-                SizedBox(width: 60, child: Text('状态', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey), textAlign: TextAlign.center)),
-                SizedBox(width: 40, child: Text('操作', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey), textAlign: TextAlign.right)),
+                Expanded(child: Text('姓名 / 角色', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey))),
+                SizedBox(width: 36, child: Text('操作', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey), textAlign: TextAlign.right)),
               ]),
             ),
           if (members.isEmpty)
