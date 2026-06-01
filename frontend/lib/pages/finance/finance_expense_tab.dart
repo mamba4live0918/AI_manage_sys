@@ -7,6 +7,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../widgets/budget_tree_selector.dart';
+import '_dept_autocomplete.dart';
 
 const _expenseCategoryNames = {
   'travel': '差旅', 'office': '办公', 'entertainment': '招待',
@@ -499,6 +500,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     String category = expense['category'] as String? ?? 'other';
     String expenseType = expense['expense_type'] as String? ?? 'reimbursement';
     String? selectedBudgetId = expense['budget_id'] as String?;
+    String? selectedDeptId = expense['department_id'] as String?;
     PlatformFile? pickedFile;
     String? errorMsg;
 
@@ -540,6 +542,13 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                if (_deptNames.isNotEmpty)
+                  DeptAutocomplete(
+                    deptNames: _deptNames,
+                    initialId: selectedDeptId,
+                    onChanged: (v) => setDlg(() => selectedDeptId = v),
+                  ),
                 const SizedBox(height: 8),
                 BudgetTreeSelector(
                   label: '关联预算 (可选)',
@@ -612,6 +621,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
         'expense_type': expenseType,
         'description': descCtrl.text.trim(),
         if (selectedBudgetId != null) 'budget_id': selectedBudgetId,
+        if (selectedDeptId != null) 'department_id': selectedDeptId,
       });
 
       final file = pickedFile;
@@ -1145,20 +1155,6 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
           onSubmitted: (_) {
             _applySearch();
           },
-        ),
-      ),
-
-      // ── Create button ──
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: SizedBox(
-          height: 40,
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _create,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('新建支出'),
-          ),
         ),
       ),
 

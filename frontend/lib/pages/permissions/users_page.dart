@@ -152,6 +152,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     final nameCtrl = TextEditingController(text: dept['name'] ?? '');
     final descCtrl = TextEditingController(text: dept['description'] ?? '');
     final selModules = List<String>.from(dept['accessible_modules'] ?? []);
+    String color = dept['color'] as String? ?? '#2196F3';
 
     final ok = await showDialog<bool>(
       context: context,
@@ -171,6 +172,14 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                   controller: descCtrl,
                   decoration: const InputDecoration(labelText: '描述'),
                 ),
+                const SizedBox(height: 12),
+                // Color picker
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('部门颜色', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 6),
+                _ColorPickerRow(color, (c) => setDlg(() => color = c)),
                 const SizedBox(height: 14),
                 const Align(
                   alignment: Alignment.centerLeft,
@@ -206,6 +215,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
         'name': nameCtrl.text.trim(),
         'description': descCtrl.text.trim(),
         'accessible_modules': selModules,
+        'color': color,
       });
       _load();
     }
@@ -1142,4 +1152,36 @@ class _MiniIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ColorPickerRow extends StatelessWidget {
+  final String current;
+  final ValueChanged<String> onChanged;
+  const _ColorPickerRow(this.current, this.onChanged);
+
+  static const _presets = [
+    '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#E91E63',
+    '#00BCD4', '#FF5722', '#607D8B', '#3F51B5', '#009688',
+    '#795548', '#CDDC39',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(spacing: 6, runSpacing: 6, children: _presets.map((c) {
+      final selected = current == c;
+      return GestureDetector(
+        onTap: () => onChanged(c),
+        child: Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+            shape: BoxShape.circle,
+            border: selected ? Border.all(color: Colors.white, width: 2.5) : null,
+            boxShadow: selected ? [BoxShadow(color: Color(int.parse(c.replaceFirst('#', '0xff'))).withAlpha(60), blurRadius: 4, spreadRadius: 1)] : null,
+          ),
+        ),
+      );
+    }).toList());
+  }
+}
 }

@@ -162,17 +162,6 @@ class _ExpenseSubmitPageState extends ConsumerState<ExpenseSubmitPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Type
-                    SegmentedButton<String>(
-                      selected: {_expenseType},
-                      onSelectionChanged: (v) => setState(() => _expenseType = v.first),
-                      segments: const [
-                        ButtonSegment(value: 'reimbursement', label: Text('报销'), icon: Icon(Icons.person, size: 16)),
-                        ButtonSegment(value: 'direct', label: Text('直接支出'), icon: Icon(Icons.business, size: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
                     // Description
                     TextField(
                       controller: _descCtrl,
