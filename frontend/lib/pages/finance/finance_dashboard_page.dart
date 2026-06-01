@@ -382,16 +382,27 @@ class _RevenueTrendChart extends StatelessWidget {
 
 // ── Budget Usage Section ──
 
-class _BudgetUsageSection extends StatelessWidget {
+class _BudgetUsageSection extends StatefulWidget {
   final FinanceDashboardData data;
   final bool isDark;
   const _BudgetUsageSection({required this.data, required this.isDark});
 
   @override
+  State<_BudgetUsageSection> createState() => _BudgetUsageSectionState();
+}
+
+class _BudgetUsageSectionState extends State<_BudgetUsageSection> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final budgets = data.budgetUsage;
-    if (budgets.isEmpty) return const SizedBox.shrink();
+    final isDark = widget.isDark;
+    final all = widget.data.budgetUsage;
+    if (all.isEmpty) return const SizedBox.shrink();
+
+    final budgets = _expanded ? all : all.take(5).toList();
+    final hasMore = all.length > 5;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -406,79 +417,43 @@ class _BudgetUsageSection extends StatelessWidget {
             : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('预算使用情况',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: isDark ? AppTheme.darkText : AppTheme.lightText,
-            )),
-        const SizedBox(height: 16),
+        Row(children: [
+          Text('预算使用情况',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: isDark ? AppTheme.darkText : AppTheme.lightText,
+              )),
+          const Spacer(),
+          if (hasMore)
+            TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              child: Text(_expanded ? '收起' : '查看全部 (${all.length})', style: const TextStyle(fontSize: 12)),
+            ),
+        ]),
+        const SizedBox(height: 12),
         ...budgets.map((b) {
           final pct = b.total > 0 ? (b.used / b.total).clamp(0.0, 1.0) : 0.0;
-          final Color barColor;
-          if (pct >= 0.9) {
-            barColor = AppTheme.red;
-          } else if (pct >= 0.7) {
-            barColor = AppTheme.orange;
-          } else {
-            barColor = AppTheme.green;
-          }
+          final barColor = pct >= 0.9 ? AppTheme.red : pct >= 0.7 ? AppTheme.orange : AppTheme.accent;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(
                   child: Text(b.name,
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
                           color: isDark ? AppTheme.darkText : AppTheme.lightText)),
                 ),
-                Text(
-                  '${b.used.toStringAsFixed(0)} / ${b.total.toStringAsFixed(0)}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${(pct * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: barColor),
-                ),
+                Text('${(pct * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: barColor)),
               ]),
-              const SizedBox(height: 6),
-              Container(
-                height: 28,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  color: barColor.withAlpha(isDark ? 20 : 12),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: pct,
+                  minHeight: 10,
+                  backgroundColor: barColor.withAlpha(isDark ? 20 : 15),
+                  valueColor: AlwaysStoppedAnimation(barColor),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: LayoutBuilder(builder: (_, c) => Stack(children: [
-                  if (pct > 0)
-                    Positioned(
-                      left: 0, top: 0, bottom: 0,
-                      width: c.maxWidth * pct,
-                      child: CustomPaint(
-                        painter: _DashCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
-                      ),
-                    ),
-                  Positioned(
-                    left: c.maxWidth * pct, top: 0, bottom: 0, right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(topRight: Radius.circular(6), bottomRight: Radius.circular(6)),
-                        gradient: LinearGradient(colors: [barColor, barColor.withAlpha(180)]),
-                      ),
-                    ),
-                  ),
-                  if (pct > 0.15)
-                    Positioned(left: 10, top: 0, bottom: 0, child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('${b.used.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6B6B8A))),
-                    )),
-                  Positioned(right: 10, top: 0, bottom: 0, child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text('剩余 ${(b.total - b.used).toStringAsFixed(0)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: pct > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))),
-                  )),
-                ])),
               ),
             ]),
           );
@@ -554,25 +529,3 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-// ── Checkerboard painter for budget bars ──
-
-class _DashCheckerPainter extends CustomPainter {
-  final Color baseColor;
-  _DashCheckerPainter({this.baseColor = const Color(0xFFD4D4DC)});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = baseColor);
-    final linePaint = Paint()..color = const Color(0x0F000000)..strokeWidth = 0.5;
-    const cellSize = 4.0;
-    for (double x = 0; x < size.width; x += cellSize * 2) {
-      for (double y = 0; y < size.height; y += cellSize * 2) {
-        canvas.drawLine(Offset(x + cellSize, y), Offset(x, y + cellSize), linePaint);
-        canvas.drawLine(Offset(x, y), Offset(x + cellSize, y + cellSize), linePaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
