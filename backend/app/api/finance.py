@@ -509,11 +509,7 @@ async def list_expenses(
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Expense).order_by(Expense.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Expense.department_id == user.department_id)
-        else:
-            query = query.where(Expense.submitted_by == user.id)
+    # Finance module users can see all department expenses for approval
     if category:
         query = query.where(Expense.category == category)
     if status:

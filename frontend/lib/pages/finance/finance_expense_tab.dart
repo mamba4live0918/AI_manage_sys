@@ -79,6 +79,68 @@ class _TableCell extends StatelessWidget {
   }
 }
 
+class _ActionsCell extends StatelessWidget {
+  final String id;
+  final String status;
+  final String expType;
+  final bool isDark;
+  final ValueChanged<String> onApprove;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _ActionsCell({
+    required this.id, required this.status, required this.expType,
+    required this.isDark, required this.onApprove, required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isReimbursement = expType == 'reimbursement';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (isReimbursement && status == 'pending') ...[
+          _MiniBtn(Icons.check, '通过', AppTheme.green, () => onApprove('approved')),
+          const SizedBox(width: 4),
+          _MiniBtn(Icons.close, '驳回', Colors.red, () => onApprove('rejected')),
+        ] else if (isReimbursement && status == 'approved') ...[
+          _MiniBtn(Icons.payment, '支付', AppTheme.green, () => onApprove('paid')),
+        ] else if (expType == 'direct') ...[
+          _MiniBtn(Icons.edit_outlined, '编辑', isDark ? Colors.white54 : Colors.black54, onEdit),
+          const SizedBox(width: 4),
+          _MiniBtn(Icons.delete_outline, '删除', Colors.red, onDelete),
+        ],
+      ]),
+    );
+  }
+}
+
+class _MiniBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _MiniBtn(this.icon, this.label, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 14, color: color),
+        label: Text(label, style: TextStyle(fontSize: 11, color: color)),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+}
+
 class FinanceExpenseTab extends ConsumerStatefulWidget {
   const FinanceExpenseTab({super.key});
 
@@ -1152,12 +1214,13 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Table(
               columnWidths: const {
-                0: FlexColumnWidth(1.2),  // 金额
-                1: FlexColumnWidth(0.8),  // 类别
-                2: FlexColumnWidth(0.8),  // 类型
-                3: FlexColumnWidth(1.6),  // 描述
-                4: FlexColumnWidth(1.1),  // 日期
-                5: FlexColumnWidth(1.0),  // 状态
+                0: FlexColumnWidth(1.1),  // 金额
+                1: FlexColumnWidth(0.7),  // 类别
+                2: FlexColumnWidth(0.7),  // 类型
+                3: FlexColumnWidth(1.2),  // 描述
+                4: FlexColumnWidth(0.8),  // 日期
+                5: FlexColumnWidth(0.8),  // 状态
+                6: FlexColumnWidth(1.2),  // 操作
               },
               border: TableBorder(
                 horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
@@ -1175,6 +1238,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                     _TableHeader('描述'),
                     _TableHeader('日期'),
                     _TableHeader('状态'),
+                    _TableHeader('操作'),
                   ],
                 ),
                 // Data rows
@@ -1228,6 +1292,15 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                           child: Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status))),
                         ),
                         isDark: isDark, onTap: () => _showDetailSheet(e),
+                      ),
+                      _ActionsCell(
+                        id: e['id'] as String,
+                        status: status,
+                        expType: type,
+                        isDark: isDark,
+                        onApprove: (action) => _approve(e['id'] as String, action),
+                        onEdit: () => _edit(e),
+                        onDelete: () => _delete(e['id'] as String),
                       ),
                     ],
                   );
