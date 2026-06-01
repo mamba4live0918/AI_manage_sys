@@ -1,0 +1,105 @@
+<h2>预算树形结构设计</h2>
+<p class="subtitle">总预算 → 季度 → 部门 → 分类 — 四级树形拆分</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:20px;border-radius:12px">
+
+<div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.12);border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+
+<div style="font-size:12px;font-weight:700;color:#1E1E3D;margin-bottom:16px">2026年预算 (¥2,000,000) 已用 ¥850K · 剩余 ¥1,150K</div>
+
+<!-- Level 1: Quarter -->
+<div style="margin-bottom:12px;border-left:2px solid #4F46E5;padding-left:16px">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;color:#fff;background:#4F46E5;padding:1px 8px;border-radius:4px">季</span>
+      <span style="font-size:12px;font-weight:600;color:#1E1E3D">Q1 · ¥500,000</span>
+      <span style="font-size:10px;color:#8B8BB0">已用 ¥230K · 剩余 ¥270K</span>
+    </div>
+    <span style="font-size:10px;color:#4F46E5">+ 部门</span>
+  </div>
+
+  <div style="margin-bottom:6px;border-left:1.5px solid #818CF8;padding-left:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:8px;color:#fff;background:#818CF8;padding:0px 6px;border-radius:3px">部</span>
+        <span style="font-size:11px;font-weight:600;color:#1E1E3D">技术部 · ¥300K</span>
+        <span style="font-size:9px;color:#8B8BB0">已用 ¥150K</span>
+      </div>
+      <span style="font-size:9px;color:#8B8BB0">+ 分类</span>
+    </div>
+    <div style="margin-left:20px;font-size:9px;color:#8B8BB0">
+      <div>· 办公费 ¥150K | 已用 ¥80K</div>
+      <div>· 差旅费 ¥150K | 已用 ¥70K</div>
+    </div>
+  </div>
+
+  <div style="border-left:1.5px solid #F59E0B;padding-left:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:8px;color:#fff;background:#F59E0B;padding:0px 6px;border-radius:3px">部</span>
+        <span style="font-size:11px;font-weight:600;color:#1E1E3D">市场部 · ¥200K</span>
+        <span style="font-size:9px;color:#8B8BB0">已用 ¥80K</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Level 1: Q2 -->
+<div style="margin-bottom:12px;border-left:2px solid #22C55E;padding-left:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;color:#fff;background:#22C55E;padding:1px 8px;border-radius:4px">季</span>
+      <span style="font-size:12px;font-weight:600;color:#1E1E3D">Q2 · ¥500,000</span>
+      <span style="font-size:10px;color:#8B8BB0">已用 ¥120K · 剩余 ¥380K</span>
+    </div>
+    <span style="font-size:10px;color:#8B8BB0">未拆分</span>
+  </div>
+</div>
+
+<div style="text-align:center;padding:12px">
+  <span style="font-size:10px;color:#4F46E5;font-weight:500">+ 新增季度预算</span>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+  <h3>数据结构</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>Budget 模型加 parent_id</h4>
+    <ul>
+      <li>parent_id = null → 总预算（顶层）</li>
+      <li>parent_id → 上一级预算的 ID</li>
+      <li>quarter set → 季度预算</li>
+      <li>department_id set → 部门预算</li>
+      <li>BudgetItem.category → 分类明细</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>UI 表现</h4>
+    <ul>
+      <li>树形缩进视图，每层左边色条区分</li>
+      <li>每层都有棋盘格进度条</li>
+      <li>子级预算总额 ≤ 父级分配额</li>
+      <li>支出匹配到最末级（分类级别）</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认方向</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="tree" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>四级树形：总预算 → 季度 → 部门 → 分类</h3>
+      <p>Budget 加 parent_id 自引用，UI 缩进树形展示，每层独立进度条</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,125 @@
+<h2>预算卡片折叠设计</h2>
+<p class="subtitle">总预算池 → 卡片折叠展开 → 部门分配 + 分类明细</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:20px;border-radius:12px">
+
+  <!-- Total summary card (always visible, not collapsible) -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.12);border-radius:10px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+    <div style="font-size:11px;font-weight:700;color:#1E1E3D;margin-bottom:4px">2026年 预算总览</div>
+    <div style="display:flex;gap:20px;font-size:10px">
+      <span>总额: <b style="color:#1E1E3D">¥660,000</b></span>
+      <span>已用: <b style="color:#EF4444">¥283,500</b></span>
+      <span>剩余: <b style="color:#22C55E">¥376,500</b></span>
+      <span style="color:#8B8BB0">2 个部门</span>
+    </div>
+  </div>
+
+  <!-- Collapsed card 1: 技术部 -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+    <!-- Card header (click to expand) -->
+    <div style="padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#4F46E5"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">技术部</span>
+        <span style="font-size:9px;color:#8B8BB0;background:rgba(0,0,0,0.04);padding:2px 6px;border-radius:4px">2026 Q2</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:#8B8BB0">¥500K</span>
+        <span style="font-size:12px;color:#8B8BB0">▼</span>
+      </div>
+    </div>
+    <!-- Mini bar (collapsed) -->
+    <div style="padding:0 18px 10px">
+      <div style="height:20px;background:rgba(99,102,241,0.06);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background-color:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);border-radius:6px 0 0 6px"></div>
+        <div style="position:absolute;left:47.6%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 6px 6px 0"></div>
+      </div>
+    </div>
+    <!-- Expanded content -->
+    <div style="border-top:1px solid rgba(0,0,0,0.05);padding:16px 18px;background:rgba(0,0,0,0.01)">
+      <div style="font-size:10px;font-weight:600;color:#8B8BB0;margin-bottom:8px">分类明细</div>
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px">
+          <span style="color:#1E1E3D">办公费</span><span style="color:#8B8BB0">已用 ¥238K · 剩余 ¥262K</span>
+        </div>
+        <div style="height:22px;background:rgba(99,102,241,0.05);border-radius:5px;overflow:hidden;position:relative">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background-color:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);border-radius:5px 0 0 5px"></div>
+          <div style="position:absolute;left:47.6%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 5px 5px 0"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px">
+          <span style="color:#1E1E3D">差旅费</span><span style="color:#8B8BB0">已用 ¥45K · 剩余 ¥35K</span>
+        </div>
+        <div style="height:22px;background:rgba(245,158,11,0.05);border-radius:5px;overflow:hidden;position:relative">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:56%;background-color:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);border-radius:5px 0 0 5px"></div>
+          <div style="position:absolute;left:56%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:0 5px 5px 0"></div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#8B8BB0;text-align:right;margin-top:4px">+ 添加分类</div>
+    </div>
+  </div>
+
+  <!-- Collapsed card 2 (closed) -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+    <div style="padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#F59E0B"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">市场部</span>
+        <span style="font-size:9px;color:#8B8BB0;background:rgba(0,0,0,0.04);padding:2px 6px;border-radius:4px">2026 Q2</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:#8B8BB0">¥160K</span>
+        <span style="font-size:12px;color:#8B8BB0">▶</span>
+      </div>
+    </div>
+    <div style="padding:0 18px 10px">
+      <div style="height:20px;background:rgba(245,158,11,0.05);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:10%;background-color:#D4D4DC;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);border-radius:6px 0 0 6px"></div>
+        <div style="position:absolute;left:10%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:0 6px 6px 0"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add budget button -->
+  <div style="border:1.5px dashed rgba(99,102,241,0.2);border-radius:10px;padding:16px;text-align:center;color:#4F46E5;font-size:11px;font-weight:500">+ 新建预算池</div>
+</div>
+
+<div class="section">
+  <h3>交互说明</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>每个预算卡片</h4>
+    <ul>
+      <li>收起：显示部门名 + 总额 + 迷你进度条 + ▶</li>
+      <li>展开：显示分类明细 + 添加分类按钮</li>
+      <li>卡片撑开，其他卡片下移（原位展开）</li>
+      <li>不需要弹窗了，所有操作在卡片内完成</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>操作</h4>
+    <ul>
+      <li>创建 → 只设总预算池</li>
+      <li>展开卡片 → 添加分类</li>
+      <li>分类内 → 修改金额/删分类</li>
+      <li>所有改完后点保存</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="confirm" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确定这个方案</h3>
+      <p>卡片折叠显示·收起迷你条·展开分类明细·原位操作不需要弹窗</p>
+    </div>
+  </div>
+</div>

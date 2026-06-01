@@ -272,9 +272,11 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     if (v == 'edit') _showEditDialog(context, b);
                     if (v == 'delete') _confirmDelete(context, b.id, b.name);
                     if (v == 'adjust') _showAdjustDialog(context, b);
+                    if (v == 'add_child') _showCreateDialog(context, parentId: b.id);
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
+                    const PopupMenuItem(value: 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text('创建子项', style: TextStyle(color: AppTheme.accent))])),
                     const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
                     const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
                   ],
@@ -1271,7 +1273,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   // ── Create Dialog ──
 
-  void _showCreateDialog(BuildContext context) {
+  void _showCreateDialog(BuildContext context, {String? parentId}) {
     final authState = ref.read(authProvider);
     final currentUser = authState.user;
     final nameCtrl = TextEditingController();
@@ -1290,7 +1292,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: const Text('创建预算（资金池）'),
+            title: Text(parentId != null ? '创建子预算' : '创建预算（资金池）'),
             content: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
               child: SizedBox(
@@ -1431,6 +1433,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   };
                   if (selectedDeptId != null) data['department_id'] = selectedDeptId;
                   if (selectedProjectId != null) data['project_id'] = selectedProjectId;
+                  if (parentId != null) data['parent_id'] = parentId;
                   if (notesCtrl.text.isNotEmpty) data['notes'] = notesCtrl.text;
                   await _api.dio.post('/finance/budgets', data: data);
                   if (ctx.mounted) Navigator.pop(ctx);
