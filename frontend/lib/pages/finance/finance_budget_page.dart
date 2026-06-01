@@ -408,26 +408,45 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                       padding: const EdgeInsets.all(16),
                       decoration: _cardDecoration(isDark),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // Progress
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: SizedBox(
-                            height: 14,
-                            child: Stack(children: [
-                              Container(color: isDark ? Colors.white12 : Colors.grey.shade200),
-                              if (pct > 0)
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FractionallySizedBox(
-                                    widthFactor: pct,
-                                    child: CustomPaint(
-                                      painter: _CheckerboardPainter(isDark: isDark),
-                                      child: const SizedBox.expand(),
-                                    ),
-                                  ),
-                                ),
-                            ]),
+                        // Progress bar: chessboard used + colored remaining
+                        Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            color: (pct >= 0.9 ? AppTheme.red : pct >= 0.7 ? AppTheme.orange : AppTheme.accent).withAlpha(isDark ? 18 : 10),
                           ),
+                          clipBehavior: Clip.antiAlias,
+                          child: LayoutBuilder(builder: (_, c) => Stack(children: [
+                            if (pct > 0)
+                              Positioned(
+                                left: 0, top: 0, bottom: 0,
+                                width: c.maxWidth * pct,
+                                child: CustomPaint(
+                                  painter: _BarCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                                ),
+                              ),
+                            Positioned(
+                              left: c.maxWidth * pct, top: 0, bottom: 0, right: 0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: const BorderRadius.only(topRight: Radius.circular(6), bottomRight: Radius.circular(6)),
+                                  gradient: LinearGradient(colors: [
+                                    pct >= 0.9 ? AppTheme.red : pct >= 0.7 ? AppTheme.orange : AppTheme.accent,
+                                    (pct >= 0.9 ? AppTheme.red : pct >= 0.7 ? AppTheme.orange : AppTheme.accent).withAlpha(180),
+                                  ]),
+                                ),
+                              ),
+                            ),
+                            if (pct > 0.12)
+                              Positioned(left: 10, top: 0, bottom: 0, child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text('已用 \u{FFE5}${_fmt(b.usedAmount)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6B6B8A))),
+                              )),
+                            Positioned(right: 10, top: 0, bottom: 0, child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text('剩余 \u{FFE5}${_fmt(remaining)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: pct > 0.6 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))),
+                            )),
+                          ])),
                         ),
                         const SizedBox(height: 12),
                         Row(children: [
