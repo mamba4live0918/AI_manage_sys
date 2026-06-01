@@ -179,7 +179,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     final pct = b.totalAmount > 0 ? (b.usedAmount / b.totalAmount).clamp(0.0, 1.0) : 0.0;
     final statusLabel = _statusLabels[b.status] ?? b.status;
     final statusColor = _statusColors[b.status] ?? Colors.grey;
-    final warnColor = pct > 0.9 ? Colors.red : pct > 0.7 ? Colors.orange : Colors.green;
+    final warnColor = pct > 0.9 ? AppTheme.green : pct > 0.7 ? Colors.orange : Colors.green;
     final hasChildren = ref.watch(financeBudgetProvider).items.any((i) => i.parentId == b.id);
 
     return Card(
@@ -459,7 +459,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 final statusLabel = _statusLabels[b.status] ?? b.status;
                 final statusColor = _statusColors[b.status] ?? Colors.grey;
                 final pct = b.totalAmount > 0 ? (b.usedAmount / b.totalAmount).clamp(0.0, 1.0) : 0.0;
-                final warnColor = pct > 0.9 ? Colors.red : pct > 0.7 ? Colors.orange : Colors.green;
+                final warnColor = pct > 0.9 ? AppTheme.green : pct > 0.7 ? Colors.orange : Colors.green;
                 final remaining = b.totalAmount - b.usedAmount;
 
                 return ListView(
@@ -1814,13 +1814,13 @@ class _CheckerboardPainter extends CustomPainter {
     if (size.width <= 0 || size.height <= 0) return;
     final light = Paint()
       ..color = isDark
-          ? Colors.white.withValues(alpha: 0.12)
-          : Colors.white.withValues(alpha: 0.25);
+          ? Colors.white.withValues(alpha: 0.20)
+          : Colors.white.withValues(alpha: 0.45);
     final dark = Paint()
       ..color = isDark
-          ? Colors.black.withValues(alpha: 0.30)
-          : Colors.black.withValues(alpha: 0.22);
-    const grid = 5.0;
+          ? Colors.black.withValues(alpha: 0.45)
+          : Colors.black.withValues(alpha: 0.35);
+    const grid = 6.0;
     final cols = (size.width / grid).ceil();
     final rows = (size.height / grid).ceil();
     for (int row = 0; row < rows; row++) {

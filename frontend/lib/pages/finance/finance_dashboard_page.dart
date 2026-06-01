@@ -413,7 +413,7 @@ class _BudgetUsageSection extends StatelessWidget {
         const SizedBox(height: 12),
         ...budgets.map((b) {
           final pct = b.total > 0 ? (b.used / b.total).clamp(0.0, 1.0) : 0.0;
-          final barColor = pct >= 0.9 ? AppTheme.red : pct >= 0.7 ? AppTheme.orange : AppTheme.accent;
+          final barColor = pct >= 0.9 ? AppTheme.green : pct >= 0.7 ? AppTheme.orange : AppTheme.accent;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
