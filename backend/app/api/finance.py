@@ -293,6 +293,38 @@ async def _recalc_budget_usage(db: AsyncSession):
     for b in all_budgets:
         b.used_amount = 0.0
 
+    # Step 0: Auto-assign budget_id for expenses/settlements that don't have one yet
+    unlinked = (await db.execute(
+        select(Expense).where(
+            Expense.budget_id.is_(None),
+            Expense.status.in_(["approved", "paid"]),
+        )
+    )).scalars().all()
+    if unlinked:
+        # Build leaf budget index: (department_id, year, quarter, category) → budget_id
+        items_rows = (await db.execute(
+            select(BudgetItem).where(BudgetItem.budget_id.in_(budget_ids))
+        )).scalars().all()
+        budget_items_map = {}  # budget_id → set of categories
+        for item in items_rows:
+            budget_items_map.setdefault(item.budget_id, set()).add(item.category)
+
+        leaf_budgets = [b for b in all_budgets if b.quarter is not None and b.department_id is not None]
+        for exp in unlinked:
+            for b in leaf_budgets:
+                if b.department_id != exp.department_id:
+                    continue
+                ym_start, ym_end = _budget_date_range(b)
+                if ym_start and not (ym_start <= exp.created_at < ym_end):
+                    continue
+                # Match by category if budget has items, otherwise accept any
+                cats = budget_items_map.get(b.id, set())
+                if cats and exp.category not in cats:
+                    continue
+                exp.budget_id = b.id
+                break
+        await db.commit()
+
     # Step 1: Expenses grouped by budget_id (approved or paid)
     exp_rows = (await db.execute(
         select(Expense.budget_id, func.coalesce(func.sum(Expense.amount), 0.0))

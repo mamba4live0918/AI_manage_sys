@@ -16,6 +16,7 @@ import 'pages/bidding/bidding_dashboard_page.dart';
 import 'pages/pm/pm_dashboard_page.dart';
 import 'pages/hr/hr_dashboard_page.dart';
 import 'pages/finance/finance_dashboard_page.dart';
+import 'pages/finance/expense_submit_page.dart';
 import 'pages/dashboard/dashboard_page.dart';
 import 'widgets/responsive_scaffold.dart';
 import 'utils/app_logger.dart';
@@ -57,6 +58,7 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
     if (location.startsWith('/pm')) return 'pm';
     if (location.startsWith('/hr')) return 'hr';
     if (location.startsWith('/finance')) return 'finance';
+    if (location.startsWith('/expense')) return 'expense';
     return null;
   }
 
@@ -172,6 +174,13 @@ class _AIManageAppState extends ConsumerState<AIManageApp> {
               pageBuilder: (context, state) => NoTransitionPage(
                 key: state.pageKey,
                 child: const HrDashboardPage(),
+              ),
+            ),
+            GoRoute(
+              path: '/expense',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const ExpenseSubmitPage(),
               ),
             ),
             GoRoute(

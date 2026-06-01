@@ -10,6 +10,7 @@ import 'search_dialog.dart';
 const _moduleConfig = <String, _NavItem>{
   'dashboard': (Icons.home_rounded, Icons.home_outlined, '首页', '/dashboard'),
   'files': (Icons.folder_rounded, Icons.folder_outlined, '文件', '/files'),
+  'expense': (Icons.receipt_long_rounded, Icons.receipt_long_outlined, '支出报销', '/expense'),
   'ip': (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP', '/ip'),
   'audit': (Icons.schedule_rounded, Icons.schedule_outlined, '审计', '/audit'),
   'marketing': (Icons.campaign_rounded, Icons.campaign_outlined, '市场部', '/marketing'),
