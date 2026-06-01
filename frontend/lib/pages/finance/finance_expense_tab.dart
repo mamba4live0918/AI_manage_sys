@@ -770,6 +770,8 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                 _detailRow('类别', _expenseCategoryNames[category] ?? category, labelColor, textColor),
                 _detailRow('类型', isReimbursement ? '员工报销' : '直接支出', labelColor, textColor),
                 _detailRow('状态', _expenseStatusNames[status] ?? status, labelColor, textColor),
+                _detailRow('部门', _resolveDept(e['department_id'] as String?), labelColor, textColor),
+                _detailRow('关联预算', _resolveBudget(e['budget_id'] as String?), labelColor, textColor),
                 if (description.isNotEmpty)
                   _detailRow('描述', description, labelColor, textColor),
                 if (createdAt.isNotEmpty)
@@ -1066,6 +1068,35 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     ));
   }
 
+  static const _deptPalette = [
+    Colors.blue, Colors.teal, Colors.orange, Colors.purple,
+    Colors.green, Colors.pink, Colors.indigo, Colors.cyan,
+    Colors.amber, Colors.deepOrange, Colors.lightGreen, Colors.deepPurple,
+  ];
+
+  Color _deptColor(String? deptId) {
+    if (deptId == null) return Colors.grey;
+    final keys = _deptNames.keys.toList();
+    final idx = keys.indexOf(deptId);
+    return _deptPalette[idx >= 0 ? idx % _deptPalette.length : 0];
+  }
+
+  String _resolveDept(String? deptId) {
+    if (deptId == null) return '-';
+    return _deptNames[deptId] ?? '-';
+  }
+
+  String _resolveBudget(String? budgetId) {
+    if (budgetId == null) return '-';
+    final b = _budgetMap[budgetId];
+    if (b == null) return '-';
+    final y = b['year'] ?? '';
+    final q = b['quarter'];
+    final n = b['name'] ?? '';
+    if (q != null) return '${y}年 Q$q — $n';
+    return '${y}年 — $n';
+  }
+
   String _formatDate(String iso) {
     try {
       return iso.substring(0, 10);
@@ -1228,12 +1259,11 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                 0: FlexColumnWidth(1.0),  // 金额
                 1: FlexColumnWidth(0.6),  // 类别
                 2: FlexColumnWidth(0.6),  // 类型
-                3: FlexColumnWidth(0.8),  // 部门
-                4: FlexColumnWidth(1.4),  // 描述
-                5: FlexColumnWidth(1.2),  // 关联预算
-                6: FlexColumnWidth(0.7),  // 日期
-                7: FlexColumnWidth(0.7),  // 状态
-                8: FlexColumnWidth(1.2),  // 操作
+                3: FlexColumnWidth(0.9),  // 部门
+                4: FlexColumnWidth(1.3),  // 描述
+                5: FlexColumnWidth(0.7),  // 日期
+                6: FlexColumnWidth(0.7),  // 状态
+                7: FlexColumnWidth(1.2),  // 操作
               },
               border: TableBorder(
                 horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
@@ -1250,7 +1280,6 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                     _TableHeader('类型'),
                     _TableHeader('部门'),
                     _TableHeader('描述'),
-                    _TableHeader('关联预算'),
                     _TableHeader('日期'),
                     _TableHeader('状态'),
                     _TableHeader('操作'),
@@ -1264,12 +1293,8 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                   final desc = e['description'] as String? ?? '';
                   final date = (e['created_at'] as String? ?? '');
                   final deptId = e['department_id'] as String?;
-                  final deptName = deptId != null ? (_deptNames[deptId] ?? deptId.substring(0, 8)) : '-';
-                  final budgetId = e['budget_id'] as String?;
-                  final budget = budgetId != null ? _budgetMap[budgetId] : null;
-                  final budgetLabel = budget != null
-                      ? '${budget['year']}${budget['quarter'] != null ? " Q${budget['quarter']}" : ""} ${budget['name']}'
-                      : (budgetId != null ? budgetId.substring(0, 8) : '-');
+                  final deptName = deptId != null ? (_deptNames[deptId] ?? '-') : '-';
+                  final deptColor = _deptColor(deptId);
                   return TableRow(
                     children: [
                       _TableCell(
@@ -1297,15 +1322,18 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                         isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
-                        Text(deptName, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: deptColor.withAlpha(isDark ? 30 : 20),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(deptName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: deptColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                         isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
                         Text(desc.isNotEmpty ? desc : '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Text(budgetLabel, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
                         isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
