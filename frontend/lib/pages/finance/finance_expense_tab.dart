@@ -161,6 +161,8 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
   bool _loadingVouchers = false;
   int _page = 0;
   static const int _pageSize = 20;
+  Map<String, String> _deptNames = {};
+  Map<String, Map<String, dynamic>> _budgetMap = {};
 
   List<Map<String, dynamic>> get _pagedItems {
     final start = _page * _pageSize;
@@ -186,12 +188,21 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final params = <String, dynamic>{'limit': 100};
-      if (_statusFilter.isNotEmpty) params['status'] = _statusFilter;
-      if (_typeFilter.isNotEmpty) params['expense_type'] = _typeFilter;
-      final resp = await _api.dio.get('/finance/expenses', queryParameters: params);
+      final results = await Future.wait([
+        _api.dio.get('/finance/expenses', queryParameters: {
+          if (_statusFilter.isNotEmpty) 'status': _statusFilter,
+          if (_typeFilter.isNotEmpty) 'expense_type': _typeFilter,
+          'limit': 100,
+        }),
+        _api.dio.get('/departments'),
+        _api.dio.get('/finance/budgets', queryParameters: {'limit': 200}),
+      ]);
+      final deptList = List<Map<String, dynamic>>.from(results[1].data['items']);
+      _deptNames = {for (var d in deptList) d['id'] as String: d['name'] as String? ?? ''};
+      final budgetList = List<Map<String, dynamic>>.from(results[2].data['items']);
+      _budgetMap = {for (var b in budgetList) b['id'] as String: b};
       setState(() {
-        _allItems = List<Map<String, dynamic>>.from(resp.data['items']);
+        _allItems = List<Map<String, dynamic>>.from(results[0].data['items']);
         _applySearch();
         _loading = false;
       });
@@ -1214,13 +1225,15 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Table(
               columnWidths: const {
-                0: FlexColumnWidth(1.1),  // 金额
-                1: FlexColumnWidth(0.7),  // 类别
-                2: FlexColumnWidth(0.7),  // 类型
-                3: FlexColumnWidth(1.2),  // 描述
-                4: FlexColumnWidth(0.8),  // 日期
-                5: FlexColumnWidth(0.8),  // 状态
-                6: FlexColumnWidth(1.2),  // 操作
+                0: FlexColumnWidth(1.0),  // 金额
+                1: FlexColumnWidth(0.6),  // 类别
+                2: FlexColumnWidth(0.6),  // 类型
+                3: FlexColumnWidth(0.8),  // 部门
+                4: FlexColumnWidth(1.4),  // 描述
+                5: FlexColumnWidth(1.2),  // 关联预算
+                6: FlexColumnWidth(0.7),  // 日期
+                7: FlexColumnWidth(0.7),  // 状态
+                8: FlexColumnWidth(1.2),  // 操作
               },
               border: TableBorder(
                 horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
@@ -1235,7 +1248,9 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                     _TableHeader('金额'),
                     _TableHeader('类别'),
                     _TableHeader('类型'),
+                    _TableHeader('部门'),
                     _TableHeader('描述'),
+                    _TableHeader('关联预算'),
                     _TableHeader('日期'),
                     _TableHeader('状态'),
                     _TableHeader('操作'),
@@ -1248,6 +1263,13 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                   final type = e['expense_type'] as String? ?? 'reimbursement';
                   final desc = e['description'] as String? ?? '';
                   final date = (e['created_at'] as String? ?? '');
+                  final deptId = e['department_id'] as String?;
+                  final deptName = deptId != null ? (_deptNames[deptId] ?? deptId.substring(0, 8)) : '-';
+                  final budgetId = e['budget_id'] as String?;
+                  final budget = budgetId != null ? _budgetMap[budgetId] : null;
+                  final budgetLabel = budget != null
+                      ? '${budget['year']}${budget['quarter'] != null ? " Q${budget['quarter']}" : ""} ${budget['name']}'
+                      : (budgetId != null ? budgetId.substring(0, 8) : '-');
                   return TableRow(
                     children: [
                       _TableCell(
@@ -1275,7 +1297,15 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                         isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
-                        Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(deptName, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
+                      ),
+                      _TableCell(
+                        Text(desc.isNotEmpty ? desc : '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        isDark: isDark, onTap: () => _showDetailSheet(e),
+                      ),
+                      _TableCell(
+                        Text(budgetLabel, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
                         isDark: isDark, onTap: () => _showDetailSheet(e),
                       ),
                       _TableCell(
