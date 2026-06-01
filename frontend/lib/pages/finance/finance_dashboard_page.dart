@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/finance_providers.dart';
+import '../../services/api_client.dart';
 import '../../widgets/watermark.dart';
 import '../../models/finance_models.dart';
 import 'finance_invoice_page.dart';
@@ -19,11 +20,69 @@ class FinanceDashboardPage extends ConsumerStatefulWidget {
 
 class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
   int _activeView = 0; // 0=dashboard, 1=invoice, 2=budget, 3=expense, 4=voucher
+  final _api = ApiClient();
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.read(financeDashboardProvider.notifier).load());
+  }
+
+  static const _colorPresets = [
+    '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#E91E63',
+    '#00BCD4', '#FF5722', '#607D8B', '#3F51B5', '#009688',
+    '#795548', '#CDDC39',
+  ];
+
+  void _showDeptColorDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          return FutureBuilder<List<Map<String, dynamic>>>(
+            future: _api.dio.get('/departments').then((r) => List<Map<String, dynamic>>.from(r.data['items'])),
+            builder: (ctx, snap) {
+              if (!snap.hasData) return const AlertDialog(title: Text('部门颜色'), content: Center(child: CircularProgressIndicator()));
+              final depts = snap.data!;
+              return AlertDialog(
+                title: const Text('部门颜色'),
+                content: SizedBox(
+                  width: 320,
+                  child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: depts.map((d) {
+                      final deptId = d['id'] as String;
+                      final name = d['name'] as String? ?? '';
+                      String colorStr = d['color'] as String? ?? '#2196F3';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(children: [
+                          Expanded(child: Text(name, style: const TextStyle(fontSize: 14))),
+                          ..._colorPresets.map((c) => GestureDetector(
+                            onTap: () {
+                              setDlg(() => colorStr = c);
+                              _api.dio.put('/departments/$deptId', data: {'color': c});
+                            },
+                            child: Container(
+                              width: 24, height: 24, margin: const EdgeInsets.only(left: 4),
+                              decoration: BoxDecoration(
+                                color: Color(int.parse(c.replaceFirst('#', '0xff'))),
+                                shape: BoxShape.circle,
+                                border: colorStr == c ? Border.all(color: Colors.white, width: 2) : null,
+                              ),
+                            ),
+                          )),
+                        ]),
+                      );
+                    }).toList()),
+                  ),
+                ),
+                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -78,7 +137,12 @@ class _FinanceDashboardPageState extends ConsumerState<FinanceDashboardPage> {
           const SizedBox(height: 20),
           _BudgetUsageSection(data: data, isDark: isDark),
           const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: _QuickActions(onSelect: (i) => setState(() => _activeView = i))),
+          SizedBox(width: double.infinity, child: _QuickActions(
+            onSelect: (i) {
+              if (i == 5) { _showDeptColorDialog(); return; }
+              setState(() => _activeView = i);
+            },
+          )),
           const SizedBox(height: 80),
         ]),
       ),
@@ -423,6 +487,7 @@ class _QuickActions extends StatelessWidget {
       ('预算管理', Icons.account_balance_wallet_rounded),
       ('支出管理', Icons.attach_money_rounded),
       ('凭证管理', Icons.description_rounded),
+      ('部门颜色', Icons.palette_rounded),
     ];
 
     final isDesktop = MediaQuery.of(context).size.width >= 768;
