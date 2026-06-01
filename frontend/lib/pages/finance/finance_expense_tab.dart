@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import '../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
 
 const _expenseCategoryNames = {
@@ -76,14 +78,14 @@ class _TableCell extends StatelessWidget {
   }
 }
 
-class FinanceExpenseTab extends StatefulWidget {
+class FinanceExpenseTab extends ConsumerStatefulWidget {
   const FinanceExpenseTab({super.key});
 
   @override
-  State<FinanceExpenseTab> createState() => _FinanceExpenseTabState();
+  ConsumerState<FinanceExpenseTab> createState() => _FinanceExpenseTabState();
 }
 
-class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
+class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
   final _api = ApiClient();
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _allItems = [];
@@ -171,12 +173,17 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
   // ─── Create dialog ───
 
   Future<void> _create() async {
+    final authState = ref.read(authProvider);
+    final currentUser = authState.user;
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String category = 'other';
     String expenseType = 'reimbursement';
     PlatformFile? pickedFile;
     String? errorMsg;
+    String? selectedDeptId;
+    List<Map<String, dynamic>>? deptList;
+    bool deptListLoading = false;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -237,6 +244,79 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text('直接支出自动完成，无需审批', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   ),
+                const SizedBox(height: 4),
+                // ── Department section ──
+                currentUser != null && currentUser.departmentId != null
+                    ? Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.business, size: 14, color: Colors.blue),
+                          const SizedBox(width: 6),
+                          Text('部门: ${currentUser.department}',
+                              style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                        ]),
+                      )
+                    : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(children: [
+                            Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text('请先选择部门', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                            ),
+                          ]),
+                        ),
+                        const SizedBox(height: 4),
+                        deptList == null && !deptListLoading
+                            ? SizedBox(
+                                height: 32,
+                                child: TextButton.icon(
+                                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                                  icon: const Icon(Icons.refresh, size: 14),
+                                  label: const Text('加载部门列表', style: TextStyle(fontSize: 12)),
+                                  onPressed: () async {
+                                    setDlg(() => deptListLoading = true);
+                                    try {
+                                      final resp = await _api.dio.get('/departments');
+                                      setDlg(() {
+                                        deptList = List<Map<String, dynamic>>.from(resp.data['items']);
+                                        deptListLoading = false;
+                                      });
+                                    } catch (_) {
+                                      setDlg(() => deptListLoading = false);
+                                    }
+                                  },
+                                ),
+                              )
+                            : deptListLoading
+                                ? const SizedBox(height: 20, child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))))
+                                : DropdownButtonFormField<String>(
+                                    value: selectedDeptId,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: '选择部门',
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    ),
+                                    items: (deptList ?? []).map((d) => DropdownMenuItem(
+                                      value: d['id'] as String?,
+                                      child: Text(d['name'] as String? ?? '', style: const TextStyle(fontSize: 12)),
+                                    )).toList(),
+                                    onChanged: (v) => setDlg(() => selectedDeptId = v),
+                                  ),
+                      ]),
                 const SizedBox(height: 8),
                 TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
                 const SizedBox(height: 12),
@@ -297,12 +377,14 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
     if (ok != true || amountCtrl.text.trim().isEmpty) return;
 
     try {
-      final resp = await _api.dio.post('/finance/expenses', data: {
+      final expenseData = <String, dynamic>{
         'amount': double.tryParse(amountCtrl.text) ?? 0.0,
         'category': category,
         'expense_type': expenseType,
         'description': descCtrl.text.trim(),
-      });
+      };
+      if (selectedDeptId != null) expenseData['department_id'] = selectedDeptId;
+      final resp = await _api.dio.post('/finance/expenses', data: expenseData);
       final expenseId = resp.data['id'] as String;
 
       final file = pickedFile;

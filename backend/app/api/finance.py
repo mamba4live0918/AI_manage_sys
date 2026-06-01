@@ -54,6 +54,7 @@ class ExpenseCreate(BaseModel):
     expense_type: str = "reimbursement"  # reimbursement=员工报销, direct=直接支出
     description: str = ""
     submitted_by: str | None = None
+    department_id: str | None = None
 
 
 class ExpenseApprove(BaseModel):
@@ -272,6 +273,9 @@ async def _recalc_budget_usage(db: AsyncSession):
     budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
     budgets = budgets_result.scalars().all()
     for b in budgets:
+        # Skip budgets without a department — can't match expenses
+        if b.department_id is None:
+            continue
         ym_start, ym_end = _budget_date_range(b)
         conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
         if b.project_id:
@@ -481,7 +485,7 @@ async def create_expense(
         description=body.description,
         status=status,
         submitted_by=submitted_by,
-        department_id=user.department_id,
+        department_id=user.department_id if user.department_id else body.department_id,
     )
     db.add(e)
     await db.commit()

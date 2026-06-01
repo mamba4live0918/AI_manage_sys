@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/finance_providers.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
@@ -1187,12 +1188,17 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   // ── Create Dialog ──
 
   void _showCreateDialog(BuildContext context) {
+    final authState = ref.read(authProvider);
+    final currentUser = authState.user;
     final nameCtrl = TextEditingController();
     final yearCtrl = TextEditingController(text: '2026');
     final quarterCtrl = TextEditingController();
     final totalAmountCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     String? selectedProjectId;
+    String? selectedDeptId;
+    List<Map<String, dynamic>>? deptList;
+    bool deptListLoading = false;
     String selectedStatus = 'active';
 
     showDialog(
@@ -1211,6 +1217,74 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
                   TextField(controller: quarterCtrl, decoration: const InputDecoration(labelText: '季度 (1-4, 留空=全年)'), keyboardType: TextInputType.number),
                   TextField(controller: totalAmountCtrl, decoration: const InputDecoration(labelText: '预算总额'), keyboardType: TextInputType.number),
+                  const SizedBox(height: 12),
+                  // ── Department section ──
+                  currentUser != null && currentUser.departmentId != null
+                      ? Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.business, size: 16, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Text('所属部门: ${currentUser.department}',
+                                style: const TextStyle(fontSize: 13, color: Colors.blue)),
+                          ]),
+                        )
+                      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text('请先选择部门', style: TextStyle(fontSize: 13, color: Colors.orange)),
+                              ),
+                            ]),
+                          ),
+                          const SizedBox(height: 8),
+                          deptList == null && !deptListLoading
+                              ? TextButton.icon(
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('加载部门列表'),
+                                  onPressed: () async {
+                                    setDialogState(() => deptListLoading = true);
+                                    try {
+                                      final resp = await _api.dio.get('/departments');
+                                      setDialogState(() {
+                                        deptList = List<Map<String, dynamic>>.from(resp.data['items']);
+                                        deptListLoading = false;
+                                      });
+                                    } catch (_) {
+                                      setDialogState(() => deptListLoading = false);
+                                    }
+                                  },
+                                )
+                              : deptListLoading
+                                  ? const SizedBox(height: 24, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))))
+                                  : DropdownButtonFormField<String>(
+                                      value: selectedDeptId,
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: '选择部门',
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      ),
+                                      items: (deptList ?? []).map((d) => DropdownMenuItem(
+                                        value: d['id'] as String?,
+                                        child: Text(d['name'] as String? ?? '', style: const TextStyle(fontSize: 13)),
+                                      )).toList(),
+                                      onChanged: (v) => setDialogState(() => selectedDeptId = v),
+                                    ),
+                        ]),
                   const SizedBox(height: 8),
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: _loadProjects(),
@@ -1271,6 +1345,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     'total_amount': totalAmount,
                     'status': selectedStatus,
                   };
+                  if (selectedDeptId != null) data['department_id'] = selectedDeptId;
                   if (selectedProjectId != null) data['project_id'] = selectedProjectId;
                   if (notesCtrl.text.isNotEmpty) data['notes'] = notesCtrl.text;
                   await _api.dio.post('/finance/budgets', data: data);
