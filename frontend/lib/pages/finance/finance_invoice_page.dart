@@ -9,6 +9,7 @@ import '../../providers/finance_providers.dart';
 import '../../config/theme.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
+import '../../widgets/budget_tree_selector.dart';
 class FinanceInvoicePage extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
   const FinanceInvoicePage({super.key, this.onBack});
@@ -544,6 +545,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     String? issueDate;
     String? dueDate;
     String? errorMsg;
+    String? selectedBudgetId;
 
     showDialog(
       context: context,
@@ -662,6 +664,11 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 ),
               ]),
               const SizedBox(height: 8),
+              BudgetTreeSelector(
+                label: '关联预算 (可选)',
+                onChanged: (v) => setDialogState(() => selectedBudgetId = v),
+              ),
+              const SizedBox(height: 8),
               TextField(
                   controller: notesCtrl,
                   decoration: const InputDecoration(labelText: '备注'),
@@ -705,6 +712,9 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'buyer_tax_id': buyerTaxIdCtrl.text,
                       'status': 'issued',
                     };
+                    if (selectedBudgetId != null) {
+                      body['budget_id'] = selectedBudgetId;
+                    }
                     if (projectIdCtrl.text.isNotEmpty) {
                       body['project_id'] = projectIdCtrl.text;
                     }

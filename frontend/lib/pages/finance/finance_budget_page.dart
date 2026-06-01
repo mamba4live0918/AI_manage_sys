@@ -1764,31 +1764,34 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       height: height,
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(height / 3), color: color.withAlpha(isDark ? 20 : 15)),
       clipBehavior: Clip.antiAlias,
-      child: Stack(children: [
-        if (ratio > 0)
-          Positioned(
-            left: 0, top: 0, bottom: 0,
-            child: FractionallySizedBox(
-              widthFactor: ratio,
-              child: CustomPaint(
-                painter: _BarCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
-                child: const SizedBox.expand(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxW = constraints.maxWidth;
+          return Stack(children: [
+            if (ratio > 0)
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                width: maxW * ratio,
+                child: CustomPaint(
+                  painter: _BarCheckerPainter(baseColor: const Color(0xFFD4D4DC)),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            Positioned(
+              left: 0, top: 0, bottom: 0, right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(height / 3),
+                  gradient: LinearGradient(colors: [color.withAlpha(0), color.withAlpha(80)]),
+                ),
               ),
             ),
-          ),
-        Positioned(
-          left: 0, top: 0, bottom: 0, right: 0,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(height / 3),
-              gradient: LinearGradient(colors: [color.withAlpha(0), color.withAlpha(80)]),
-            ),
-          ),
-        ),
-        if (ratio > 0.12)
-          Positioned(left: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerLeft, child: Text('\u{FFE5}${_fmt(used)}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF6B6B8A))))),
-        Positioned(right: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerRight, child: Text('剩余 \u{FFE5}${_fmt(total - used)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: ratio > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))))),
-      ]),
+            if (ratio > 0.12)
+              Positioned(left: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerLeft, child: Text('\u{FFE5}${_fmt(used)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6B6B8A))))),
+            Positioned(right: 10, top: 0, bottom: 0, child: Align(alignment: Alignment.centerRight, child: Text('剩余 \u{FFE5}${_fmt(total - used)}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: ratio > 0.7 ? Colors.white : (isDark ? AppTheme.darkText : AppTheme.lightText))))),
+          ]);
+        },
+      ),
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
+import '../../widgets/budget_tree_selector.dart';
 
 const _expenseCategoryNames = {
   'travel': '差旅', 'office': '办公', 'entertainment': '招待',
@@ -184,6 +185,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     String? selectedDeptId;
     List<Map<String, dynamic>>? deptList;
     bool deptListLoading = false;
+    String? selectedBudgetId;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -318,6 +320,11 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                                   ),
                       ]),
                 const SizedBox(height: 8),
+                BudgetTreeSelector(
+                  label: '关联预算 (可选)',
+                  onChanged: (v) => setDlg(() => selectedBudgetId = v),
+                ),
+                const SizedBox(height: 8),
                 TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
                 const SizedBox(height: 12),
                 // Voucher upload section
@@ -383,6 +390,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
         'expense_type': expenseType,
         'description': descCtrl.text.trim(),
       };
+      if (selectedBudgetId != null) expenseData['budget_id'] = selectedBudgetId;
       if (selectedDeptId != null) expenseData['department_id'] = selectedDeptId;
       final resp = await _api.dio.post('/finance/expenses', data: expenseData);
       final expenseId = resp.data['id'] as String;
@@ -416,6 +424,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     final descCtrl = TextEditingController(text: expense['description'] as String? ?? '');
     String category = expense['category'] as String? ?? 'other';
     String expenseType = expense['expense_type'] as String? ?? 'reimbursement';
+    String? selectedBudgetId = expense['budget_id'] as String?;
     PlatformFile? pickedFile;
     String? errorMsg;
 
@@ -456,6 +465,12 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                       onChanged: (v) => setDlg(() => category = v!),
                     ),
                   ),
+                ),
+                const SizedBox(height: 8),
+                BudgetTreeSelector(
+                  label: '关联预算 (可选)',
+                  initialBudgetId: selectedBudgetId,
+                  onChanged: (v) => setDlg(() => selectedBudgetId = v),
                 ),
                 const SizedBox(height: 8),
                 TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
@@ -522,6 +537,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
         'category': category,
         'expense_type': expenseType,
         'description': descCtrl.text.trim(),
+        if (selectedBudgetId != null) 'budget_id': selectedBudgetId,
       });
 
       final file = pickedFile;

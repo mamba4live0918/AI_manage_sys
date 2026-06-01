@@ -31,6 +31,7 @@ async def _check_department(db: AsyncSession, user: User, target_department_id, 
 
 class SettlementCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float = 0.0
     status: str = "pending"
     settlement_date: str | None = None
@@ -40,6 +41,7 @@ class SettlementCreate(BaseModel):
 
 class SettlementUpdate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float | None = None
     status: str | None = None
     settlement_date: str | None = None
@@ -49,6 +51,7 @@ class SettlementUpdate(BaseModel):
 
 class ExpenseCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float = 0.0
     category: str = "other"
     expense_type: str = "reimbursement"  # reimbursement=员工报销, direct=直接支出
@@ -71,6 +74,7 @@ class VoucherCreate(BaseModel):
 
 class InvoiceCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     invoice_no: str = ""
     amount: float = 0.0
     tax_amount: float = 0.0
@@ -85,6 +89,7 @@ class InvoiceCreate(BaseModel):
     buyer_tax_id: str = ""
 
 class InvoiceUpdate(BaseModel):
+    budget_id: str | None = None
     invoice_no: str | None = None
     amount: float | None = None
     tax_amount: float | None = None
@@ -144,6 +149,7 @@ def _settlement_row(s: Settlement) -> dict:
     return {
         "id": str(s.id),
         "project_id": str(s.project_id) if s.project_id else None,
+        "budget_id": str(s.budget_id) if s.budget_id else None,
         "amount": s.amount,
         "status": s.status,
         "settlement_date": s.settlement_date.isoformat() if s.settlement_date else None,
@@ -160,6 +166,7 @@ def _expense_row(e: Expense) -> dict:
     return {
         "id": str(e.id),
         "project_id": str(e.project_id) if e.project_id else None,
+        "budget_id": str(e.budget_id) if e.budget_id else None,
         "amount": e.amount,
         "category": e.category,
         "expense_type": e.expense_type,
@@ -191,6 +198,7 @@ def _invoice_row(inv: Invoice) -> dict:
     return {
         "id": str(inv.id),
         "project_id": str(inv.project_id) if inv.project_id else None,
+        "budget_id": str(inv.budget_id) if inv.budget_id else None,
         "invoice_no": inv.invoice_no,
         "amount": inv.amount,
         "tax_amount": inv.tax_amount,
@@ -272,56 +280,53 @@ def _budget_date_range(b):
 
 
 async def _recalc_budget_usage(db: AsyncSession):
-    """Recalculate used_amount for all active budgets.
-    Department isolation: budgets with department_id match only same-dept expenses.
-    Parent budgets (no dept) aggregate ALL expenses in their date range.
+    """Recalculate used_amount for all active budgets using explicit budget_id linkage.
     Upward propagation: parent.used_amount = sum of children.used_amount."""
     all_budgets = (await db.execute(select(Budget).where(Budget.status == "active"))).scalars().all()
     if not all_budgets:
         return
 
-    # Step 1: Direct calculation for each budget
+    budget_ids = [b.id for b in all_budgets]
+    budget_map = {str(b.id): b for b in all_budgets}
+
+    # Reset all budgets to zero before recalc
     for b in all_budgets:
-        ym_start, ym_end = _budget_date_range(b)
-        if not ym_start:
-            continue
+        b.used_amount = 0.0
 
-        # Expenses
-        exp_conditions = [Expense.status.in_(["approved", "paid"])]
-        exp_conditions.append(Expense.created_at >= ym_start)
-        exp_conditions.append(Expense.created_at < ym_end)
-        if b.department_id is not None:
-            exp_conditions.append(Expense.department_id == b.department_id)
-        b.used_amount = (await db.execute(
-            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*exp_conditions)
-        )).scalar() or 0.0
+    # Step 1: Expenses grouped by budget_id (approved or paid)
+    exp_rows = (await db.execute(
+        select(Expense.budget_id, func.coalesce(func.sum(Expense.amount), 0.0))
+        .where(Expense.budget_id.in_(budget_ids), Expense.status.in_(["approved", "paid"]))
+        .group_by(Expense.budget_id)
+    )).all()
+    for bid, total in exp_rows:
+        if str(bid) in budget_map:
+            budget_map[str(bid)].used_amount += float(total or 0)
 
-        # Settlements
-        stl_conditions = [Settlement.status.in_(["completed", "settled"])]
-        stl_conditions.append(Settlement.created_at >= ym_start)
-        stl_conditions.append(Settlement.created_at < ym_end)
-        if b.department_id is not None:
-            stl_conditions.append(Settlement.department_id == b.department_id)
-        b.used_amount += (await db.execute(
-            select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
-        )).scalar() or 0.0
+    # Step 2: Settlements grouped by budget_id (completed or settled)
+    stl_rows = (await db.execute(
+        select(Settlement.budget_id, func.coalesce(func.sum(Settlement.amount), 0.0))
+        .where(Settlement.budget_id.in_(budget_ids), Settlement.status.in_(["completed", "settled"]))
+        .group_by(Settlement.budget_id)
+    )).all()
+    for bid, total in stl_rows:
+        if str(bid) in budget_map:
+            budget_map[str(bid)].used_amount += float(total or 0)
 
-        # Per-item used_amount
-        items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
-        for item in items_result.scalars().all():
-            item_cond = [
-                Expense.status.in_(["approved", "paid"]),
-                Expense.created_at >= ym_start,
-                Expense.created_at < ym_end,
+    # Step 3: Per-item used_amount from expenses matching category
+    all_items = (await db.execute(
+        select(BudgetItem).where(BudgetItem.budget_id.in_(budget_ids))
+    )).scalars().all()
+    for item in all_items:
+        item.used_amount = (await db.execute(
+            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
+                Expense.budget_id == item.budget_id,
                 Expense.category == item.category,
-            ]
-            if b.department_id is not None:
-                item_cond.append(Expense.department_id == b.department_id)
-            item.used_amount = (await db.execute(
-                select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_cond)
-            )).scalar() or 0.0
+                Expense.status.in_(["approved", "paid"]),
+            )
+        )).scalar() or 0.0
 
-    # Step 2: Upward propagation — parent used_amount = sum of children
+    # Step 4: Upward propagation — parent used_amount = sum of children
     children_map = {}
     for b in all_budgets:
         if b.parent_id:
@@ -370,9 +375,11 @@ async def create_settlement(
     _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     settlement_date = datetime.fromisoformat(body.settlement_date) if body.settlement_date else None
     s = Settlement(
         project_id=project_id,
+        budget_id=budget_id,
         amount=body.amount,
         status=body.status,
         settlement_date=settlement_date,
@@ -420,6 +427,8 @@ async def update_settlement(
     old_status = s.status
     for k, v in body.model_dump(exclude_none=True).items():
         if k == "project_id" and v is not None:
+            setattr(s, k, uuid.UUID(v) if v else None)
+        elif k == "budget_id" and v is not None:
             setattr(s, k, uuid.UUID(v) if v else None)
         elif k == "settlement_date" and v is not None:
             setattr(s, k, datetime.fromisoformat(v) if v else None)
@@ -492,10 +501,12 @@ async def create_expense(
     _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     submitted_by = uuid.UUID(body.submitted_by) if body.submitted_by else user.id
     status = "paid" if body.expense_type == "direct" else "pending"
     e = Expense(
         project_id=project_id,
+        budget_id=budget_id,
         amount=body.amount,
         category=body.category,
         expense_type=body.expense_type,
@@ -726,10 +737,11 @@ async def create_invoice(
     _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     issue_date = datetime.fromisoformat(body.issue_date) if body.issue_date else None
     due_date = datetime.fromisoformat(body.due_date) if body.due_date else None
     i = Invoice(
-        project_id=project_id, invoice_no=body.invoice_no, amount=body.amount,
+        project_id=project_id, budget_id=budget_id, invoice_no=body.invoice_no, amount=body.amount,
         tax_amount=body.tax_amount, tax_rate=body.tax_rate, status=body.status,
         issue_date=issue_date, due_date=due_date, notes=body.notes,
         seller_name=body.seller_name, seller_tax_id=body.seller_tax_id,
@@ -760,7 +772,9 @@ async def update_invoice(
     for k, v in body.model_dump(exclude_unset=True).items():
         if k in ("issue_date", "due_date") and v is not None:
             setattr(i, k, datetime.fromisoformat(v))
-        elif v is not None and k not in ("issue_date", "due_date"):
+        elif k == "budget_id" and v is not None:
+            setattr(i, k, uuid.UUID(v) if v else None)
+        elif v is not None and k not in ("issue_date", "due_date", "budget_id"):
             setattr(i, k, v)
     if body.amount is not None:
         await _sync_invoice_status(uuid.UUID(invoice_id), db)
@@ -1140,16 +1154,11 @@ async def budget_consumption(
     if not b:
         raise HTTPException(404, "预算不存在")
 
-    # Expenses by category
+    # Expenses by category — direct budget_id match
     exp_conditions = [
-        Expense.department_id == b.department_id,
+        Expense.budget_id == b.id,
         Expense.status.in_(["approved", "paid"]),
     ]
-    if b.project_id:
-        exp_conditions.append(Expense.project_id == b.project_id)
-    if b.year:
-        exp_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-        exp_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
     exp_query = (
         select(Expense.category, func.sum(Expense.amount).label("total"), func.count(Expense.id).label("count"))
         .where(*exp_conditions)
@@ -1158,16 +1167,11 @@ async def budget_consumption(
     exp_rows = (await db.execute(exp_query)).all()
     expenses = [{"category": r.category, "total": float(r.total or 0), "count": r.count} for r in exp_rows]
 
-    # Settlements total for this budget
+    # Settlements total — direct budget_id match
     stl_conditions = [
-        Settlement.department_id == b.department_id,
+        Settlement.budget_id == b.id,
         Settlement.status.in_(["completed", "settled"]),
     ]
-    if b.project_id:
-        stl_conditions.append(Settlement.project_id == b.project_id)
-    if b.year:
-        stl_conditions.append(Settlement.created_at >= datetime(b.year, 1, 1))
-        stl_conditions.append(Settlement.created_at < datetime(b.year + 1, 1, 1))
     stl_result = await db.execute(
         select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
     )
@@ -1177,17 +1181,11 @@ async def budget_consumption(
     items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
     budget_items = items_result.scalars().all()
 
-    # Recent expense items
-    exp_items_conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
-    if b.project_id:
-        exp_items_conditions.append(Expense.project_id == b.project_id)
-    if b.year:
-        exp_items_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-        exp_items_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+    # Recent expense items — direct budget_id match
     exp_items = (
         await db.execute(
             select(Expense)
-            .where(*exp_items_conditions)
+            .where(Expense.budget_id == b.id, Expense.status.in_(["approved", "paid"]))
             .order_by(Expense.updated_at.desc())
             .limit(10)
         )
