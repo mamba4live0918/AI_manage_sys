@@ -185,61 +185,82 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         children: [
                           Expanded(
                             child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.all(16),
-                                child: DataTable(
-                                  headingRowColor: WidgetStateProperty.resolveWith((states) =>
-                                    isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
-                                  dataRowMinHeight: 44,
-                                  dataRowMaxHeight: 52,
-                                  headingRowHeight: 40,
-                                  horizontalMargin: 16,
-                                  columnSpacing: 24,
-                                  border: TableBorder(
-                                    horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Table(
+                                columnWidths: const {
+                                  0: FlexColumnWidth(1.4),  // 编号
+                                  1: FlexColumnWidth(1.8),  // 金额(含已收)
+                                  2: FlexColumnWidth(1.6),  // 销售方
+                                  3: FlexColumnWidth(1.6),  // 购买方
+                                  4: FlexColumnWidth(1.2),  // 到期日
+                                  5: FlexColumnWidth(1.0),  // 状态
+                                },
+                                border: TableBorder(
+                                  horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                                ),
+                                children: [
+                                  // Header row
+                                  TableRow(
+                                    decoration: BoxDecoration(
+                                      color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
+                                    ),
+                                    children: const [
+                                      _TableHeader('编号'),
+                                      _TableHeader('金额'),
+                                      _TableHeader('销售方'),
+                                      _TableHeader('购买方'),
+                                      _TableHeader('到期日'),
+                                      _TableHeader('状态'),
+                                    ],
                                   ),
-                                  columns: const [
-                                    DataColumn(label: Text('编号', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    DataColumn(label: Text('金额', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)), numeric: true),
-                                    DataColumn(label: Text('销售方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    DataColumn(label: Text('购买方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    DataColumn(label: Text('到期日', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    DataColumn(label: Text('状态', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                  ],
-                                  rows: _pagedItems.map((inv) {
+                                  // Data rows
+                                  ..._pagedItems.map((inv) {
                                     final paid = _paymentTotals[inv.id] ?? 0;
                                     final total = inv.amount;
-                                    final ratio = total > 0 ? (paid / total) : 0.0;
-                                    return DataRow(
-                                      onSelectChanged: (_) => _showDetailSheet(context, inv),
-                                      cells: [
-                                        DataCell(Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent))),
-                                        DataCell(Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
-                                            if (paid > 0)
+                                    return TableRow(
+                                      children: [
+                                        _TableCell(
+                                          Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent)),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _TableCell(
+                                          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                            Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                                            if (paid > 0 && paid < total)
                                               Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
-                                          ],
-                                        )),
-                                        DataCell(Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                        DataCell(Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                        DataCell(Text(inv.dueDate?.substring(0, 10) ?? '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                        DataCell(Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
-                                            borderRadius: BorderRadius.circular(4),
+                                            if (paid >= total && total > 0)
+                                              Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
+                                          ]),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _TableCell(
+                                          Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _TableCell(
+                                          Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _TableCell(
+                                          Text(inv.dueDate != null && inv.dueDate!.length >= 10 ? inv.dueDate!.substring(0, 10) : '—', style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
+                                        _TableCell(
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
                                           ),
-                                          child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
-                                        )),
+                                          isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+                                        ),
                                       ],
                                     );
-                                  }).toList(),
-                                ),
+                                  }),
+                                ],
                               ),
                             ),
                           ),
@@ -1844,6 +1865,36 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _TableHeader extends StatelessWidget {
+  final String text;
+  const _TableHeader(this.text);
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _TableCell(this.child, {required this.isDark, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: child,
+      ),
     );
   }
 }
