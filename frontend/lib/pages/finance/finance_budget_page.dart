@@ -842,7 +842,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
   Color _itemColor(BudgetItemData item) {
     try {
       final c = item.color;
-      if (c.isEmpty || c == '#FF0000') return const Color(0xFFFF0000);
+      if (c.isEmpty || c == '#FF0000') return _catColor(item.category);
       return Color(int.parse(c.replaceFirst('#', '0xff')));
     } catch (_) {
       return _catColor(item.category);
