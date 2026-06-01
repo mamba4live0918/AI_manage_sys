@@ -94,6 +94,17 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
   String _searchQuery = '';
   final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingVouchers = false;
+  int _page = 0;
+  static const int _pageSize = 20;
+
+  List<Map<String, dynamic>> get _pagedItems {
+    final start = _page * _pageSize;
+    final end = start + _pageSize;
+    if (start >= _items.length) return [];
+    return _items.sublist(start, end > _items.length ? _items.length : end);
+  }
+
+  int get _totalPages => (_items.length / _pageSize).ceil();
 
   @override
   void initState() {
@@ -137,6 +148,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
         return desc.contains(q) || cat.contains(q) || catLabel.contains(q);
       }).toList();
     }
+    _page = 0;
   }
 
   Future<void> _loadVouchers() async {
@@ -1068,7 +1080,7 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
                   ],
                 ),
                 // Data rows
-                ..._items.map((e) {
+                ..._pagedItems.map((e) {
                   final status = e['status'] as String? ?? 'pending';
                   final cat = e['category'] as String? ?? 'other';
                   final type = e['expense_type'] as String? ?? 'reimbursement';
@@ -1125,6 +1137,21 @@ class _FinanceExpenseTabState extends State<FinanceExpenseTab> {
               ],
             ),
           ),
+        ),
+      if (_totalPages > 1)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              onPressed: _page > 0 ? () => setState(() => _page--) : null,
+            ),
+            Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
+            ),
+          ]),
         ),
     ]);
   }

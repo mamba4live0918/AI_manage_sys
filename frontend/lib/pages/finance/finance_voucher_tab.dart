@@ -64,6 +64,17 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
   bool _loading = true;
   final _searchCtrl = TextEditingController();
   String _typeFilter = '';
+  int _page = 0;
+  static const int _pageSize = 20;
+
+  List<Map<String, dynamic>> get _pagedItems {
+    final start = _page * _pageSize;
+    final end = start + _pageSize;
+    if (start >= _filteredItems.length) return [];
+    return _filteredItems.sublist(start, end > _filteredItems.length ? _filteredItems.length : end);
+  }
+
+  int get _totalPages => (_filteredItems.length / _pageSize).ceil();
 
   @override
   void initState() {
@@ -105,6 +116,7 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
         final typeName = _typeNames[v['type']] ?? '';
         return desc.contains(q) || typeName.contains(q);
       }).toList();
+      _page = 0;
     });
   }
 
@@ -324,7 +336,7 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                             _TableHeader('操作'),
                           ],
                         ),
-                        ..._filteredItems.map((v) {
+                        ..._pagedItems.map((v) {
                           final id = v['id'] as String;
                           final type = v['type'] as String? ?? 'invoice';
                           final desc = v['description'] as String? ?? '';
@@ -403,7 +415,22 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                       ],
                     ),
                   ),
-      ),
+      ),  // closes Expanded
+      if (_totalPages > 1)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              onPressed: _page > 0 ? () => setState(() => _page--) : null,
+            ),
+            Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
+            ),
+          ]),
+        ),
     ]);
   }
 }

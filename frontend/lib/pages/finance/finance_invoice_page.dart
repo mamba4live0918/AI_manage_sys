@@ -26,6 +26,22 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   bool _loadingPayments = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int _page = 0;
+  static const int _pageSize = 20;
+
+  List<InvoiceData> get _pagedItems {
+    final items = ref.read(financeInvoiceProvider).items;
+    final start = _page * _pageSize;
+    final end = start + _pageSize;
+    if (start >= items.length) return [];
+    return items.sublist(start, end > items.length ? items.length : end);
+  }
+
+  int get _totalPages {
+    final len = ref.read(financeInvoiceProvider).items.length;
+    if (len == 0) return 0;
+    return (len / _pageSize).ceil();
+  }
 
   static const _statusOptions = ['', 'issued', 'partial', 'paid', 'cancelled'];
   static const _statusLabels = {
@@ -139,7 +155,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
                         _searchController.clear();
-                        setState(() => _searchQuery = '');
+                        setState(() {
+                          _searchQuery = '';
+                          _page = 0;
+                        });
                         ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
                       })
                     : null,
@@ -150,6 +169,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 setState(() => _searchQuery = v);
               },
               onSubmitted: (v) {
+                setState(() => _page = 0);
                 ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
               },
             ),
@@ -161,63 +181,85 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 ? const Center(child: CircularProgressIndicator())
                 : state.items.isEmpty
                     ? _buildEmptyState(theme)
-                    : SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.resolveWith((states) =>
-                              isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
-                            dataRowMinHeight: 44,
-                            dataRowMaxHeight: 52,
-                            headingRowHeight: 40,
-                            horizontalMargin: 16,
-                            columnSpacing: 24,
-                            border: TableBorder(
-                              horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: DataTable(
+                                  headingRowColor: WidgetStateProperty.resolveWith((states) =>
+                                    isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
+                                  dataRowMinHeight: 44,
+                                  dataRowMaxHeight: 52,
+                                  headingRowHeight: 40,
+                                  horizontalMargin: 16,
+                                  columnSpacing: 24,
+                                  border: TableBorder(
+                                    horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                                  ),
+                                  columns: const [
+                                    DataColumn(label: Text('编号', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataColumn(label: Text('金额', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)), numeric: true),
+                                    DataColumn(label: Text('销售方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataColumn(label: Text('购买方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataColumn(label: Text('到期日', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataColumn(label: Text('状态', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                  ],
+                                  rows: _pagedItems.map((inv) {
+                                    final paid = _paymentTotals[inv.id] ?? 0;
+                                    final total = inv.amount;
+                                    final ratio = total > 0 ? (paid / total) : 0.0;
+                                    return DataRow(
+                                      onSelectChanged: (_) => _showDetailSheet(context, inv),
+                                      cells: [
+                                        DataCell(Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent))),
+                                        DataCell(Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                                            if (paid > 0)
+                                              Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
+                                          ],
+                                        )),
+                                        DataCell(Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                        DataCell(Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                        DataCell(Text(inv.dueDate?.substring(0, 10) ?? '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+                                        DataCell(Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
+                                        )),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
                             ),
-                            columns: const [
-                              DataColumn(label: Text('编号', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                              DataColumn(label: Text('金额', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)), numeric: true),
-                              DataColumn(label: Text('销售方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                              DataColumn(label: Text('购买方', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                              DataColumn(label: Text('到期日', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                              DataColumn(label: Text('状态', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                            ],
-                            rows: state.items.map((inv) {
-                              final paid = _paymentTotals[inv.id] ?? 0;
-                              final total = inv.amount;
-                              final ratio = total > 0 ? (paid / total) : 0.0;
-                              return DataRow(
-                                onSelectChanged: (_) => _showDetailSheet(context, inv),
-                                cells: [
-                                  DataCell(Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent))),
-                                  DataCell(Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('\u{FFE5}${inv.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
-                                      if (paid > 0)
-                                        Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.green)),
-                                    ],
-                                  )),
-                                  DataCell(Text(inv.sellerName.isNotEmpty ? inv.sellerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                  DataCell(Text(inv.buyerName.isNotEmpty ? inv.buyerName : '—', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                  DataCell(Text(inv.dueDate?.substring(0, 10) ?? '—', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
-                                  DataCell(Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: (_statusColors[inv.status] ?? Colors.grey).withAlpha(isDark ? 30 : 20),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(_statusLabels[inv.status] ?? inv.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColors[inv.status] ?? Colors.grey)),
-                                  )),
-                                ],
-                              );
-                            }).toList(),
                           ),
-                        ),
+                          if (_totalPages > 1)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left, size: 20),
+                                  onPressed: _page > 0 ? () => setState(() => _page--) : null,
+                                ),
+                                Text('${_page + 1} / $_totalPages',
+                                  style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right, size: 20),
+                                  onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
+                                ),
+                              ]),
+                            ),
+                        ],
                       ),
           ),
         ],
@@ -253,7 +295,10 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 side: BorderSide.none,
                 onSelected: (v) {
                   if (v) {
-                    setState(() => _selectedStatus = s);
+                    setState(() {
+                      _selectedStatus = s;
+                      _page = 0;
+                    });
                     ref
                         .read(financeInvoiceProvider.notifier)
                         .load(status: s);
