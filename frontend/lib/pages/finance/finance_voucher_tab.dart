@@ -14,6 +14,38 @@ const _typeIcons = {
   'other': Icons.attach_file_rounded,
 };
 
+class _TableHeader extends StatelessWidget {
+  final String text;
+  const _TableHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _TableCell(this.child, {required this.isDark, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+}
+
 class FinanceVoucherTab extends StatefulWidget {
   final String? settlementId;
   final String? expenseId;
@@ -179,6 +211,7 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
     return Column(children: [
@@ -236,6 +269,18 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
           ),
         ]),
       ),
+      // Breadcrumb
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        child: Row(children: [
+          Text('首页', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+          Text('财务', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+          Text('凭证管理', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+        ]),
+      ),
       // Results count
       if (_searchCtrl.text.isNotEmpty || _typeFilter.isNotEmpty)
         Padding(
@@ -246,85 +291,117 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
           ),
         ),
-      // List
+      // Table
       Expanded(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _filteredItems.isEmpty
                 ? Center(child: Text('暂无凭证',
                     style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (_, i) {
-                      final v = _filteredItems[i];
-                      final id = v['id'] as String;
-                      final type = v['type'] as String? ?? 'invoice';
-                      final desc = v['description'] as String? ?? '';
-                      final fileId = v['file_id'] as String?;
-                      final hasSettlement = v['settlement_id'] != null;
-                      final hasExpense = v['expense_id'] != null;
-                      final hasInvoice = v['invoice_id'] != null;
-                      final icon = _typeIcons[type] ?? Icons.attach_file_rounded;
-
-                      String? subtitle;
-                      if (hasSettlement && hasExpense && hasInvoice) {
-                        subtitle = '关联: 结算 + 报销 + 发票';
-                      } else if (hasSettlement && hasExpense) {
-                        subtitle = '关联: 结算 + 报销';
-                      } else if (hasSettlement && hasInvoice) {
-                        subtitle = '关联: 结算 + 发票';
-                      } else if (hasExpense && hasInvoice) {
-                        subtitle = '关联: 报销 + 发票';
-                      } else if (hasSettlement) {
-                        subtitle = '关联: 结算';
-                      } else if (hasExpense) {
-                        subtitle = '关联: 报销';
-                      } else if (hasInvoice) {
-                        subtitle = '关联: 发票';
-                      }
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: fileId != null ? const Color(0xFFE8F5E9) : const Color(0xFFECEFF1),
-                            child: Icon(icon, color: AppTheme.green, size: 20),
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Table(
+                      columnWidths: const {
+                        0: FlexColumnWidth(1.6),
+                        1: FlexColumnWidth(0.8),
+                        2: FlexColumnWidth(1.0),
+                        3: FlexColumnWidth(1.2),
+                        4: FlexColumnWidth(0.6),
+                      },
+                      border: TableBorder(
+                        horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+                      ),
+                      children: [
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
                           ),
-                          title: Text(_typeNames[type] ?? type, maxLines: 1),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(desc, maxLines: 2),
-                              if (subtitle != null)
-                                Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                            ],
-                          ),
-                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            if (fileId != null)
-                              IconButton(
-                                icon: const Icon(Icons.visibility_rounded, size: 18, color: AppTheme.blue),
-                                onPressed: () {
-                                  Navigator.push(context, MaterialPageRoute(
-                                    builder: (_) => PreviewPage(fileId: fileId),
-                                  ));
-                                },
-                                tooltip: '预览凭证',
-                              ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded, size: 18),
-                              onSelected: (action) {
-                                if (action == 'delete') _delete(id);
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(value: 'delete',
-                                    child: Text('删除', style: TextStyle(color: AppTheme.red))),
-                              ],
-                            ),
-                          ]),
+                          children: const [
+                            _TableHeader('描述'),
+                            _TableHeader('类型'),
+                            _TableHeader('关联'),
+                            _TableHeader('日期'),
+                            _TableHeader('操作'),
+                          ],
                         ),
-                      );
-                    },
+                        ..._filteredItems.map((v) {
+                          final id = v['id'] as String;
+                          final type = v['type'] as String? ?? 'invoice';
+                          final desc = v['description'] as String? ?? '';
+                          final fileId = v['file_id'] as String?;
+                          final hasSettlement = v['settlement_id'] != null;
+                          final hasExpense = v['expense_id'] != null;
+                          final hasInvoice = v['invoice_id'] != null;
+                          final date = (v['created_at'] as String? ?? '');
+
+                          String? relationText;
+                          if (hasSettlement && hasExpense && hasInvoice) {
+                            relationText = '结算+报销+发票';
+                          } else if (hasSettlement && hasExpense) {
+                            relationText = '结算+报销';
+                          } else if (hasSettlement && hasInvoice) {
+                            relationText = '结算+发票';
+                          } else if (hasExpense && hasInvoice) {
+                            relationText = '报销+发票';
+                          } else if (hasSettlement) {
+                            relationText = '结算';
+                          } else if (hasExpense) {
+                            relationText = '报销';
+                          } else if (hasInvoice) {
+                            relationText = '发票';
+                          }
+
+                          return TableRow(children: [
+                            _TableCell(
+                              Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              isDark: isDark,
+                            ),
+                            _TableCell(
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(width: 8, height: 8, decoration: BoxDecoration(color: AppTheme.green, shape: BoxShape.circle)),
+                                const SizedBox(width: 6),
+                                Text(_typeNames[type] ?? type, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                              ]),
+                              isDark: isDark,
+                            ),
+                            _TableCell(
+                              Text(relationText ?? '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                              isDark: isDark,
+                            ),
+                            _TableCell(
+                              Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                              isDark: isDark,
+                            ),
+                            _TableCell(
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                if (fileId != null)
+                                  IconButton(
+                                    icon: Icon(Icons.visibility_rounded, size: 16, color: AppTheme.blue),
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(
+                                        builder: (_) => PreviewPage(fileId: fileId),
+                                      ));
+                                    },
+                                    tooltip: '预览凭证',
+                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                    padding: EdgeInsets.zero,
+                                    splashRadius: 16,
+                                  ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade300),
+                                  onPressed: () => _delete(id),
+                                  tooltip: '删除',
+                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                  padding: EdgeInsets.zero,
+                                  splashRadius: 16,
+                                ),
+                              ]),
+                              isDark: isDark,
+                            ),
+                          ]);
+                        }),
+                      ],
+                    ),
                   ),
       ),
     ]);
