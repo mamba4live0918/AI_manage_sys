@@ -7,6 +7,38 @@ const _stageNames = {
   'monitoring': '监控', 'closure': '收尾',
 };
 
+class _TableHeader extends StatelessWidget {
+  final String text;
+  const _TableHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _TableCell(this.child, {required this.isDark, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+}
+
 class PmProjectListTab extends StatefulWidget {
   final void Function(String projectId)? onProjectSelected;
   const PmProjectListTab({super.key, this.onProjectSelected});
@@ -17,9 +49,20 @@ class PmProjectListTab extends StatefulWidget {
 
 class _PmProjectListTabState extends State<PmProjectListTab> {
   final _api = ApiClient();
-  List<Map<String, dynamic>> _projects = [];
+  List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String _stageFilter = '';
+  int _page = 0;
+  static const int _pageSize = 20;
+
+  List<Map<String, dynamic>> get _pagedItems {
+    final start = _page * _pageSize;
+    final end = start + _pageSize;
+    if (start >= _items.length) return [];
+    return _items.sublist(start, end > _items.length ? _items.length : end);
+  }
+
+  int get _totalPages => (_items.length / _pageSize).ceil();
 
   @override
   void initState() {
@@ -30,11 +73,12 @@ class _PmProjectListTabState extends State<PmProjectListTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final params = <String, dynamic>{'limit': 50};
+      final params = <String, dynamic>{'limit': 100};
       if (_stageFilter.isNotEmpty) params['stage'] = _stageFilter;
       final resp = await _api.dio.get('/pm/projects', queryParameters: params);
       setState(() {
-        _projects = List<Map<String, dynamic>>.from(resp.data['items']);
+        _items = List<Map<String, dynamic>>.from(resp.data['items']);
+        _page = 0;
         _loading = false;
       });
     } catch (e) {
@@ -111,9 +155,11 @@ class _PmProjectListTabState extends State<PmProjectListTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
     return Column(children: [
+      // ── Create button ──
       Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
@@ -126,8 +172,23 @@ class _PmProjectListTabState extends State<PmProjectListTab> {
           ),
         ]),
       ),
+
+      // ── Breadcrumb ──
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        child: Row(children: [
+          Text('首页', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+          Text('项目管理', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›', style: TextStyle(fontSize: 12, color: Colors.grey))),
+          Text('项目列表', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+        ]),
+      ),
+
+      // ── Stage filter chips ──
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: ['', ..._stageNames.keys].map((s) {
@@ -143,51 +204,123 @@ class _PmProjectListTabState extends State<PmProjectListTab> {
           }).toList()),
         ),
       ),
-      Expanded(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _projects.isEmpty
-                ? Center(child: Text('暂无项目', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _projects.length,
-                    itemBuilder: (_, i) {
-                      final p = _projects[i];
-                      final id = p['id'] as String;
-                      final name = p['name'] as String? ?? '';
-                      final stage = p['stage'] as String? ?? 'initiation';
-                      final budget = p['budget'] as num? ?? 0;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFFE8F0FE),
-                            child: Icon(Icons.engineering_rounded, color: AppTheme.blue, size: 20),
-                          ),
-                          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text('${_stageNames[stage] ?? stage} · \$${budget.toStringAsFixed(0)}'),
-                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), color: AppTheme.blue.withAlpha(20)),
-                              child: Text(_stageNames[stage] ?? stage, style: const TextStyle(fontSize: 11, color: AppTheme.blue)),
-                            ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded, size: 18),
-                              onSelected: (action) {
-                                if (action == 'delete') _delete(id, name);
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
-                              ],
-                            ),
-                          ]),
-                          onTap: () => widget.onProjectSelected?.call(id),
-                        ),
-                      );
-                    },
+
+      const SizedBox(height: 4),
+
+      // ── Content: DataTable ──
+      if (_loading)
+        const Expanded(child: Center(child: CircularProgressIndicator()))
+      else if (_items.isEmpty)
+        Expanded(child: Center(child: Text('暂无项目', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120)))))
+      else
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Table(
+              columnWidths: const {
+                0: FlexColumnWidth(1.5), // 名称
+                1: FlexColumnWidth(2.0), // 描述
+                2: FlexColumnWidth(0.8), // 阶段
+                3: FlexColumnWidth(1.2), // 日期
+              },
+              border: TableBorder(
+                horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+              ),
+              children: [
+                // ── Header row ──
+                TableRow(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
                   ),
-      ),
+                  children: const [
+                    _TableHeader('名称'),
+                    _TableHeader('描述'),
+                    _TableHeader('阶段'),
+                    _TableHeader('日期'),
+                  ],
+                ),
+                // ── Data rows ──
+                ..._pagedItems.map((p) {
+                  final id = p['id'] as String;
+                  final name = p['name'] as String? ?? '';
+                  final desc = p['description'] as String? ?? '';
+                  final stage = p['stage'] as String? ?? 'initiation';
+                  final date = p['created_at'] as String? ?? '';
+                  return TableRow(
+                    children: [
+                      // Name
+                      _TableCell(
+                        Row(children: [
+                          const Icon(Icons.engineering_rounded, size: 16, color: AppTheme.blue),
+                          const SizedBox(width: 6),
+                          Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                        ]),
+                        isDark: isDark,
+                        onTap: () => widget.onProjectSelected?.call(id),
+                      ),
+                      // Description
+                      _TableCell(
+                        Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        isDark: isDark,
+                        onTap: () => widget.onProjectSelected?.call(id),
+                      ),
+                      // Stage
+                      _TableCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppTheme.blue.withAlpha(isDark ? 25 : 15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(_stageNames[stage] ?? stage, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.blue)),
+                        ),
+                        isDark: isDark,
+                        onTap: () => widget.onProjectSelected?.call(id),
+                      ),
+                      // Date + delete action
+                      _TableCell(
+                        Row(children: [
+                          Text(
+                            date.length >= 10 ? date.substring(0, 10) : date,
+                            style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                          ),
+                          const Spacer(),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(4),
+                            onTap: () => _delete(id, name),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.delete_outline, size: 16, color: AppTheme.red.withAlpha(isDark ? 180 : 200)),
+                            ),
+                          ),
+                        ]),
+                        isDark: isDark,
+                        onTap: () => widget.onProjectSelected?.call(id),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+
+      // ── Pagination ──
+      if (_totalPages > 1)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              onPressed: _page > 0 ? () => setState(() => _page--) : null,
+            ),
+            Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
+            ),
+          ]),
+        ),
     ]);
   }
 }
