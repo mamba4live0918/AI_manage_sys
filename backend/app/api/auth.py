@@ -45,6 +45,7 @@ ALL_MODULES = [
     {"key": "dashboard", "label": "首页", "icon": "home"},
     {"key": "files", "label": "文件", "icon": "folder"},
     {"key": "expense", "label": "支出报销", "icon": "receipt_long"},
+    {"key": "approval", "label": "发起审批", "icon": "fact_check"},
     {"key": "ip", "label": "讲师IP", "icon": "auto_awesome"},
     {"key": "audit", "label": "审计", "icon": "schedule"},
     {"key": "users", "label": "用户管理", "icon": "people"},
@@ -63,7 +64,7 @@ def _get_accessible_modules(user: User, dept: Department | None = None) -> list[
         return ALL_MODULE_KEYS
     modules = set(dept.accessible_modules if dept else [])
     modules.update(user.extra_modules or [])
-    modules.update(["expense"])  # all users can submit expenses
+    modules.update(["expense", "approval"])  # all users can submit
     if not modules:
         modules.update(["dashboard", "files"])
     # preserve order from ALL_MODULES

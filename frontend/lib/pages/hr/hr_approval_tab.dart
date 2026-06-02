@@ -38,47 +38,6 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
     }
   }
 
-  Future<void> _create() async {
-    final contentCtrl = TextEditingController();
-    String type = 'leave';
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setDlg) => AlertDialog(
-          title: const Text('发起审批'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              InputDecorator(
-                decoration: const InputDecoration(labelText: '类型'),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: type, isExpanded: true, isDense: true,
-                    items: _typeNames.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-                    onChanged: (v) => setDlg(() => type = v!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(controller: contentCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '内容')),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('提交')),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-
-    await _api.dio.post('/hr/approvals', data: {
-      'approval_type': type,
-      'content': contentCtrl.text.trim(),
-    });
-    _load();
-  }
-
   Future<void> _approve(String id, String action) async {
     final commentCtrl = TextEditingController();
 
@@ -227,18 +186,6 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
     final theme = Theme.of(context);
 
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          Expanded(
-            child: SizedBox(height: 40, child: ElevatedButton.icon(
-              onPressed: _create,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('发起审批'),
-            )),
-          ),
-        ]),
-      ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: SingleChildScrollView(
