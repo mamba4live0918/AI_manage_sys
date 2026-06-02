@@ -115,6 +115,35 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     if (mounted) setState(() => _loadingPayments = false);
   }
 
+  void _editInvoice(BuildContext context, InvoiceData inv) {
+    _showDetailSheet(context, inv);
+  }
+
+  Future<void> _deleteInvoice(String id, String no) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除发票'),
+        content: Text('确定删除发票 "$no"？此操作不可撤销。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _api.dio.delete('/finance/invoices/$id');
+      ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('删除失败: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(financeInvoiceProvider);
@@ -172,11 +201,11 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                               child: Table(
                                 columnWidths: const {
-                                  0: FlexColumnWidth(1.0),  // 编号
-                                  1: FlexColumnWidth(1.8),  // 金额+进度条
-                                  2: FlexColumnWidth(0.8),  // 到期日
-                                  3: FlexColumnWidth(0.8),  // 状态
-                                  4: FixedColumnWidth(110),  // 操作
+                                  0: FlexColumnWidth(0.4),  // 编号
+                                  1: FlexColumnWidth(1.5),  // 金额+进度条
+                                  2: FlexColumnWidth(0.7),  // 到期日
+                                  3: FlexColumnWidth(0.5),  // 状态
+                                  4: FixedColumnWidth(130),  // 操作
                                 },
                                 border: TableBorder(
                                   horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
@@ -247,6 +276,8 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                                           isDark: isDark,
                                           onPay: () => _showPaymentDialog(context, inv.id, total, paid),
                                           onDetail: () => _showDetailSheet(context, inv),
+                                          onEdit: () => _editInvoice(context, inv),
+                                          onDelete: () => _deleteInvoice(inv.id, inv.invoiceNo),
                                         ),
                                       ],
                                     );
@@ -1908,7 +1939,7 @@ class _TableCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         child: child,
       ),
     );
@@ -1922,10 +1953,13 @@ class _InvoiceActionCell extends StatelessWidget {
   final bool isDark;
   final VoidCallback onPay;
   final VoidCallback onDetail;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _InvoiceActionCell({
     required this.invoiceId, required this.status, required this.remaining,
     required this.isDark, required this.onPay, required this.onDetail,
+    required this.onEdit, required this.onDelete,
   });
 
   @override
@@ -1935,8 +1969,9 @@ class _InvoiceActionCell extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (status != 'paid' && status != 'cancelled')
           _MiniBtn(Icons.payment, '收款', AppTheme.green, onPay),
-        const SizedBox(width: 2),
         _MiniBtn(Icons.visibility, '详情', isDark ? Colors.white54 : Colors.black54, onDetail),
+        _MiniBtn(Icons.edit_outlined, '编辑', isDark ? Colors.white54 : Colors.black54, onEdit),
+        _MiniBtn(Icons.delete_outline, '删除', AppTheme.red, onDelete),
       ]),
     );
   }
