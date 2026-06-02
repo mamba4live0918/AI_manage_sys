@@ -1,0 +1,156 @@
+<h2>SaaS UI 改造 — 总体方向</h2>
+<p class="subtitle">从移动端延伸转为专业企业后台，参考 Linear / Stripe / Vercel 风格</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前 — 移动端延伸风格</div>
+    <div class="mockup-body">
+      <div style="background:#F2F2F7;padding:4px;border-radius:4px">
+        <div style="display:flex;margin-bottom:4px">
+          <div style="width:48px;background:#fff;border-radius:4px;padding:8px 4px;text-align:center;margin-right:4px">
+            <div style="font-size:10px;color:#999">☰</div>
+            <div style="font-size:14px;margin:8px 0">🏠</div>
+            <div style="font-size:14px;margin:8px 0">📁</div>
+            <div style="font-size:14px;margin:8px 0;color:#007AFF">💰</div>
+            <div style="font-size:14px;margin:8px 0">👥</div>
+          </div>
+          <div style="flex:1;background:#fff;border-radius:4px;padding:8px;min-height:200px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:8px">财务</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
+              <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:6px;padding:10px;color:#fff;font-size:9px">
+                <div style="font-size:8px;opacity:0.8">本月收入</div>
+                <div style="font-size:14px;font-weight:700">¥0</div>
+              </div>
+              <div style="background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:6px;padding:10px;color:#fff;font-size:9px">
+                <div style="font-size:8px;opacity:0.8">累计应收</div>
+                <div style="font-size:14px;font-weight:700">¥0</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
+              <div style="background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:6px;padding:10px;color:#fff;font-size:9px">
+                <div style="font-size:8px;opacity:0.8">回款率</div>
+                <div style="font-size:14px;font-weight:700">0%</div>
+              </div>
+              <div style="background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:6px;padding:10px;color:#fff;font-size:9px">
+                <div style="font-size:8px;opacity:0.8">待处理</div>
+                <div style="font-size:14px;font-weight:700">0</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+              <div style="background:#667eea22;border-radius:6px;padding:8px;text-align:center;font-size:9px">📋<br/>票据</div>
+              <div style="background:#4facfe22;border-radius:6px;padding:8px;text-align:center;font-size:9px">💰<br/>预算</div>
+              <div style="background:#f093fb22;border-radius:6px;padding:8px;text-align:center;font-size:9px">💳<br/>支出</div>
+              <div style="background:#f5576c22;border-radius:6px;padding:8px;text-align:center;font-size:9px">📎<br/>凭证</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:9px;color:#999;text-align:center;padding:4px">← 窄侧边栏 · 渐变KPI · 全屏页面切换 · 彩色图标</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">目标 — SaaS 商务风</div>
+    <div class="mockup-body">
+      <div style="background:#141414;padding:4px;border-radius:4px;color:#fff">
+        <div style="display:flex;margin-bottom:4px">
+          <div style="width:160px;background:#1A1A1A;border-radius:4px;padding:12px 10px;margin-right:4px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #2A2A2A">
+              <div style="width:20px;height:20px;background:#3B82F6;border-radius:5px"></div>
+              <div style="font-size:11px;font-weight:600">AI_manage</div>
+            </div>
+            <div style="font-size:10px;color:#888;margin-bottom:4px">MAIN</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">🏠 首页</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">📁 文件</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">✨ 讲师IP</div>
+            <div style="font-size:10px;color:#888;margin:10px 0 4px">BUSINESS</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">📊 市场部</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">⚖ 招投标</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">🛠 项目管理</div>
+            <div style="padding:6px 8px;border-radius:4px;margin-bottom:2px;font-size:10px">👥 HR</div>
+            <div style="padding:6px 8px;border-radius:4px;background:#3B82F6;font-size:10px">💰 财务</div>
+          </div>
+          <div style="flex:1;background:#141414;border-radius:4px;padding:8px;min-height:200px">
+            <div style="font-size:9px;color:#666;margin-bottom:4px">财务</div>
+            <div style="display:flex;gap:4px;margin-bottom:8px;border-bottom:1px solid #222;padding-bottom:6px">
+              <div style="font-size:9px;color:#3B82F6;border-bottom:2px solid #3B82F6;padding-bottom:3px">概览</div>
+              <div style="font-size:9px;color:#666;padding-bottom:3px">票据</div>
+              <div style="font-size:9px;color:#666;padding-bottom:3px">预算</div>
+              <div style="font-size:9px;color:#666;padding-bottom:3px">支出</div>
+              <div style="font-size:9px;color:#666;padding-bottom:3px">凭证</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+              <div style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:6px;padding:12px">
+                <div style="font-size:9px;color:#888">本月收入</div>
+                <div style="font-size:18px;font-weight:700;color:#fff">¥0</div>
+                <div style="font-size:8px;color:#22C55E">↑ 0%</div>
+              </div>
+              <div style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:6px;padding:12px">
+                <div style="font-size:9px;color:#888">待收款</div>
+                <div style="font-size:18px;font-weight:700;color:#fff">¥0</div>
+              </div>
+              <div style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:6px;padding:12px">
+                <div style="font-size:9px;color:#888">待审批</div>
+                <div style="font-size:18px;font-weight:700;color:#fff">0</div>
+              </div>
+            </div>
+            <div style="font-size:9px;color:#666;margin-bottom:4px">收入趋势</div>
+            <div style="height:50px;background:#1A1A1A;border-radius:4px;display:flex;align-items:flex-end;padding:4px;gap:3px">
+              <div style="width:8%;height:20%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:35%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:50%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:30%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:60%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:45%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:70%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:55%;background:#3B82F6;border-radius:2px"></div>
+              <div style="width:8%;height:80%;background:#3B82F6;border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:9px;color:#666;text-align:center;padding:4px">← 宽侧边栏 · 分组导航 · 页面内Tab · 单色KPI · 紧凑布局</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改什么</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="sidebar" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>侧边栏 56→220px</h3>
+        <p>图标+文字横向排列，模块分组（Main/Business），当前模块高亮</p>
+      </div>
+    </div>
+    <div class="option" data-choice="theme" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>主题 — 去掉AI渐变味</h3>
+        <p>KPI卡片从紫色粉色渐变 → 单色精细卡片+微阴影，统一蓝色强调</p>
+      </div>
+    </div>
+    <div class="option" data-choice="tabs" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>页面内Tab替代全屏切换</h3>
+        <p>财务页用Tab切换Dashboard/票据/预算/支出/凭证，有面包屑导航</p>
+      </div>
+    </div>
+    <div class="option" data-choice="tables" onclick="toggleSelect(this)">
+      <div class="letter">4</div>
+      <div class="content">
+        <h3>卡片列表 → 数据表格</h3>
+        <p>票据/支出/凭证列表用紧凑表格代替卡片，支持排序和多列信息</p>
+      </div>
+    </div>
+    <div class="option" data-choice="typography" onclick="toggleSelect(this)">
+      <div class="letter">5</div>
+      <div class="content">
+        <h3>字体优化</h3>
+        <p>已用微软雅黑，进一步调整字号层级、间距和信息密度</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -10,6 +10,8 @@ import 'search_dialog.dart';
 const _moduleConfig = <String, _NavItem>{
   'dashboard': (Icons.home_rounded, Icons.home_outlined, '首页', '/dashboard'),
   'files': (Icons.folder_rounded, Icons.folder_outlined, '文件', '/files'),
+  'expense': (Icons.receipt_long_rounded, Icons.receipt_long_outlined, '支出报销', '/expense'),
+  'approval': (Icons.fact_check_rounded, Icons.fact_check_outlined, '发起审批', '/approval'),
   'ip': (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, '讲师IP', '/ip'),
   'audit': (Icons.schedule_rounded, Icons.schedule_outlined, '审计', '/audit'),
   'marketing': (Icons.campaign_rounded, Icons.campaign_outlined, '市场部', '/marketing'),
@@ -65,7 +67,7 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            width: collapsed ? 56 : 88,
+            width: collapsed ? 56 : 200,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -82,18 +84,28 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
-                      // collapse toggle
-                      _CollapseToggle(
-                        collapsed: collapsed,
-                        isDark: isDark,
-                        onTap: () => setState(() => _sidebarCollapsed = !collapsed),
-                      ),
-                      const SizedBox(height: 12),
-                      if (!collapsed) ...[
-                        _SidebarAvatar(auth: auth),
-                        const SizedBox(height: 20),
-                      ],
+                      const SizedBox(height: 16),
+                      if (collapsed)
+                        Center(
+                          child: _CollapseToggle(
+                            collapsed: collapsed,
+                            isDark: isDark,
+                            onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Row(children: [
+                            Expanded(child: _SidebarLogo(auth: auth)),
+                            _CollapseToggle(
+                              collapsed: collapsed,
+                              isDark: isDark,
+                              onTap: () => setState(() => _sidebarCollapsed = !collapsed),
+                            ),
+                          ]),
+                        ),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -111,6 +123,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                         ),
                       ),
                       if (!collapsed) ...[
+                        const SizedBox(height: 8),
+                        const Divider(height: 1, indent: 14, endIndent: 14),
                         const SizedBox(height: 8),
                         _SidebarAction(
                           icon: Icons.search_rounded,
@@ -187,8 +201,8 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
               child: GestureDetector(
                 onTap: () => setState(() => _mobileDrawerOpen = false),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  color: Colors.black.withAlpha(_mobileDrawerOpen ? 80 : 0),
+                  duration: const Duration(milliseconds: 200),
+                  color: Colors.black.withAlpha(_mobileDrawerOpen ? 120 : 0),
                 ),
               ),
             ),
@@ -197,14 +211,14 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            left: _mobileDrawerOpen ? 0 : -79,
+            left: _mobileDrawerOpen ? 0 : -180,
             top: 0,
             bottom: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  width: 75,
+                  width: 180,
                   decoration: BoxDecoration(
                     color: (isDark ? AppTheme.darkSurface : AppTheme.lightSurface)
                         .withAlpha(isDark ? 220 : 230),
@@ -218,16 +232,21 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                   child: Column(
                     children: [
                       SizedBox(height: topPadding + 16),
-                      _MobileBurger(
-                        isDark: isDark,
-                        onTap: () => setState(() => _mobileDrawerOpen = false),
-                        closeIcon: true,
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Row(children: [
+                          Expanded(child: _SidebarLogo(auth: auth)),
+                          _MobileBurger(
+                            isDark: isDark,
+                            onTap: () => setState(() => _mobileDrawerOpen = false),
+                            closeIcon: true,
+                          ),
+                        ]),
                       ),
-                      const SizedBox(height: 16),
                       Expanded(
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
-                          child: _SidebarNavCollapsed(
+                          child: _SidebarNav(
                             items: items,
                             currentIndex: idx,
                             onTap: (i) {
@@ -237,16 +256,20 @@ class _ResponsiveScaffoldState extends ConsumerState<ResponsiveScaffold> {
                           ),
                         ),
                       ),
-                      _SidebarActionCompact(
+                      const Divider(height: 1, indent: 14, endIndent: 14),
+                      const SizedBox(height: 8),
+                      _SidebarAction(
                         icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        label: '主题',
                         onTap: () {
                           ref.read(themeProvider.notifier).toggle(isCurrentlyDark: isDark);
                           setState(() => _mobileDrawerOpen = false);
                         },
                       ),
                       const SizedBox(height: 2),
-                      _SidebarActionCompact(
+                      _SidebarAction(
                         icon: Icons.logout_rounded,
+                        label: '退出',
                         onTap: () {
                           ref.read(authProvider.notifier).logout();
                           setState(() => _mobileDrawerOpen = false);
@@ -307,35 +330,34 @@ class _CollapseToggle extends StatelessWidget {
 
 // ── Sidebar components ──
 
-class _SidebarAvatar extends StatelessWidget {
+class _SidebarLogo extends StatelessWidget {
   final AuthState auth;
-  const _SidebarAvatar({required this.auth});
+  const _SidebarLogo({required this.auth});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.blue, Color(0xFF5856D6)],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          auth.user?.username[0].toUpperCase() ?? '?',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            letterSpacing: -0.2,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = isDark ? AppTheme.darkText : AppTheme.lightText;
+    return Row(children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            gradient: const LinearGradient(colors: [AppTheme.accent, AppTheme.accentLight]),
           ),
+          child: const Icon(Icons.hexagon_rounded, color: Colors.white, size: 16),
         ),
-      ),
-    );
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('AI 管理',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg, letterSpacing: -0.3)),
+          Text(auth.user?.department ?? '企业版',
+              style: TextStyle(
+                  fontSize: 9,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        ]),
+      ]);
   }
 }
 
@@ -347,18 +369,53 @@ class _SidebarNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (int i = 0; i < items.length; i++)
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final groupColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
+    final mainItems = items.take(4).toList();
+    final bizItems = items.length > 4 ? items.skip(4).toList() : <MapEntry<String, _NavItem>>[];
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _GroupLabel('主要', groupColor),
+      for (int i = 0; i < mainItems.length; i++)
+        _SidebarNavItem(
+          selected: currentIndex == i,
+          icon: mainItems[i].value.$1,
+          outline: mainItems[i].value.$2,
+          label: mainItems[i].value.$3,
+          onTap: () => onTap(i),
+        ),
+      if (bizItems.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        _GroupLabel('业务', groupColor),
+        for (int i = 0; i < bizItems.length; i++)
           _SidebarNavItem(
-            selected: currentIndex == i,
-            icon: items[i].value.$1,
-            outline: items[i].value.$2,
-            label: items[i].value.$3,
-            onTap: () => onTap(i),
+            selected: currentIndex == i + 4,
+            icon: bizItems[i].value.$1,
+            outline: bizItems[i].value.$2,
+            label: bizItems[i].value.$3,
+            onTap: () => onTap(i + 4),
           ),
       ],
+    ]);
+  }
+}
+
+class _GroupLabel extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _GroupLabel(this.text, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: color.withAlpha(120),
+              letterSpacing: 1.5)),
     );
   }
 }
@@ -421,46 +478,31 @@ class _SidebarNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = selected
+        ? (isDark ? AppTheme.accentLight : AppTheme.accent)
+        : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary);
+    final bg = selected
+        ? (isDark ? AppTheme.darkAccentBg : AppTheme.lightAccentBg)
+        : Colors.transparent;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            width: 64,
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: selected
-                  ? AppTheme.blue.withAlpha(isDark ? 30 : 20)
-                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              color: bg,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selected ? icon : outline,
-                  size: 22,
-                  color: selected
-                      ? AppTheme.blue
-                      : (isDark ? Colors.white : Colors.black).withAlpha(140),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? AppTheme.blue
-                        : (isDark ? Colors.white : Colors.black).withAlpha(140),
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ],
-            ),
+            child: Row(children: [
+              Icon(selected ? icon : outline, size: 16, color: fg),
+              const SizedBox(width: 10),
+              Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: fg))),
+            ]),
           ),
         ),
       ),
@@ -492,51 +534,17 @@ class _SidebarAction extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          width: 64,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(fontSize: 10, color: color, letterSpacing: -0.1)),
-            ],
-          ),
+          width: 204,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(fontSize: 12, color: color, letterSpacing: -0.1)),
+          ]),
         ),
-      ),
-    );
-  }
-}
-
-// ── Sidebar action compact (icon only, for narrow sidebars) ──
-
-class _SidebarActionCompact extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool destructive;
-  const _SidebarActionCompact({required this.icon, required this.onTap, this.destructive = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = destructive
-        ? AppTheme.red
-        : (isDark ? Colors.white : Colors.black).withAlpha(140);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.transparent,
-        ),
-        child: Icon(icon, size: 20, color: color),
       ),
     );
   }

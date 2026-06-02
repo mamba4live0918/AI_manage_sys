@@ -21,6 +21,7 @@ class Department(Base):
     description: Mapped[str] = mapped_column(String(256), default="")
     leader_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     accessible_modules: Mapped[list] = mapped_column(JSON, default=list)
+    color: Mapped[str] = mapped_column(String(32), default="#2196F3")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     leader: Mapped["User | None"] = relationship(foreign_keys=[leader_id], lazy="selectin")
@@ -558,6 +559,7 @@ class Settlement(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pm_projects.id", ondelete="SET NULL"), nullable=True)
+    budget_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="SET NULL"), nullable=True)
     invoice_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True)
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(32), default="pending")
@@ -575,6 +577,7 @@ class Expense(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pm_projects.id", ondelete="SET NULL"), nullable=True)
+    budget_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="SET NULL"), nullable=True)
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     category: Mapped[str] = mapped_column(String(64), default="other")
     expense_type: Mapped[str] = mapped_column(String(32), default="reimbursement")  # reimbursement=员工报销, direct=直接支出
@@ -606,6 +609,7 @@ class Invoice(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pm_projects.id", ondelete="SET NULL"), nullable=True)
+    budget_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="SET NULL"), nullable=True)
     invoice_no: Mapped[str] = mapped_column(String(128), default="")
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     tax_amount: Mapped[float] = mapped_column(Float, default=0.0)
@@ -646,6 +650,7 @@ class Budget(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pm_projects.id", ondelete="SET NULL"), nullable=True)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=True)
     name: Mapped[str] = mapped_column(String(128), default="")
     year: Mapped[int] = mapped_column(Integer, default=2026)
     quarter: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -670,3 +675,17 @@ class BudgetItem(Base):
     color: Mapped[str] = mapped_column(String(32), default="#FF0000")
     icon: Mapped[str] = mapped_column(String(64), default="description")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmployeeFile(Base):
+    __tablename__ = "employee_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    file_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="CASCADE"), nullable=False)
+    file_type: Mapped[str] = mapped_column(String(32), default="other")
+    name: Mapped[str] = mapped_column(String(256), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], lazy="selectin")
+    file: Mapped["File"] = relationship(foreign_keys=[file_id], lazy="selectin")

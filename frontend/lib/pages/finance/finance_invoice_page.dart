@@ -6,8 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/finance_providers.dart';
+import '../../config/theme.dart';
 import '../../models/finance_models.dart';
 import '../../services/api_client.dart';
+import '../../widgets/budget_tree_selector.dart';
 class FinanceInvoicePage extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
   const FinanceInvoicePage({super.key, this.onBack});
@@ -23,8 +25,26 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   final Map<String, double> _paymentTotals = {};
   final Map<String, List<Map<String, dynamic>>> _voucherCache = {};
   bool _loadingPayments = false;
+  List<Map<String, dynamic>> _projectList = [];
+  bool _projectsLoaded = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int _page = 0;
+  static const int _pageSize = 20;
+
+  List<InvoiceData> get _pagedItems {
+    final items = ref.read(financeInvoiceProvider).items;
+    final start = _page * _pageSize;
+    final end = start + _pageSize;
+    if (start >= items.length) return [];
+    return items.sublist(start, end > items.length ? items.length : end);
+  }
+
+  int get _totalPages {
+    final len = ref.read(financeInvoiceProvider).items.length;
+    if (len == 0) return 0;
+    return (len / _pageSize).ceil();
+  }
 
   static const _statusOptions = ['', 'issued', 'partial', 'paid', 'cancelled'];
   static const _statusLabels = {
@@ -95,6 +115,35 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     if (mounted) setState(() => _loadingPayments = false);
   }
 
+  void _editInvoice(BuildContext context, InvoiceData inv) {
+    _showDetailSheet(context, inv);
+  }
+
+  Future<void> _deleteInvoice(String id, String no) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除发票'),
+        content: Text('确定删除发票 "$no"？此操作不可撤销。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _api.dio.delete('/finance/invoices/$id');
+      ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('删除失败: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(financeInvoiceProvider);
@@ -117,43 +166,63 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '搜索发票号、销售方或购买方名称',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                        ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus);
-                      })
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              onChanged: (v) {
-                setState(() => _searchQuery = v);
-              },
-              onSubmitted: (v) {
-                ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                if (constraints.maxWidth >= 700) {
+                  return Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: '搜索发票号、名称...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onSubmitted: (v) {
+                          setState(() { _page = 0; _searchQuery = v; });
+                          ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterBar(theme, isDark),
+                  ]);
+                }
+                return Column(children: [
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: '搜索发票号、名称...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onSubmitted: (v) {
+                      setState(() { _page = 0; _searchQuery = v; });
+                      ref.read(financeInvoiceProvider.notifier).load(status: _selectedStatus, search: v);
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  Align(alignment: Alignment.centerLeft, child: _buildFilterBar(theme, isDark)),
+                ]);
               },
             ),
           ),
-          _buildFilterBar(theme, isDark),
           const Divider(height: 1),
           Expanded(
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
                 : state.items.isEmpty
                     ? _buildEmptyState(theme)
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: state.items.length,
-                        itemBuilder: (_, i) {
-                          final inv = state.items[i];
-                          return _buildInvoiceCard(inv, isDark, theme);
+                    : LayoutBuilder(
+                        builder: (ctx, constraints) {
+                          final w = constraints.maxWidth;
+                          if (w >= 800) return _buildTable(isDark);
+                          return _buildMobileCards(isDark, w);
                         },
                       ),
           ),
@@ -163,44 +232,161 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
   }
 
   Widget _buildFilterBar(ThemeData theme, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isDark ? Colors.white10 : theme.colorScheme.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _statusOptions.map((s) {
-            final selected = _selectedStatus == s;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  _statusLabels[s]!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: selected
-                        ? Colors.white
-                        : (isDark ? Colors.white70 : Colors.black87),
-                  ),
-                ),
-                selected: selected,
-                selectedColor: theme.colorScheme.primary,
-                backgroundColor:
-                    isDark ? Colors.white12 : Colors.grey.shade200,
-                side: BorderSide.none,
-                onSelected: (v) {
-                  if (v) {
-                    setState(() => _selectedStatus = s);
-                    ref
-                        .read(financeInvoiceProvider.notifier)
-                        .load(status: s);
-                  }
-                },
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _statusOptions.map((s) {
+          final selected = _selectedStatus == s;
+          return Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: ChoiceChip(
+              label: Text(
+                _statusLabels[s]!,
+                style: TextStyle(fontSize: 12, color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
               ),
-            );
-          }).toList(),
+              selected: selected,
+              selectedColor: theme.colorScheme.primary,
+              backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: BorderSide.none,
+              onSelected: (v) {
+                if (v) {
+                  setState(() { _selectedStatus = s; _page = 0; });
+                  ref.read(financeInvoiceProvider.notifier).load(status: s);
+                }
+              },
+            ),
+          );
+        }).toList(),
+    ));
+  }
+
+  // ─── Desktop table ───
+
+  Widget _buildTable(bool isDark) {
+    return Column(children: [
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Table(
+            columnWidths: const {
+              0: FlexColumnWidth(0.4),
+              1: FlexColumnWidth(1.8),
+              2: FlexColumnWidth(0.7),
+              3: FlexColumnWidth(0.5),
+              4: FixedColumnWidth(128),
+            },
+            border: TableBorder(
+              horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+            ),
+            children: [
+              TableRow(
+                decoration: BoxDecoration(color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
+                children: const [
+                  _TableHeader('编号'), _TableHeader('金额'), _TableHeader('到期日'),
+                  _TableHeader('状态'), _TableHeader('操作'),
+                ],
+              ),
+              ..._pagedItems.map((inv) => _buildTableRow(inv, isDark)),
+            ],
+          ),
         ),
       ),
+      if (_totalPages > 1) _buildPagination(isDark),
+    ]);
+  }
+
+  TableRow _buildTableRow(InvoiceData inv, bool isDark) {
+    final paid = _paymentTotals[inv.id] ?? 0;
+    final total = inv.amount;
+    final payPct = total > 0 ? (paid / total).clamp(0.0, 1.0) : 0.0;
+    final remaining = total - paid;
+    final statusColor = _statusColors[inv.status] ?? Colors.grey;
+    final statusLabel = _statusLabels[inv.status] ?? inv.status;
+    return TableRow(children: [
+      _TableCell(
+        Text(inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '—',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.accentLight : AppTheme.accent)),
+        isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+      ),
+      _TableCell(
+        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            Text('\u{FFE5}${total.toStringAsFixed(0)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+            const Spacer(),
+            Text('已收 \u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: payPct >= 1 ? AppTheme.green : isDark ? Colors.white54 : Colors.black54)),
+          ]),
+          const SizedBox(height: 3),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: payPct, minHeight: 4,
+              backgroundColor: (isDark ? Colors.white : Colors.black).withAlpha(15),
+              valueColor: AlwaysStoppedAnimation(payPct >= 1 ? AppTheme.green : AppTheme.accent),
+            ),
+          ),
+        ]),
+        isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+      ),
+      _TableCell(
+        Text(inv.dueDate != null && inv.dueDate!.length >= 10 ? inv.dueDate!.substring(0, 10) : '—', style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+      ),
+      _TableCell(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(color: statusColor.withAlpha(isDark ? 30 : 20), borderRadius: BorderRadius.circular(4)),
+          child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: statusColor)),
+        ),
+        isDark: isDark, onTap: () => _showDetailSheet(context, inv),
+      ),
+      _InvoiceActionCell(
+        invoiceId: inv.id, status: inv.status, remaining: remaining,
+        onPay: () => _showPaymentDialog(context, inv.id, total, paid),
+        onDetail: () => _showDetailSheet(context, inv),
+        onEdit: () => _editInvoice(context, inv),
+        onDelete: () => _deleteInvoice(inv.id, inv.invoiceNo),
+      ),
+    ]);
+  }
+
+  // ─── Mobile cards ───
+
+  Widget _buildMobileCards(bool isDark, double width) {
+    final theme = Theme.of(context);
+    final cols = width >= 500 ? 2 : 1;
+    if (cols == 1) {
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: _pagedItems.length,
+        itemBuilder: (_, i) => _buildInvoiceCard(_pagedItems[i], isDark, theme),
+      );
+    }
+    final cardWidth = (width - 12 * (cols + 1)) / cols;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        children: _pagedItems.map((item) => SizedBox(
+          width: cardWidth,
+          child: _buildInvoiceCard(item, isDark, theme),
+        )).toList(),
+      ),
+    );
+  }
+
+  // ─── Pagination ───
+
+  Widget _buildPagination(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(icon: const Icon(Icons.chevron_left, size: 20), onPressed: _page > 0 ? () => setState(() => _page--) : null),
+        Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        IconButton(icon: const Icon(Icons.chevron_right, size: 20), onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null),
+      ]),
     );
   }
 
@@ -235,157 +421,121 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     final paid = _paymentTotals[inv.id] ?? 0;
     final total = inv.amount;
     final ratio = total > 0 ? (paid / total).clamp(0.0, 1.0) : 0.0;
-    final pct = (ratio * 100);
+    final pct = (ratio * 100).toStringAsFixed(0);
     final isFullyPaid = inv.status == 'paid' || paid >= total;
     final isPartial = paid > 0 && !isFullyPaid;
 
     Color progressColor;
     if (isFullyPaid) {
-      progressColor = Colors.green;
+      progressColor = AppTheme.green;
     } else if (isPartial) {
-      progressColor = Colors.blue;
+      progressColor = AppTheme.blue;
     } else {
-      progressColor = Colors.orange;
+      progressColor = AppTheme.orange;
     }
 
-    final statusColor =
-        (_statusColors[inv.status] ?? Colors.grey).withValues(alpha: isDark ? 0.9 : 1);
+    final statusColor = _statusColors[inv.status] ?? Colors.grey;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _showDetailSheet(context, inv),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top row: invoice_no + status badge
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '无发票号',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 2))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showDetailSheet(context, inv),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Row 1: accent bar + invoice number (label) + status badge
+              Row(children: [
+                Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: progressColor)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    inv.invoiceNo.isNotEmpty ? inv.invoiceNo : '无发票号',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _statusLabels[inv.status] ?? inv.status,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withAlpha(isDark ? 25 : 18),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: statusColor.withAlpha(isDark ? 100 : 80)),
                   ),
-                ],
-              ),
+                  child: Text(_statusLabels[inv.status] ?? inv.status,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
+                ),
+              ]),
+              const SizedBox(height: 6),
+              // Row 2: big amount with FittedBox + percentage
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                  child: Text('\u{FFE5}${paid.toStringAsFixed(0)}', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                ),
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text('/ \u{FFE5}${total.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text('$pct%', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: progressColor)),
+                ),
+              ]),
+              const SizedBox(height: 2),
+              // Row 3: buyer/seller subtitle
               if (inv.buyerName.isNotEmpty || inv.sellerName.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    '${inv.sellerName.isNotEmpty ? '${inv.sellerName} → ' : ''}${inv.buyerName.isNotEmpty ? inv.buyerName : ''}',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
-                  ),
+                Text(
+                  '${inv.sellerName.isNotEmpty ? '${inv.sellerName} → ' : ''}${inv.buyerName.isNotEmpty ? inv.buyerName : ''}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
                 ),
-              if (inv.projectId != null && inv.projectId!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '关联项目: ${inv.projectId}',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               // Progress bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
                   value: ratio,
                   minHeight: 6,
-                  backgroundColor:
-                      isDark ? Colors.white12 : Colors.grey.shade200,
+                  backgroundColor: isDark ? AppTheme.darkElevated : Colors.grey.shade200,
                   valueColor: AlwaysStoppedAnimation(progressColor),
                 ),
               ),
-              const SizedBox(height: 8),
-              // Progress text + quick action + more menu
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '已收 \u{FFE5}${paid.toStringAsFixed(2)} / \u{FFE5}${total.toStringAsFixed(2)} (${pct.toStringAsFixed(0)}%)',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
-                    ),
-                  ),
-                  if (!isFullyPaid)
-                    TextButton.icon(
-                      onPressed: () =>
-                          _showPaymentDialog(context, inv.id, total, paid),
-                      icon: const Icon(Icons.attach_money, size: 16),
-                      label:
-                          const Text('收款', style: TextStyle(fontSize: 13)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert,
-                        size: 18,
-                        color: isDark ? Colors.white54 : Colors.black45),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onSelected: (v) {
-                      if (v == 'delete') _confirmDelete(context, inv.id);
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [
-                          Icon(Icons.delete_outline,
-                              color: Colors.red, size: 20),
-                          SizedBox(width: 8),
-                          Text('删除'),
-                        ]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+              const SizedBox(height: 10),
+              // Action chips
+              Row(children: [
+                if (!isFullyPaid)
+                  _ActionChip(Icons.payment_rounded, '收款', AppTheme.green, () => _showPaymentDialog(context, inv.id, total, paid)),
+                _ActionChip(Icons.info_outline_rounded, '详情', isDark ? Colors.white54 : Colors.black54, () => _showDetailSheet(context, inv)),
+                _ActionChip(Icons.edit_outlined, '编辑', AppTheme.accent, () => _editInvoice(context, inv)),
+                const Spacer(),
+                _ActionChip(Icons.delete_outline, '删除', AppTheme.red, () => _deleteInvoice(inv.id, inv.invoiceNo)),
+              ]),
+            ]),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _loadProjects() async {
+    if (_projectsLoaded) return;
+    try {
+      final resp = await _api.dio.get('/pm/projects', queryParameters: {'limit': '200'});
+      _projectList = List<Map<String, dynamic>>.from(resp.data['items'] ?? []);
+      _projectsLoaded = true;
+    } catch (_) {}
   }
 
   // ─── Create dialog ───
@@ -404,6 +554,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
     String? issueDate;
     String? dueDate;
     String? errorMsg;
+    String? selectedBudgetId;
 
     showDialog(
       context: context,
@@ -452,9 +603,30 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true)),
               const SizedBox(height: 8),
-              TextField(
-                  controller: projectIdCtrl,
-                  decoration: const InputDecoration(labelText: '关联项目ID')),
+              FutureBuilder(
+                future: _loadProjects(),
+                builder: (_, __) => Autocomplete<Map<String, dynamic>>(
+                  displayStringForOption: (p) => p['name'] as String? ?? '',
+                  optionsBuilder: (textEditingValue) {
+                    if (textEditingValue.text.isEmpty) return _projectList;
+                    return _projectList.where((p) =>
+                      (p['name'] as String? ?? '').toLowerCase().contains(textEditingValue.text.toLowerCase())
+                    ).toList();
+                  },
+                  onSelected: (p) {
+                    projectIdCtrl.text = p['id'] as String? ?? '';
+                  },
+                  fieldViewBuilder: (ctx, ctrl, node, _) => TextField(
+                    controller: ctrl,
+                    focusNode: node,
+                    decoration: InputDecoration(
+                      labelText: '关联项目',
+                      hintText: '搜索并选择项目',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
@@ -501,6 +673,11 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                 ),
               ]),
               const SizedBox(height: 8),
+              BudgetTreeSelector(
+                label: '关联预算 (可选)',
+                onChanged: (v) => setDialogState(() => selectedBudgetId = v),
+              ),
+              const SizedBox(height: 8),
               TextField(
                   controller: notesCtrl,
                   decoration: const InputDecoration(labelText: '备注'),
@@ -544,6 +721,9 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                       'buyer_tax_id': buyerTaxIdCtrl.text,
                       'status': 'issued',
                     };
+                    if (selectedBudgetId != null) {
+                      body['budget_id'] = selectedBudgetId;
+                    }
                     if (projectIdCtrl.text.isNotEmpty) {
                       body['project_id'] = projectIdCtrl.text;
                     }
@@ -1736,6 +1916,120 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _TableHeader extends StatelessWidget {
+  final String text;
+  const _TableHeader(this.text);
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _TableCell(this.child, {required this.isDark, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _InvoiceActionCell extends StatelessWidget {
+  final String invoiceId;
+  final String status;
+  final double remaining;
+  final VoidCallback onPay;
+  final VoidCallback onDetail;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _InvoiceActionCell({
+    required this.invoiceId, required this.status, required this.remaining,
+    required this.onPay, required this.onDetail,
+    required this.onEdit, required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = isDark ? Colors.white54 : Colors.black54;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (status != 'paid' && status != 'cancelled')
+        _ActionIcon(Icons.payment_rounded, '收款', AppTheme.green, onPay),
+      _ActionIcon(Icons.info_outline_rounded, '详情', fg, onDetail),
+      _ActionIcon(Icons.edit_outlined, '编辑', AppTheme.accent, onEdit),
+      _ActionIcon(Icons.delete_outline, '删除', AppTheme.red, onDelete),
+    ]);
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionChip(this.icon, this.label, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Material(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionIcon(this.icon, this.tooltip, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: Container(
+          width: 30, height: 30,
+          alignment: Alignment.center,
+          child: Icon(icon, size: 18, color: color),
+        ),
+      ),
     );
   }
 }

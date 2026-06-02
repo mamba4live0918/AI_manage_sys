@@ -21,6 +21,7 @@ from app.models.models import (
     Settlement, Expense, Voucher,
     # Phase 5: Finance upgrade
     Invoice, Payment, Budget, BudgetItem,
+    EmployeeFile,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "Interview",
     "Settlement", "Expense", "Voucher",
     "Invoice", "Payment", "Budget", "BudgetItem",
+    "EmployeeFile",
 ]

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/theme.dart';
 import '../../services/api_client.dart';
 
 class MarketingDemandPredictionPage extends StatefulWidget {
@@ -48,7 +49,7 @@ class _MarketingDemandPredictionPageState extends State<MarketingDemandPredictio
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  color: const Color(0xFF7C3AED).withAlpha(20),
+                  color: AppTheme.purple.withAlpha(20),
                 ),
                 child: Text(_model!, style: const TextStyle(fontSize: 12, color: Color(0xFF7C3AED))),
               ),

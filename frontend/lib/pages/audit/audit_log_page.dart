@@ -44,45 +44,118 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
   }
 
   Color _actionColor(String action) {
-    return switch (action) {
-      'preview' => AppTheme.blue,
-      'preview_close' => Colors.grey,
-      'download' => AppTheme.green,
-      'upload' => AppTheme.teal,
-      'delete' => AppTheme.red,
-      'create_folder' => AppTheme.orange,
-      'set_level' => AppTheme.purple,
-      'permission_change' => AppTheme.orange,
-      'copy_generate' => AppTheme.purple,
-      'dept_create' => AppTheme.blue,
-      'dept_update' => AppTheme.blue,
-      'dept_delete' => AppTheme.red,
-      'dept_set_leader' => AppTheme.orange,
-      'dept_add_member' => AppTheme.green,
-      'dept_remove_member' => AppTheme.orange,
-      _ => Colors.grey,
-    };
+    if (action.contains('delete') || action.contains('rejected')) return AppTheme.red;
+    if (action.contains('create') || action.contains('upload') || action.contains('generate') || action.contains('approved')) return AppTheme.green;
+    if (action.contains('update')) return AppTheme.blue;
+    if (action.contains('preview') || action.contains('download')) return AppTheme.blue;
+    return Colors.grey;
   }
 
   String _actionLabel(String action) {
-    return switch (action) {
-      'preview' => '预览',
-      'preview_close' => '关闭预览',
-      'download' => '下载',
-      'upload' => '上传',
-      'delete' => '删除',
-      'create_folder' => '新建文件夹',
-      'set_level' => '设置级别',
-      'permission_change' => '权限变更',
-      'copy_generate' => '文案生成',
-      'dept_create' => '创建部门',
-      'dept_update' => '修改部门',
-      'dept_delete' => '删除部门',
-      'dept_set_leader' => '设置部门长',
-      'dept_add_member' => '添加成员',
-      'dept_remove_member' => '移除成员',
-      _ => action,
-    };
+    if (action == 'preview') return '预览';
+    if (action == 'preview_close') return '关闭预览';
+    if (action == 'download') return '下载';
+    if (action == 'upload') return '上传';
+    if (action == 'delete') return '删除';
+    if (action == 'create_folder') return '新建文件夹';
+    if (action == 'set_level') return '设置级别';
+    if (action == 'permission_change') return '权限变更';
+    if (action == 'dept_create') return '创建部门';
+    if (action == 'dept_update') return '修改部门';
+    if (action == 'dept_delete') return '删除部门';
+    if (action == 'dept_set_leader') return '设置部门长';
+    if (action == 'dept_add_member') return '添加成员';
+    if (action == 'dept_remove_member') return '移除成员';
+    if (action.contains('denied')) return '无权限';
+    // Bidding
+    if (action == 'template_create') return '创建合同模板';
+    if (action == 'template_update') return '更新合同模板';
+    if (action == 'template_delete') return '删除合同模板';
+    if (action == 'contract_generate') return '生成合同';
+    if (action == 'contract_update') return '更新合同';
+    if (action == 'contract_delete') return '删除合同';
+    if (action == 'knowledge_doc_create') return '创建投标知识';
+    if (action == 'knowledge_doc_upload') return '上传投标知识';
+    if (action == 'knowledge_doc_file_delete') return '删除投标知识文件';
+    if (action == 'knowledge_doc_update') return '更新投标知识';
+    if (action == 'knowledge_doc_delete') return '删除投标知识';
+    if (action == 'process_create') return '创建投标流程';
+    if (action == 'process_update') return '更新投标流程';
+    if (action == 'process_delete') return '删除投标流程';
+    if (action == 'supplier_create') return '添加供应商';
+    if (action == 'supplier_update') return '更新供应商';
+    if (action == 'supplier_delete') return '删除供应商';
+    if (action == 'instructor_create') return '添加讲师';
+    if (action == 'instructor_update') return '更新讲师';
+    if (action == 'instructor_delete') return '删除讲师';
+    if (action == 'course_match') return '课程匹配';
+    // HR
+    if (action == 'employee_update') return '更新员工信息';
+    if (action == 'resume_create') return '创建简历';
+    if (action == 'resume_upload') return '上传简历';
+    if (action == 'resume_update') return '更新简历';
+    if (action == 'resume_delete') return '删除简历';
+    if (action == 'resume_match') return '简历评估';
+    if (action == 'approval_create') return '提交审批';
+    if (action == 'approval_approved') return '审批通过';
+    if (action == 'approval_rejected') return '审批驳回';
+    if (action == 'approval_delete') return '删除审批';
+    if (action == 'approval_step_approved') return '审批步骤通过';
+    if (action == 'approval_step_rejected') return '审批步骤驳回';
+    if (action == 'interview_create') return '安排面试';
+    if (action == 'interview_update') return '更新面试';
+    if (action == 'interview_delete') return '删除面试';
+    // Finance
+    if (action == 'settlement_create') return '创建结算';
+    if (action == 'settlement_update') return '更新结算';
+    if (action == 'settlement_delete') return '删除结算';
+    if (action == 'expense_create') return '创建支出';
+    if (action == 'expense_approved') return '支出已通过';
+    if (action == 'expense_rejected') return '支出已驳回';
+    if (action == 'expense_delete') return '删除支出';
+    if (action == 'expense_paid') return '支出已支付';
+    if (action == 'voucher_create') return '上传凭证';
+    if (action == 'voucher_upload') return '上传凭证文件';
+    if (action == 'voucher_delete') return '删除凭证';
+    if (action == 'invoice_create') return '创建发票';
+    if (action == 'invoice_update') return '更新发票';
+    if (action == 'invoice_delete') return '删除发票';
+    if (action == 'payment_create') return '添加收款';
+    if (action == 'payment_delete') return '删除收款';
+    if (action == 'budget_create') return '创建预算';
+    if (action == 'budget_update') return '更新预算';
+    if (action == 'budget_delete') return '删除预算';
+    // Marketing
+    if (action == 'customer_create') return '创建客户';
+    if (action == 'customer_update') return '更新客户';
+    if (action == 'customer_delete') return '删除客户';
+    if (action == 'behavior_record') return '行为记录';
+    if (action == 'satisfaction_record') return '满意度记录';
+    if (action == 'churn_warning_create') return '流失预警';
+    if (action == 'demand_prediction') return '需求预测';
+    if (action == 'proposal_generate') return '生成方案';
+    if (action == 'proposal_update') return '更新方案';
+    if (action == 'proposal_delete') return '删除方案';
+    if (action == 'project_create') return '创建项目';
+    if (action == 'project_update') return '更新项目';
+    if (action == 'project_delete') return '删除项目';
+    if (action == 'brief_generate') return '生成简报';
+    if (action == 'interaction_record') return '互动记录';
+    if (action == 'knowledge_create') return '创建知识';
+    if (action == 'knowledge_upload') return '上传知识';
+    if (action == 'knowledge_file_delete') return '删除知识文件';
+    if (action == 'knowledge_update') return '更新知识';
+    if (action == 'knowledge_delete') return '删除知识';
+    if (action == 'knowledge_qa') return '知识问答';
+    // PM
+    if (action == 'visit_log_create') return '创建拜访记录';
+    if (action == 'courseware_create') return '创建课件';
+    if (action == 'courseware_upload') return '上传课件';
+    if (action == 'courseware_update') return '更新课件';
+    if (action == 'courseware_delete') return '删除课件';
+    if (action == 'report_generate') return '生成报告';
+    if (action == 'copy_generate') return 'AI文案生成';
+    return action;
   }
 
   @override
@@ -224,11 +297,11 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
             children: [
               // Icon
               Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(9),
-                  color: color.withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                  color: color.withAlpha(isDark ? 25 : 18),
                 ),
                 child: Icon(
                   success ? Icons.check_circle_rounded : Icons.close_rounded,

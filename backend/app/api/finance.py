@@ -20,9 +20,17 @@ def _now():
 
 
 async def _check_department(db: AsyncSession, user: User, target_department_id, action: str, noun: str = "财务记录"):
-    """非admin用户只能操作本部门数据"""
+    """admin和财务模块用户可跨部门操作，其他用户仅限本部门"""
     if user.role == "admin":
         return
+    if "finance" in (user.extra_modules or []):
+        return  # 财务模块用户可跨部门审批
+    # Check department membership
+    if user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            return  # 财务部门成员可跨部门操作
     if target_department_id is not None and user.department_id != target_department_id:
         raise HTTPException(403, f"不能{action}其他部门的{noun}")
 
@@ -31,6 +39,7 @@ async def _check_department(db: AsyncSession, user: User, target_department_id, 
 
 class SettlementCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float = 0.0
     status: str = "pending"
     settlement_date: str | None = None
@@ -40,6 +49,7 @@ class SettlementCreate(BaseModel):
 
 class SettlementUpdate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float | None = None
     status: str | None = None
     settlement_date: str | None = None
@@ -49,15 +59,25 @@ class SettlementUpdate(BaseModel):
 
 class ExpenseCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     amount: float = 0.0
     category: str = "other"
     expense_type: str = "reimbursement"  # reimbursement=员工报销, direct=直接支出
     description: str = ""
     submitted_by: str | None = None
+    department_id: str | None = None
 
 
 class ExpenseApprove(BaseModel):
     status: str  # approved or rejected
+
+class ExpenseUpdate(BaseModel):
+    amount: float | None = None
+    category: str | None = None
+    expense_type: str | None = None
+    description: str | None = None
+    budget_id: str | None = None
+    status: str | None = None
 
 
 class VoucherCreate(BaseModel):
@@ -70,6 +90,7 @@ class VoucherCreate(BaseModel):
 
 class InvoiceCreate(BaseModel):
     project_id: str | None = None
+    budget_id: str | None = None
     invoice_no: str = ""
     amount: float = 0.0
     tax_amount: float = 0.0
@@ -84,6 +105,7 @@ class InvoiceCreate(BaseModel):
     buyer_tax_id: str = ""
 
 class InvoiceUpdate(BaseModel):
+    budget_id: str | None = None
     invoice_no: str | None = None
     amount: float | None = None
     tax_amount: float | None = None
@@ -117,6 +139,7 @@ class BudgetItemCreate(BaseModel):
 class BudgetCreate(BaseModel):
     department_id: str | None = None
     project_id: str | None = None
+    parent_id: str | None = None
     name: str = ""
     year: int = 2026
     quarter: int | None = None
@@ -132,6 +155,7 @@ class BudgetUpdate(BaseModel):
     total_amount: float | None = None
     status: str | None = None
     notes: str | None = None
+    parent_id: str | None = None
     items: list[BudgetItemCreate] | None = None
 
 
@@ -141,6 +165,7 @@ def _settlement_row(s: Settlement) -> dict:
     return {
         "id": str(s.id),
         "project_id": str(s.project_id) if s.project_id else None,
+        "budget_id": str(s.budget_id) if s.budget_id else None,
         "amount": s.amount,
         "status": s.status,
         "settlement_date": s.settlement_date.isoformat() if s.settlement_date else None,
@@ -157,6 +182,7 @@ def _expense_row(e: Expense) -> dict:
     return {
         "id": str(e.id),
         "project_id": str(e.project_id) if e.project_id else None,
+        "budget_id": str(e.budget_id) if e.budget_id else None,
         "amount": e.amount,
         "category": e.category,
         "expense_type": e.expense_type,
@@ -188,6 +214,7 @@ def _invoice_row(inv: Invoice) -> dict:
     return {
         "id": str(inv.id),
         "project_id": str(inv.project_id) if inv.project_id else None,
+        "budget_id": str(inv.budget_id) if inv.budget_id else None,
         "invoice_no": inv.invoice_no,
         "amount": inv.amount,
         "tax_amount": inv.tax_amount,
@@ -234,10 +261,17 @@ def _budget_item_row(item: BudgetItem) -> dict:
 async def _budget_row(b: Budget, db: AsyncSession) -> dict:
     items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
     budget_items = items_result.scalars().all()
+    dept_name = None
+    if b.department_id:
+        from app.models import Department
+        dept = await db.get(Department, b.department_id)
+        dept_name = dept.name if dept else None
     return {
         "id": str(b.id),
         "department_id": str(b.department_id) if b.department_id else None,
+        "department_name": dept_name,
         "project_id": str(b.project_id) if b.project_id else None,
+        "parent_id": str(b.parent_id) if b.parent_id else None,
         "name": b.name,
         "year": b.year,
         "quarter": b.quarter,
@@ -252,68 +286,121 @@ async def _budget_row(b: Budget, db: AsyncSession) -> dict:
 
 
 def _budget_date_range(b):
-    """Return (start, end) datetime range for a budget based on year+quarter. Returns (None, None) if no year."""
+    """Return (start, end) UTC datetime range for a budget based on year+quarter."""
     if not b.year:
         return None, None
     if b.quarter:
         q = b.quarter - 1
         start_month = q * 3 + 1
-        start = datetime(b.year, start_month, 1)
+        start = datetime(b.year, start_month, 1, tzinfo=timezone.utc)
         if q < 3:
-            end = datetime(b.year, start_month + 3, 1)
+            end = datetime(b.year, start_month + 3, 1, tzinfo=timezone.utc)
         else:
-            end = datetime(b.year + 1, 1, 1)
+            end = datetime(b.year + 1, 1, 1, tzinfo=timezone.utc)
         return start, end
-    return datetime(b.year, 1, 1), datetime(b.year + 1, 1, 1)
+    return datetime(b.year, 1, 1, tzinfo=timezone.utc), datetime(b.year + 1, 1, 1, tzinfo=timezone.utc)
 
 
 async def _recalc_budget_usage(db: AsyncSession):
-    """Recalculate used_amount for all active budgets and their items."""
-    budgets_result = await db.execute(select(Budget).where(Budget.status == "active"))
-    budgets = budgets_result.scalars().all()
-    for b in budgets:
-        ym_start, ym_end = _budget_date_range(b)
-        conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
-        if b.project_id:
-            conditions.append(Expense.project_id == b.project_id)
-        if ym_start:
-            conditions.append(Expense.created_at >= ym_start)
-            conditions.append(Expense.created_at < ym_end)
-        exp_result = await db.execute(
-            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*conditions)
+    """Recalculate used_amount for all active budgets using explicit budget_id linkage.
+    Upward propagation: parent.used_amount = sum of children.used_amount."""
+    all_budgets = (await db.execute(select(Budget).where(Budget.status == "active"))).scalars().all()
+    if not all_budgets:
+        return
+
+    budget_ids = [b.id for b in all_budgets]
+    budget_map = {str(b.id): b for b in all_budgets}
+
+    # Reset all budgets to zero before recalc
+    for b in all_budgets:
+        b.used_amount = 0.0
+
+    # Step 0: Auto-assign budget_id for expenses that don't have one yet
+    unlinked = (await db.execute(
+        select(Expense).where(
+            Expense.budget_id.is_(None),
+            Expense.status.in_(["approved", "paid"]),
         )
-        expense_total = exp_result.scalar() or 0.0
+    )).scalars().all()
+    if unlinked:
+        leaf_budgets = [b for b in all_budgets if b.quarter is not None and b.department_id is not None]
+        for exp in unlinked:
+            if not exp.department_id:
+                continue
+            for b in leaf_budgets:
+                if b.department_id != exp.department_id:
+                    continue
+                ym_start, ym_end = _budget_date_range(b)
+                if ym_start and not (ym_start <= exp.created_at < ym_end):
+                    continue
+                exp.budget_id = b.id
+                break
+            # If no match, auto-create full tree: Year -> Quarter -> Department
+            if exp.budget_id is None:
+                ey = exp.created_at.year if exp.created_at else datetime.now(timezone.utc).year
+                eq = ((exp.created_at.month - 1) // 3 + 1) if exp.created_at else 1
+                # 1. Year root
+                root = next((b for b in all_budgets if b.parent_id is None and b.year == ey and b.quarter is None and b.department_id is None), None)
+                if root is None:
+                    root = Budget(name=f"{ey}年总预算", year=ey, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(root); await db.flush()
+                    all_budgets.append(root); budget_ids.append(root.id); budget_map[str(root.id)] = root
+                # 2. Quarter budget under root
+                qb = next((b for b in all_budgets if b.parent_id == root.id and b.quarter == eq and b.department_id is None), None)
+                if qb is None:
+                    qb = Budget(name=f"{ey}年Q{eq}", parent_id=root.id, year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(qb); await db.flush()
+                    all_budgets.append(qb); budget_ids.append(qb.id); budget_map[str(qb.id)] = qb
+                # 3. Department budget under quarter
+                from app.models import Department
+                dept_obj = await db.get(Department, exp.department_id)
+                dept_name = dept_obj.name if dept_obj else "未分类"
+                uncat = next((b for b in all_budgets if b.parent_id == qb.id and b.department_id == exp.department_id), None)
+                if uncat is None:
+                    uncat = Budget(name=f"{ey}年Q{eq}{dept_name}", parent_id=qb.id, department_id=exp.department_id,
+                                   year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(uncat); await db.flush()
+                    all_budgets.append(uncat); budget_ids.append(uncat.id); budget_map[str(uncat.id)] = uncat
+                exp.budget_id = uncat.id
+        await db.commit()
 
-        stl_conditions = [Settlement.department_id == b.department_id, Settlement.status.in_(["completed", "settled"])]
-        if b.project_id:
-            stl_conditions.append(Settlement.project_id == b.project_id)
-        if ym_start:
-            stl_conditions.append(Settlement.created_at >= ym_start)
-            stl_conditions.append(Settlement.created_at < ym_end)
-        stl_result = await db.execute(
-            select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
-        )
-        settlement_total = stl_result.scalar() or 0.0
+    # Step 1: Expenses grouped by budget_id (approved or paid)
+    exp_rows = (await db.execute(
+        select(Expense.budget_id, func.coalesce(func.sum(Expense.amount), 0.0))
+        .where(Expense.budget_id.in_(budget_ids), Expense.status.in_(["approved", "paid"]))
+        .group_by(Expense.budget_id)
+    )).all()
+    for bid, total in exp_rows:
+        if str(bid) in budget_map:
+            budget_map[str(bid)].used_amount += float(total or 0)
 
-        b.used_amount = expense_total + settlement_total
-
-        # Recalculate per-item used_amount by matching expense category
-        items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
-        for item in items_result.scalars().all():
-            item_conditions = [
-                Expense.department_id == b.department_id,
-                Expense.status.in_(["approved", "paid"]),
+    # Step 2: Per-item used_amount from expenses matching category
+    all_items = (await db.execute(
+        select(BudgetItem).where(BudgetItem.budget_id.in_(budget_ids))
+    )).scalars().all()
+    for item in all_items:
+        item.used_amount = (await db.execute(
+            select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
+                Expense.budget_id == item.budget_id,
                 Expense.category == item.category,
-            ]
-            if b.project_id:
-                item_conditions.append(Expense.project_id == b.project_id)
-            if ym_start:
-                item_conditions.append(Expense.created_at >= ym_start)
-                item_conditions.append(Expense.created_at < ym_end)
-            item_exp = await db.execute(
-                select(func.coalesce(func.sum(Expense.amount), 0.0)).where(*item_conditions)
+                Expense.status.in_(["approved", "paid"]),
             )
-            item.used_amount = item_exp.scalar() or 0.0
+        )).scalar() or 0.0
+
+    # Step 4: Upward propagation — parent used_amount = sum of children
+    children_map = {}
+    for b in all_budgets:
+        if b.parent_id:
+            children_map.setdefault(str(b.parent_id), []).append(b)
+    changed = True
+    while changed:
+        changed = False
+        for b in all_budgets:
+            if str(b.id) in children_map:
+                child_sum = sum(c.used_amount for c in children_map[str(b.id)])
+                if abs(b.used_amount - child_sum) > 0.01:
+                    b.used_amount = child_sum
+                    changed = True
     await db.commit()
 
 
@@ -349,9 +436,11 @@ async def create_settlement(
     _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     settlement_date = datetime.fromisoformat(body.settlement_date) if body.settlement_date else None
     s = Settlement(
         project_id=project_id,
+        budget_id=budget_id,
         amount=body.amount,
         status=body.status,
         settlement_date=settlement_date,
@@ -400,6 +489,8 @@ async def update_settlement(
     for k, v in body.model_dump(exclude_none=True).items():
         if k == "project_id" and v is not None:
             setattr(s, k, uuid.UUID(v) if v else None)
+        elif k == "budget_id" and v is not None:
+            setattr(s, k, uuid.UUID(v) if v else None)
         elif k == "settlement_date" and v is not None:
             setattr(s, k, datetime.fromisoformat(v) if v else None)
         elif v is not None:
@@ -444,14 +535,19 @@ async def list_expenses(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-    _m: User = Depends(require_module("finance")),
 ):
     query = select(Expense).order_by(Expense.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Expense.department_id == user.department_id)
-        else:
-            query = query.where(Expense.submitted_by == user.id)
+    # Check if user has finance module (can see all) or only expense (own records)
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all:
+        query = query.where(Expense.submitted_by == user.id)
     if category:
         query = query.where(Expense.category == category)
     if status:
@@ -468,20 +564,22 @@ async def create_expense(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-    _m: User = Depends(require_module("finance")),
+    _m: User = Depends(require_module("expense")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     submitted_by = uuid.UUID(body.submitted_by) if body.submitted_by else user.id
     status = "paid" if body.expense_type == "direct" else "pending"
     e = Expense(
         project_id=project_id,
+        budget_id=budget_id,
         amount=body.amount,
         category=body.category,
         expense_type=body.expense_type,
         description=body.description,
         status=status,
         submitted_by=submitted_by,
-        department_id=user.department_id,
+        department_id=user.department_id if user.department_id else body.department_id,
     )
     db.add(e)
     await db.commit()
@@ -495,7 +593,7 @@ async def create_expense(
 @router.put("/expenses/{expense_id}")
 async def approve_expense(
     expense_id: str,
-    body: ExpenseApprove,
+    body: ExpenseUpdate,
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -506,14 +604,26 @@ async def approve_expense(
     if not e:
         raise HTTPException(404, "报销不存在")
     await _check_department(db, user, e.department_id, "审批")
-    if body.status not in ("approved", "rejected", "paid"):
-        raise HTTPException(400, "状态必须是 approved、rejected 或 paid")
-    e.status = body.status
+    old_status = e.status
+    update_data = body.model_dump(exclude_unset=True)
+    status_changed = False
+    for k, v in update_data.items():
+        if k == "budget_id":
+            setattr(e, k, uuid.UUID(v) if v else None)
+        elif k == "status" and v is not None:
+            if v not in ("approved", "rejected", "paid", "pending"):
+                raise HTTPException(400, "无效状态")
+            e.status = v
+            status_changed = True
+        elif v is not None:
+            setattr(e, k, v)
     e.updated_at = _now()
     await db.commit()
-    await _recalc_budget_usage(db)
+    if status_changed or e.status in ("approved", "paid"):
+        await _recalc_budget_usage(db)
     await db.refresh(e)
-    await audit_log(db, user, f"expense_{body.status}", "expense", e.id, e.category, request=request)
+    action = f"expense_{e.status}" if status_changed else "expense_update"
+    await audit_log(db, user, action, "expense", e.id, e.category, request=request)
     return _expense_row(e)
 
 
@@ -676,11 +786,7 @@ async def list_invoices(
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Invoice).order_by(Invoice.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Invoice.department_id == user.department_id)
-        else:
-            query = query.where(Invoice.created_by == user.id)
+    # Finance module users can see all invoices for approval
     if project_id:
         query = query.where(Invoice.project_id == project_id)
     if status:
@@ -705,10 +811,11 @@ async def create_invoice(
     _m: User = Depends(require_module("finance")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     issue_date = datetime.fromisoformat(body.issue_date) if body.issue_date else None
     due_date = datetime.fromisoformat(body.due_date) if body.due_date else None
     i = Invoice(
-        project_id=project_id, invoice_no=body.invoice_no, amount=body.amount,
+        project_id=project_id, budget_id=budget_id, invoice_no=body.invoice_no, amount=body.amount,
         tax_amount=body.tax_amount, tax_rate=body.tax_rate, status=body.status,
         issue_date=issue_date, due_date=due_date, notes=body.notes,
         seller_name=body.seller_name, seller_tax_id=body.seller_tax_id,
@@ -739,7 +846,9 @@ async def update_invoice(
     for k, v in body.model_dump(exclude_unset=True).items():
         if k in ("issue_date", "due_date") and v is not None:
             setattr(i, k, datetime.fromisoformat(v))
-        elif v is not None and k not in ("issue_date", "due_date"):
+        elif k == "budget_id" and v is not None:
+            setattr(i, k, uuid.UUID(v) if v else None)
+        elif v is not None and k not in ("issue_date", "due_date", "budget_id"):
             setattr(i, k, v)
     if body.amount is not None:
         await _sync_invoice_status(uuid.UUID(invoice_id), db)
@@ -859,17 +968,28 @@ async def delete_payment(
 @router.get("/budgets")
 async def list_budgets(
     department_id: str = "",
+    parent_id: str = "",
     year: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Budget).order_by(Budget.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Budget.department_id == user.department_id)
+    # Finance department users see all budgets; others only see their own department
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all and user.department_id:
+        query = query.where(Budget.department_id == user.department_id)
     if department_id:
         query = query.where(Budget.department_id == department_id)
+    if parent_id:
+        query = query.where(Budget.parent_id == parent_id)
     if year:
         query = query.where(Budget.year == year)
     result = await db.execute(query)
@@ -887,8 +1007,10 @@ async def create_budget(
     user: User = Depends(get_current_user),
     _m: User = Depends(require_module("finance")),
 ):
-    dept_id = uuid.UUID(body.department_id) if body.department_id else user.department_id
+    # Only Level 3 (with explicit department_id) budgets should have department_id
     project_id = uuid.UUID(body.project_id) if body.project_id else None
+    parent_id = uuid.UUID(body.parent_id) if body.parent_id else None
+    dept_id = uuid.UUID(body.department_id) if body.department_id else None
 
     # Auto-calculate total_amount from items if items are provided
     total_amount = body.total_amount
@@ -919,8 +1041,57 @@ async def create_budget(
             if proj_budgets + total_amount > dept_budget:
                 raise HTTPException(400, f"项目预算总和({proj_budgets + total_amount:.0f})超过部门预算({dept_budget:.0f})")
 
+    # Validate: child budgets sum must not exceed parent budget
+    if parent_id:
+        parent_result = await db.execute(select(Budget).where(Budget.id == parent_id))
+        parent_b = parent_result.scalar_one_or_none()
+        if parent_b:
+            siblings_result = await db.execute(
+                select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                    Budget.parent_id == parent_id,
+                    Budget.status == "active",
+                )
+            )
+            siblings_total = siblings_result.scalar() or 0.0
+            if siblings_total + total_amount > parent_b.total_amount:
+                raise HTTPException(400, f"子预算总和({siblings_total + total_amount:.0f})超过父预算总额({parent_b.total_amount:.0f})")
+
+    # ── Structural validation ──
+    if parent_id is None:
+        # Level 1: root budget — one per year
+        existing_root = await db.execute(
+            select(Budget).where(Budget.parent_id.is_(None), Budget.year == body.year, Budget.status == "active")
+        )
+        if existing_root.scalar_one_or_none():
+            raise HTTPException(400, f"{body.year}年已存在总预算，每年只能创建一个")
+    elif body.quarter is None:
+        raise HTTPException(400, "季度不能为空")
+    elif body.department_id is None:
+        # Level 2: quarter budget — max 4 per year, no duplicate quarters
+        siblings = (await db.execute(
+            select(Budget).where(Budget.parent_id == parent_id, Budget.status == "active")
+        )).scalars().all()
+        if len(siblings) >= 4:
+            raise HTTPException(400, f"每个年度最多创建4个季度预算")
+        for sib in siblings:
+            if sib.quarter == body.quarter:
+                raise HTTPException(400, f"Q{body.quarter}季度预算已存在，不能重复创建")
+    elif body.quarter is not None and body.department_id is not None:
+        # Level 3: department budget — max N+1, no duplicate departments
+        from app.models import Department
+        dept_count = (await db.execute(select(func.count(Department.id)))).scalar() or 0
+        max_dept_budgets = dept_count + 1
+        siblings = (await db.execute(
+            select(Budget).where(Budget.parent_id == parent_id, Budget.status == "active")
+        )).scalars().all()
+        if len(siblings) >= max_dept_budgets:
+            raise HTTPException(400, f"每个季度最多创建{max_dept_budgets}个部门预算")
+        for sib in siblings:
+            if sib.department_id == dept_id:
+                raise HTTPException(400, "该部门的季度预算已存在，不能重复创建")
+
     b = Budget(
-        department_id=dept_id, project_id=project_id, name=body.name,
+        department_id=dept_id, project_id=project_id, parent_id=parent_id, name=body.name,
         year=body.year, quarter=body.quarter, total_amount=total_amount,
         status=body.status, notes=body.notes, created_by=user.id,
     )
@@ -990,6 +1161,33 @@ async def update_budget(
             total += item_data.get("amount", 0.0)
         b.total_amount = total
 
+    # Validate: budget with parent must not exceed parent total
+    if b.parent_id:
+        parent = await db.execute(select(Budget).where(Budget.id == b.parent_id))
+        parent_b = parent.scalar_one_or_none()
+        if parent_b:
+            sib_result = await db.execute(
+                select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+                    Budget.parent_id == b.parent_id,
+                    Budget.id != b.id,
+                    Budget.status == "active",
+                )
+            )
+            sib_total = sib_result.scalar() or 0.0
+            if sib_total + b.total_amount > parent_b.total_amount:
+                raise HTTPException(400, f"子预算总和({sib_total + b.total_amount:.0f})超过父预算总额({parent_b.total_amount:.0f})")
+
+    # Validate: parent budget must not be less than sum of children
+    children_result = await db.execute(
+        select(func.coalesce(func.sum(Budget.total_amount), 0.0)).where(
+            Budget.parent_id == b.id,
+            Budget.status == "active",
+        )
+    )
+    children_sum = children_result.scalar() or 0.0
+    if children_sum > b.total_amount:
+        raise HTTPException(400, f"预算总额({b.total_amount:.0f})不能小于子预算总和({children_sum:.0f})")
+
     await db.commit()
     await _recalc_budget_usage(db)
     await db.refresh(b)
@@ -1016,6 +1214,66 @@ async def delete_budget(
     return {"ok": True}
 
 
+@router.get("/budgets/summary")
+async def budgets_summary(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("finance")),
+):
+    query = select(Budget).where(Budget.status == "active")
+    # Non-admin non-finance users see only their department budgets + shared (null dept) budgets
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all and user.department_id:
+        query = query.where(
+            (Budget.department_id == user.department_id) | (Budget.department_id == None)
+        )
+
+    budgets = (await db.execute(query)).scalars().all()
+
+    # Only count root budgets (parent_id is None) to avoid double-counting
+    root_budgets = [b for b in budgets if b.parent_id is None]
+
+    total_budget = 0.0
+    total_used = 0.0
+    items = []
+    allocated = 0.0
+    categorized_used = 0.0
+
+    for b in root_budgets:
+        total_budget += b.total_amount
+        total_used += b.used_amount
+        budget_items = (await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))).scalars().all()
+        for item in budget_items:
+            allocated += item.amount
+            categorized_used += item.used_amount
+            items.append({
+                "name": item.name if item.name else item.category,
+                "category": item.category,
+                "budget": item.amount,
+                "used": item.used_amount,
+                "color": item.color,
+                "icon": item.icon,
+            })
+
+    unallocated = max(0, total_budget - allocated)
+    uncategorized_used = max(0, total_used - categorized_used)
+
+    return {
+        "total_budget": total_budget,
+        "total_used": total_used,
+        "items": items,
+        "unallocated": unallocated,
+        "uncategorized_used": uncategorized_used,
+    }
+
+
 @router.get("/budgets/{budget_id}/consumption")
 async def budget_consumption(
     budget_id: str,
@@ -1027,16 +1285,11 @@ async def budget_consumption(
     if not b:
         raise HTTPException(404, "预算不存在")
 
-    # Expenses by category
+    # Expenses by category — direct budget_id match
     exp_conditions = [
-        Expense.department_id == b.department_id,
+        Expense.budget_id == b.id,
         Expense.status.in_(["approved", "paid"]),
     ]
-    if b.project_id:
-        exp_conditions.append(Expense.project_id == b.project_id)
-    if b.year:
-        exp_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-        exp_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
     exp_query = (
         select(Expense.category, func.sum(Expense.amount).label("total"), func.count(Expense.id).label("count"))
         .where(*exp_conditions)
@@ -1045,16 +1298,11 @@ async def budget_consumption(
     exp_rows = (await db.execute(exp_query)).all()
     expenses = [{"category": r.category, "total": float(r.total or 0), "count": r.count} for r in exp_rows]
 
-    # Settlements total for this budget
+    # Settlements total — direct budget_id match
     stl_conditions = [
-        Settlement.department_id == b.department_id,
+        Settlement.budget_id == b.id,
         Settlement.status.in_(["completed", "settled"]),
     ]
-    if b.project_id:
-        stl_conditions.append(Settlement.project_id == b.project_id)
-    if b.year:
-        stl_conditions.append(Settlement.created_at >= datetime(b.year, 1, 1))
-        stl_conditions.append(Settlement.created_at < datetime(b.year + 1, 1, 1))
     stl_result = await db.execute(
         select(func.coalesce(func.sum(Settlement.amount), 0.0)).where(*stl_conditions)
     )
@@ -1064,17 +1312,11 @@ async def budget_consumption(
     items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
     budget_items = items_result.scalars().all()
 
-    # Recent expense items
-    exp_items_conditions = [Expense.department_id == b.department_id, Expense.status.in_(["approved", "paid"])]
-    if b.project_id:
-        exp_items_conditions.append(Expense.project_id == b.project_id)
-    if b.year:
-        exp_items_conditions.append(Expense.created_at >= datetime(b.year, 1, 1))
-        exp_items_conditions.append(Expense.created_at < datetime(b.year + 1, 1, 1))
+    # Recent expense items — direct budget_id match
     exp_items = (
         await db.execute(
             select(Expense)
-            .where(*exp_items_conditions)
+            .where(Expense.budget_id == b.id, Expense.status.in_(["approved", "paid"]))
             .order_by(Expense.updated_at.desc())
             .limit(10)
         )
@@ -1133,7 +1375,11 @@ async def finance_dashboard(
     collection_rate = round(total_paid / total_invoiced, 4) if total_invoiced > 0 else 0.0
 
     # Budget usage
-    budget_query = select(Budget).where(Budget.status == "active").order_by(Budget.total_amount.desc())
+    budget_query = select(Budget).where(
+        Budget.status == "active",
+        Budget.parent_id.is_(None),  # root budgets only — children roll up via propagation
+        Budget.year == now.year,
+    ).order_by(Budget.total_amount.desc())
     if dept_cond:
         budget_query = budget_query.where(Budget.department_id == user.department_id)
     budgets = (await db.execute(budget_query)).scalars().all()

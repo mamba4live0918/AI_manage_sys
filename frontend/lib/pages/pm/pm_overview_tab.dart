@@ -126,27 +126,49 @@ class _SummaryCards extends StatelessWidget {
       ('进行中', '$activeStages', Icons.play_circle_rounded, AppTheme.orange),
     ];
 
-    return Row(
-      children: cards.map((c) {
-        final (label, value, icon, color) = c;
-        return Expanded(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget cardBuild(String label, String value, IconData icon, Color accent) => Padding(
+          padding: EdgeInsets.only(
+            bottom: constraints.maxWidth < 600 ? 8 : 0,
+            left: constraints.maxWidth < 600 ? 0 : 4,
+            right: constraints.maxWidth < 600 ? 0 : 4,
+          ),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: color.withAlpha(isDark ? 20 : 15),
+              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+              border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+              boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
             ),
-            child: Column(children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black)),
-              const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 12, color: (isDark ? Colors.white : Colors.black).withAlpha(150))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accent)),
+                const SizedBox(width: 8),
+                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+              ]),
+              const SizedBox(height: 6),
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                child: Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: isDark ? AppTheme.darkText : AppTheme.lightText))),
             ]),
           ),
         );
-      }).toList(),
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: cards.map((c) {
+              final (label, value, icon, color) = c;
+              return cardBuild(label, value, icon, color);
+            }).toList(),
+          );
+        }
+        return Row(
+          children: cards.map((c) {
+            final (label, value, icon, color) = c;
+            return Expanded(child: cardBuild(label, value, icon, color));
+          }).toList(),
+        );
+      },
     );
   }
 }
@@ -169,58 +191,90 @@ class _StagePieChart extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('项目阶段分布', style: theme.textTheme.titleMedium),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 200,
-          child: Row(children: [
-            Expanded(
-              flex: 3,
-              child: PieChart(
-                PieChartData(
-                  sections: stages.map((s) {
-                    final stage = s['stage'] as String? ?? '';
-                    final count = (s['count'] as int?) ?? 0;
-                    final pct = count / total;
-                    final color = _stageColors[stage] ?? AppTheme.blue;
-                    return PieChartSectionData(
-                      value: count.toDouble(),
-                      color: color,
-                      title: '${(pct * 100).toStringAsFixed(0)}%',
-                      radius: 60,
-                      titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
-                    );
-                  }).toList(),
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 30,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final legend = Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: stages.map((s) {
+                final stage = s['stage'] as String? ?? '';
+                final count = s['count'] as int? ?? 0;
+                final color = _stageColors[stage] ?? AppTheme.blue;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(_stageNames[stage] ?? stage, style: const TextStyle(fontSize: 13))),
+                    Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                  ]),
+                );
+              }).toList(),
+            );
+            if (constraints.maxWidth < 900) {
+              return Column(children: [
+                SizedBox(
+                  height: 180,
+                  child: PieChart(
+                    PieChartData(
+                      sections: stages.map((s) {
+                        final stage = s['stage'] as String? ?? '';
+                        final count = (s['count'] as int?) ?? 0;
+                        final pct = count / total;
+                        final color = _stageColors[stage] ?? AppTheme.blue;
+                        return PieChartSectionData(
+                          value: count.toDouble(),
+                          color: color,
+                          title: '${(pct * 100).toStringAsFixed(0)}%',
+                          radius: 60,
+                          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                        );
+                      }).toList(),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: stages.map((s) {
-                  final stage = s['stage'] as String? ?? '';
-                  final count = s['count'] as int? ?? 0;
-                  final color = _stageColors[stage] ?? AppTheme.blue;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(children: [
-                      Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(_stageNames[stage] ?? stage, style: const TextStyle(fontSize: 13))),
-                      Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black)),
-                    ]),
-                  );
-                }).toList(),
-              ),
-            ),
-          ]),
+                const SizedBox(height: 12),
+                legend,
+              ]);
+            }
+            return SizedBox(
+              height: 200,
+              child: Row(children: [
+                Expanded(
+                  flex: 3,
+                  child: PieChart(
+                    PieChartData(
+                      sections: stages.map((s) {
+                        final stage = s['stage'] as String? ?? '';
+                        final count = (s['count'] as int?) ?? 0;
+                        final pct = count / total;
+                        final color = _stageColors[stage] ?? AppTheme.blue;
+                        return PieChartSectionData(
+                          value: count.toDouble(),
+                          color: color,
+                          title: '${(pct * 100).toStringAsFixed(0)}%',
+                          radius: 60,
+                          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                        );
+                      }).toList(),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(flex: 2, child: legend),
+              ]),
+            );
+          },
         ),
       ]),
     );
@@ -242,7 +296,9 @@ class _BudgetBarChart extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('项目预算概览', style: theme.textTheme.titleMedium),
@@ -331,7 +387,9 @@ class _ProjectCalendar extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('项目日历', style: theme.textTheme.titleMedium),
@@ -353,7 +411,7 @@ class _ProjectCalendar extends StatelessWidget {
           headerStyle: HeaderStyle(
             formatButtonVisible: false,
             titleCentered: true,
-            titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
+            titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText),
           ),
           calendarBuilders: CalendarBuilders(
             markerBuilder: (context, date, events) {

@@ -315,6 +315,36 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
     }
   }
 
+  Future<void> _changeStatus(String userId, String username, String currentStatus) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('修改状态 — $username'),
+        children: [
+          for (final s in _statusNames.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, s.key),
+              child: Row(children: [
+                Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: _statusColors[s.key] ?? Colors.grey)),
+                const SizedBox(width: 10),
+                Text(s.value),
+                const Spacer(),
+                if (s.key == currentStatus) const Icon(Icons.check_rounded, size: 18, color: AppTheme.blue),
+              ]),
+            ),
+        ],
+      ),
+    );
+    if (selected != null && selected != currentStatus) {
+      try {
+        await _api.dio.put('/hr/users/$userId/employee', data: {'emp_status': selected});
+        _load();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('状态修改失败: $e')));
+      }
+    }
+  }
+
   Future<void> _changeRole(String userId, String username, String currentRole) async {
     final selected = await showDialog<String>(
       context: context,
@@ -474,8 +504,13 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
     DateTime? hireDate = u?['hire_date'] != null ? DateTime.parse(u!['hire_date']) : null;
     DateTime? contractStart = u?['contract_start'] != null ? DateTime.parse(u!['contract_start']) : null;
     DateTime? contractEnd = u?['contract_end'] != null ? DateTime.parse(u!['contract_end']) : null;
-    String? existingFileId = u?['emp_file_id'] as String?;
-    PlatformFile? pickedFile;
+    // Load existing employee files
+    List<Map<String, dynamic>> _empFiles = [];
+    try {
+      final r = await _api.dio.get('/hr/users/$userId/files');
+      _empFiles = List<Map<String, dynamic>>.from(r.data['items'] ?? []);
+    } catch (_) {}
+    const fileTypeNames = {'resume': '简历', 'contract': '合同', 'archive': '档案', 'other': '其他'};
 
     final result = await showDialog<bool>(
       context: context,
@@ -510,56 +545,65 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
               _dateField(ctx, setDlg, '合同结束', contractEnd, (d) => contractEnd = d),
               const SizedBox(height: 8),
               TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: '备注', isDense: true)),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                icon: Icon(
-                  pickedFile != null ? Icons.check_circle : (existingFileId != null ? Icons.description : Icons.attach_file_rounded),
-                  size: 18,
-                  color: pickedFile != null ? AppTheme.green : null,
-                ),
-                label: Text(pickedFile?.name ?? (existingFileId != null ? '已上传资料 (点击更换)' : '上传员工资料 (可选)')),
-                onPressed: () async {
-                  final r = await FilePicker.platform.pickFiles(
-                    withData: false, allowMultiple: false,
-                    type: FileType.custom,
-                    allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-                  );
-                  if (r != null && r.files.isNotEmpty) setDlg(() => pickedFile = r.files.first);
-                },
-              ),
-              if (existingFileId != null && pickedFile == null)
+              const SizedBox(height: 12),
+              Row(children: [
+                Text('员工资料', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(ctx).colorScheme.onSurface)),
+                const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.visibility_rounded, size: 16),
-                  label: const Text('预览已有资料'),
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: existingFileId)));
-                  },
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('添加资料', style: TextStyle(fontSize: 12)),
+                  onPressed: () => _addEmpFile(ctx, setDlg, userId, () async {
+                    final r = await _api.dio.get('/hr/users/$userId/files');
+                    setDlg(() => _empFiles = List<Map<String, dynamic>>.from(r.data['items'] ?? []));
+                  }),
                 ),
+              ]),
+              if (_empFiles.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text('暂无资料文件', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                )
+              else
+                ..._empFiles.map((f) => Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: (Theme.of(ctx).brightness == Brightness.dark ? Colors.white : Colors.black).withAlpha(8),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.blue.withAlpha(20)),
+                      child: Text(fileTypeNames[f['file_type']] ?? '其他', style: const TextStyle(fontSize: 10, color: AppTheme.blue)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(f['name'] as String? ?? '', style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
+                    _MiniIconButton(icon: Icons.visibility_rounded, tooltip: '预览', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: f['file_id'] as String))), color: AppTheme.blue),
+                    _MiniIconButton(icon: Icons.delete_outline_rounded, tooltip: '删除', onTap: () async {
+                      try {
+                        await _api.dio.delete('/hr/users/$userId/files/${f['id']}');
+                        final r = await _api.dio.get('/hr/users/$userId/files');
+                        setDlg(() => _empFiles = List<Map<String, dynamic>>.from(r.data['items'] ?? []));
+                      } catch (_) {}
+                    }, color: AppTheme.red),
+                  ]),
+                )),
             ]),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
             FilledButton(
               onPressed: () async {
-                String? fileId = existingFileId;
-                if (pickedFile != null) {
-                  final bytes = pickedFile!.path != null ? await File(pickedFile!.path!).readAsBytes() : pickedFile!.bytes;
-                  if (bytes != null) {
-                    final fd = FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: pickedFile!.name)});
-                    final r = await _api.dio.post('/files/upload', data: fd);
-                    fileId = r.data['id'] as String;
-                  }
-                }
                 final body = <String, dynamic>{
                   'position': posCtrl.text.trim(),
                   'phone': phoneCtrl.text.trim(),
                   'salary': int.tryParse(salaryCtrl.text.trim()) ?? 0,
                   'emp_status': status,
                   'emp_notes': notesCtrl.text.trim(),
-                  if (hireDate != null) 'hire_date': hireDate!.toIso8601String(),
-                  if (contractStart != null) 'contract_start': contractStart!.toIso8601String(),
-                  if (contractEnd != null) 'contract_end': contractEnd!.toIso8601String(),
-                  if (fileId != null) 'file_id': fileId,
+                  if (hireDate != null) 'hire_date': hireDate!.toIso8601String().substring(0, 10),
+                  if (contractStart != null) 'contract_start': contractStart!.toIso8601String().substring(0, 10),
+                  if (contractEnd != null) 'contract_end': contractEnd!.toIso8601String().substring(0, 10),
                 };
                 try {
                   await _api.dio.put('/hr/users/$userId/employee', data: body);
@@ -573,6 +617,63 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
       ),
     );
     if (result == true) _load();
+  }
+
+  Future<void> _addEmpFile(BuildContext ctx, void Function(void Function()) setDlg, String userId, VoidCallback onDone) async {
+    final r = await FilePicker.platform.pickFiles(
+      withData: false, allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+    );
+    if (r == null || r.files.isEmpty) return;
+    final picked = r.files.first;
+    String fileType = 'other';
+    final nameCtrl = TextEditingController(text: picked.name);
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setD) => AlertDialog(
+          title: const Text('添加员工资料'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(picked.name, style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 10),
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '显示名称')),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: fileType,
+              decoration: const InputDecoration(labelText: '资料类型'),
+              items: const [
+                DropdownMenuItem(value: 'resume', child: Text('简历')),
+                DropdownMenuItem(value: 'contract', child: Text('合同')),
+                DropdownMenuItem(value: 'archive', child: Text('档案')),
+                DropdownMenuItem(value: 'other', child: Text('其他')),
+              ],
+              onChanged: (v) => setD(() => fileType = v!),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('上传')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final bytes = picked.path != null ? await File(picked.path!).readAsBytes() : picked.bytes;
+      if (bytes == null) return;
+      final fd = FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: picked.name)});
+      final upResp = await _api.dio.post('/files/upload', data: fd);
+      final fileId = upResp.data['id'] as String;
+      await _api.dio.post('/hr/users/$userId/files', data: FormData.fromMap({
+        'file_id': fileId,
+        'file_type': fileType,
+        'name': nameCtrl.text.trim(),
+      }));
+      onDone();
+    } catch (e) {
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+    }
   }
 
   Widget _dateField(BuildContext ctx, void Function(void Function()) setDlg, String label, DateTime? value, void Function(DateTime?) onChanged) {
@@ -657,6 +758,7 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
                           onEditDept: () => _editDepartment(_departments[i]),
                           onRemoveMember: (uid) => _removeMember(_departments[i]['id'], uid),
                           onChangeRole: _changeRole,
+                          onChangeStatus: _changeStatus,
                           onDeleteUser: _deleteUser,
                           onEditUserModules: _editUserModules,
                           onEditEmployee: (uid, uname) => _showEmployeeForm(userId: uid, userName: uname),
@@ -696,7 +798,9 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
@@ -722,6 +826,7 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
           ..._unassigned.map((u) => _UserRow(
             user: u, isDark: isDark, roleColor: _roleColor, roleName: _roleName,
             onChangeRole: (uid, uname, role) => _changeRole(uid, uname, role),
+            onChangeStatus: _changeStatus,
             onDeleteUser: (uid, uname) => _deleteUser(uid, uname),
             onEditModules: () => _editUserModules(u),
             onAddToDept: _departments.isNotEmpty ? () => _addToDept(u['id'], u['username']) : null,
@@ -747,6 +852,7 @@ class _DepartmentCard extends StatelessWidget {
   final VoidCallback onEditDept;
   final void Function(String userId) onRemoveMember;
   final void Function(String userId, String username, String role) onChangeRole;
+  final void Function(String userId, String username, String status) onChangeStatus;
   final void Function(String userId, String username) onDeleteUser;
   final void Function(Map<String, dynamic> user) onEditUserModules;
   final void Function(String userId, String? userName) onEditEmployee;
@@ -757,6 +863,7 @@ class _DepartmentCard extends StatelessWidget {
     required this.onToggle, required this.onSetLeader, required this.onAddMember,
     required this.onDeleteDept, required this.onEditDept,
     required this.onRemoveMember, required this.onChangeRole,
+    required this.onChangeStatus,
     required this.onDeleteUser, required this.onEditUserModules,
     required this.onEditEmployee,
   });
@@ -771,7 +878,9 @@ class _DepartmentCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(children: [
         Material(
@@ -786,9 +895,9 @@ class _DepartmentCard extends StatelessWidget {
                 Icon(isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded, size: 22, color: (isDark ? Colors.white : Colors.black).withAlpha(120)),
                 const SizedBox(width: 8),
                 Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: AppTheme.blue.withAlpha(20)),
-                  child: const Icon(Icons.group_rounded, size: 18, color: AppTheme.blue),
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.blue.withAlpha(isDark ? 25 : 18)),
+                  child: const Icon(Icons.group_rounded, size: 20, color: AppTheme.blue),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -827,12 +936,20 @@ class _DepartmentCard extends StatelessWidget {
         ),
         if (isExpanded) ...[
           const Divider(height: 1, indent: 14, endIndent: 14),
+          if (members.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+              child: Row(children: const [
+                Expanded(child: Text('姓名 / 角色', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey))),
+                SizedBox(width: 36, child: Text('操作', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey), textAlign: TextAlign.right)),
+              ]),
+            ),
           if (members.isEmpty)
             const Padding(padding: EdgeInsets.all(16), child: Text('暂无成员', style: TextStyle(color: Colors.grey)))
           else
             ...members.map((u) => _UserRow(
               user: u, isDark: isDark, roleColor: roleColor, roleName: roleName, isInDept: true,
-              onChangeRole: onChangeRole, onDeleteUser: onDeleteUser,
+              onChangeRole: onChangeRole, onChangeStatus: onChangeStatus, onDeleteUser: onDeleteUser,
               onEditModules: () => onEditUserModules(u),
               onRemoveFromDept: () => onRemoveMember(u['id']),
               onEditEmployee: () => onEditEmployee(u['id'], u['username']),
@@ -845,6 +962,71 @@ class _DepartmentCard extends StatelessWidget {
 
 // ── User row ──
 
+Future<void> _showEmpFilesDialog(BuildContext context, String userId, String username) async {
+  final api = ApiClient();
+  final typeNames = {'resume': '简历', 'contract': '合同', 'archive': '档案', 'other': '其他'};
+  List<Map<String, dynamic>> files = [];
+  try {
+    final r = await api.dio.get('/hr/users/$userId/files');
+    files = List<Map<String, dynamic>>.from(r.data['items'] ?? []);
+  } catch (_) {}
+  if (!context.mounted) return;
+
+  if (files.isEmpty) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$username 的资料'),
+        content: const Text('暂无资料文件'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+      ),
+    );
+    return;
+  }
+
+  if (files.length == 1) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => PreviewPage(fileId: files.first['file_id'] as String),
+    ));
+    return;
+  }
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('$username 的资料 (${files.length})'),
+      content: SizedBox(
+        width: 360,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: files.length,
+          itemBuilder: (_, i) {
+            final f = files[i];
+            final ft = f['file_type'] as String? ?? 'other';
+            return ListTile(
+              dense: true,
+              leading: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.blue.withAlpha(20)),
+                child: Text(typeNames[ft] ?? '其他', style: const TextStyle(fontSize: 10, color: AppTheme.blue)),
+              ),
+              title: Text(f['name'] as String? ?? '', style: const TextStyle(fontSize: 13)),
+              trailing: const Icon(Icons.visibility_rounded, size: 18),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => PreviewPage(fileId: f['file_id'] as String),
+                ));
+              },
+            );
+          },
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+    ),
+  );
+}
+
 class _UserRow extends StatelessWidget {
   final Map<String, dynamic> user;
   final bool isDark;
@@ -852,6 +1034,7 @@ class _UserRow extends StatelessWidget {
   final String Function(String) roleName;
   final bool isInDept;
   final void Function(String userId, String username, String role)? onChangeRole;
+  final void Function(String userId, String username, String status)? onChangeStatus;
   final void Function(String userId, String username)? onDeleteUser;
   final VoidCallback? onRemoveFromDept;
   final VoidCallback? onAddToDept;
@@ -861,7 +1044,7 @@ class _UserRow extends StatelessWidget {
   const _UserRow({
     required this.user, required this.isDark,
     required this.roleColor, required this.roleName,
-    this.isInDept = false, this.onChangeRole, this.onDeleteUser,
+    this.isInDept = false, this.onChangeRole, this.onChangeStatus, this.onDeleteUser,
     this.onRemoveFromDept, this.onAddToDept, this.onEditModules,
     this.onEditEmployee,
   });
@@ -877,7 +1060,6 @@ class _UserRow extends StatelessWidget {
     final empPosition = user['position'] as String? ?? '';
     final empSalary = user['salary'] as int? ?? 0;
     final empPhone = user['phone'] as String? ?? '';
-    final empFileId = user['emp_file_id'] as String?;
     final hasEmpInfo = empPosition.isNotEmpty || empPhone.isNotEmpty || empSalary > 0;
     final fmt = NumberFormat('#,###');
 
@@ -902,7 +1084,7 @@ class _UserRow extends StatelessWidget {
                     child: Text(roleName(role), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
                   ),
                   const SizedBox(width: 6),
-                  _statusBadge(empStatus),
+                  _statusBadge(empStatus, username, user['id']),
                 ]),
                 const SizedBox(height: 2),
                 Row(children: [
@@ -920,15 +1102,12 @@ class _UserRow extends StatelessWidget {
                 ]),
               ]),
             ),
-            if (empFileId != null)
-              _MiniIconButton(
-                icon: Icons.folder_open_rounded,
-                tooltip: '查看资料',
-                color: AppTheme.blue,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: empFileId)));
-                },
-              ),
+            _MiniIconButton(
+              icon: Icons.folder_open_rounded,
+              tooltip: '查看资料',
+              color: AppTheme.blue,
+              onTap: () => _showEmpFilesDialog(context, user['id'], username),
+            ),
             if (onEditEmployee != null)
               _MiniIconButton(
                 icon: hasEmpInfo ? Icons.badge_rounded : Icons.person_add_alt_rounded,
@@ -947,13 +1126,23 @@ class _UserRow extends StatelessWidget {
     );
   }
 
-  Widget _statusBadge(String? status) {
+  Widget _statusBadge(String? status, String username, String userId) {
     final label = _statusNames[status] ?? '在职';
     final color = _statusColors[status] ?? AppTheme.green;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(3), color: color.withAlpha(25)),
-      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+    return InkWell(
+      borderRadius: BorderRadius.circular(3),
+      onTap: onChangeStatus != null ? () => onChangeStatus!(userId, username, status ?? 'active') : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(3), color: color.withAlpha(25), border: Border.all(color: color.withAlpha(60), width: 0.5)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+          if (onChangeStatus != null) ...[
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down_rounded, size: 12, color: color),
+          ],
+        ]),
+      ),
     );
   }
 }
@@ -968,7 +1157,7 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 36, height: 36,
+      width: 40, height: 40,
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.withAlpha(20)),
       child: Center(
         child: Text(
@@ -991,16 +1180,17 @@ class _MiniIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black).withAlpha(120);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = color ?? (isDark ? Colors.white : Colors.black).withAlpha(120);
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        color: c.withAlpha(18),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, size: 18, color: c)),
+          child: Padding(padding: const EdgeInsets.all(7), child: Icon(icon, size: 17, color: c)),
         ),
       ),
     );

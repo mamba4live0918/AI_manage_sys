@@ -1,0 +1,142 @@
+<h2>预算总览卡片 — 设计</h2>
+<p class="subtitle">页面顶部一个汇总卡片，点击展开或弹窗显示分类明细</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:20px;border-radius:12px;min-height:380px">
+
+  <!-- Closed state: summary card -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.12);border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 16 16"><rect rx="4" fill="#4F46E5" width="16" height="16"/></svg>
+        <span style="font-size:12px;font-weight:700;color:#1E1E3D">2026年 Q2 预算总览</span>
+      </div>
+      <span style="font-size:10px;color:#4F46E5;font-weight:500">展开明细 ↗</span>
+    </div>
+
+    <!-- Big progress bar -->
+    <div style="height:44px;background:rgba(99,102,241,0.06);border-radius:10px;overflow:hidden;position:relative;margin-bottom:12px">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:43.2%;background-color:#D4D4DC;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.05) 4px, rgba(0,0,0,0.05) 5px),
+                         repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.05) 4px, rgba(0,0,0,0.05) 5px);
+        border-radius:10px 0 0 10px"></div>
+      <div style="position:absolute;left:43.2%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 10px 10px 0"></div>
+      <div style="position:absolute;left:14px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:#6B6B8A">已用 ¥283,500</span>
+      </div>
+      <div style="position:absolute;right:14px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.12)">剩余 ¥372,500</span>
+      </div>
+    </div>
+
+    <!-- Mini breakdown indicators -->
+    <div style="display:flex;gap:16px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:4px;border-radius:2px;background:#4F46E5"></div>
+        <span style="font-size:9px;color:#8B8BB0">办公 ¥500K</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:4px;border-radius:2px;background:#F59E0B"></div>
+        <span style="font-size:9px;color:#8B8BB0">差旅 ¥80K</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:4px;border-radius:2px;background:#14B8A6"></div>
+        <span style="font-size:9px;color:#8B8BB0">设备 ¥50K</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:4px;border-radius:2px;background:#8B5CF6"></div>
+        <span style="font-size:9px;color:#8B8BB0">培训 ¥30K</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded state (click result) -->
+  <div style="background:#fff;border:2px solid #4F46E5;border-radius:10px;padding:16px;box-shadow:0 4px 20px rgba(79,70,229,0.12)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:11px;font-weight:700;color:#1E1E3D">分类明细</span>
+      <span style="font-size:10px;color:#4F46E5;font-weight:500">收起 ↑</span>
+    </div>
+
+    <!-- Detail item -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px">
+        <span style="color:#1E1E3D;font-weight:600">办公费</span>
+        <span style="color:#8B8BB0">已用 ¥238K · 剩余 ¥262K</span>
+      </div>
+      <div style="height:28px;background:rgba(99,102,241,0.06);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background-color:#D4D4DC;
+          background-image: repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px),
+                           repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);
+          border-radius:6px 0 0 6px"></div>
+        <div style="position:absolute;left:47.6%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#4F46E5,#818CF8);border-radius:0 6px 6px 0"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px">
+        <span style="color:#1E1E3D;font-weight:600">差旅费</span>
+        <span style="color:#EF4444">超预算!</span>
+        <span style="color:#8B8BB0">已用 ¥45K · 剩余 ¥35K</span>
+      </div>
+      <div style="height:28px;background:rgba(245,158,11,0.06);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:56%;background-color:#D4D4DC;
+          background-image: repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px),
+                           repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);
+          border-radius:6px 0 0 6px"></div>
+        <div style="position:absolute;left:56%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:0 6px 6px 0"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px">
+        <span style="color:#1E1E3D;font-weight:600">设备费</span>
+        <span style="color:#8B8BB0">已用 ¥12K · 剩余 ¥38K</span>
+      </div>
+      <div style="height:28px;background:rgba(20,184,166,0.06);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:24%;background-color:#D4D4DC;
+          background-image: repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px),
+                           repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 3px);
+          border-radius:6px 0 0 6px"></div>
+        <div style="position:absolute;left:24%;top:0;bottom:0;right:0;background:linear-gradient(135deg,#14B8A6,#5EEAD4);border-radius:0 6px 6px 0"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>交互说明</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>收起状态</h4>
+    <ul>
+      <li>总预算条 + 总额数字</li>
+      <li>底部迷你彩色指示条（各分类颜色）</li>
+      <li>点击任意位置 → 展开或弹出底部浮窗</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>展开状态</h4>
+    <ul>
+      <li>浮窗/展开区域显示各分类明细条</li>
+      <li>每条：分类名 + 已用/剩余金额 + 进度条</li>
+      <li>超预算红色标注</li>
+      <li>点击"收起"或遮罩关闭</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h3>实现方式选哪个</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="expand" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>卡片内展开</h3><p>点击后原位展开，列表下移。适合预算项目少的情况</p></div>
+  </div>
+  <div class="option" data-choice="popup" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>底部浮窗</h3><p>点击后弹出 DraggableScrollableSheet，类似票据详情。适合项目多</p></div>
+  </div>
+</div>

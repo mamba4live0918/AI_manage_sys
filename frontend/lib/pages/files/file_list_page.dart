@@ -280,11 +280,11 @@ class _FileListPageState extends ConsumerState<FileListPage> {
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(9),
-                    color: iconColor.withAlpha(20),
+                    borderRadius: BorderRadius.circular(10),
+                    color: iconColor.withAlpha((Theme.of(context).brightness == Brightness.dark) ? 25 : 18),
                   ),
                   child: Icon(_fileIcon(mime, isFolder), color: iconColor, size: 20),
                 ),

@@ -91,7 +91,9 @@ class BudgetItemData {
 class BudgetData {
   final String id;
   final String? departmentId;
+  final String? departmentName;
   final String? projectId;
+  final String? parentId;
   final String name;
   final int year;
   final int? quarter;
@@ -102,7 +104,7 @@ class BudgetData {
   final String? updatedAt;
   final List<BudgetItemData> items;
 
-  BudgetData({required this.id, this.departmentId, this.projectId,
+  BudgetData({required this.id, this.departmentId, this.departmentName, this.projectId, this.parentId,
     required this.name, required this.year, this.quarter,
     required this.totalAmount, required this.usedAmount, required this.status,
     this.notes = '', this.updatedAt, this.items = const []});
@@ -110,7 +112,9 @@ class BudgetData {
   factory BudgetData.fromJson(Map<String, dynamic> json) => BudgetData(
     id: json['id'] ?? '',
     departmentId: json['department_id'],
+    departmentName: json['department_name'],
     projectId: json['project_id'],
+    parentId: json['parent_id'],
     name: json['name'] ?? '',
     year: json['year'] ?? 2026,
     quarter: json['quarter'],

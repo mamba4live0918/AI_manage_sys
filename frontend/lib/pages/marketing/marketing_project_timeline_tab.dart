@@ -80,6 +80,7 @@ class _MarketingProjectTimelineTabState extends State<MarketingProjectTimelineTa
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(children: [
       Padding(
@@ -104,53 +105,162 @@ class _MarketingProjectTimelineTabState extends State<MarketingProjectTimelineTa
                     itemBuilder: (_, i) {
                       final p = _projects[i];
                       final stage = p['stage'] as String? ?? 'initial_contact';
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 6),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+                          border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+                          boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+                        ),
                         child: ExpansionTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppTheme.purple.withAlpha(20),
-                            child: const Icon(Icons.folder_rounded, color: AppTheme.purple, size: 20),
-                          ),
-                          title: Text(p['name'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Container(
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.purple.withAlpha(15)),
-                            child: Text(_stageLabels[stage] ?? stage, style: const TextStyle(fontSize: 11, color: AppTheme.purple)),
+                          leading: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.purple)),
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                color: AppTheme.purple.withAlpha(isDark ? 30 : 20),
+                              ),
+                              child: const Icon(Icons.folder_rounded, color: AppTheme.purple, size: 20),
+                            ),
+                          ]),
+                          title: Text(p['name'] as String? ?? '',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13,
+                                  color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: AppTheme.purple.withAlpha(isDark ? 25 : 18)),
+                              child: Text(_stageLabels[stage] ?? stage,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                            ),
                           ),
                           children: [
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Row(children: [
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 36,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () => _generateBrief(p['id'] as String, p['name'] as String? ?? ''),
-                                      icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                                      label: const Text('AI 生成简报', style: TextStyle(fontSize: 13)),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  height: 36,
-                                  child: OutlinedButton(
-                                    onPressed: () async {
-                                      try {
-                                        final resp = await _api.dio.get('/marketing/projects/${p['id']}/timeline');
-                                        final events = resp.data['events'] as List<dynamic>? ?? [];
-                                        if (mounted) {
-                                          Navigator.push(context, MaterialPageRoute(
-                                            builder: (_) => _TimelineViewPage(projectName: p['name'] as String? ?? '', events: events),
-                                          ));
-                                        }
-                                      } catch (_) {}
-                                    },
-                                    child: const Text('时间轴', style: TextStyle(fontSize: 13)),
-                                  ),
-                                ),
-                              ]),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  if (constraints.maxWidth >= 400) {
+                                    return Row(children: [
+                                      Expanded(
+                                        child: Material(
+                                          color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(12),
+                                            onTap: () => _generateBrief(
+                                                p['id'] as String, p['name'] as String? ?? ''),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                                const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.purple),
+                                                const SizedBox(width: 6),
+                                                const Text('AI 生成简报', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Material(
+                                          color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(12),
+                                            onTap: () async {
+                                              try {
+                                                final resp = await _api.dio
+                                                    .get('/marketing/projects/${p['id']}/timeline');
+                                                final events = resp.data['events'] as List<dynamic>? ?? [];
+                                                if (mounted) {
+                                                  Navigator.push(context, MaterialPageRoute(
+                                                    builder: (_) => _TimelineViewPage(
+                                                      projectName: p['name'] as String? ?? '',
+                                                      events: events,
+                                                    ),
+                                                  ));
+                                                }
+                                              } catch (_) {}
+                                            },
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                                const Icon(Icons.timeline_rounded, size: 16, color: AppTheme.purple),
+                                                const SizedBox(width: 6),
+                                                const Text('时间轴', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ]);
+                                  } else {
+                                    return Column(children: [
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: Material(
+                                          color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(12),
+                                            onTap: () => _generateBrief(
+                                                p['id'] as String, p['name'] as String? ?? ''),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                                const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.purple),
+                                                const SizedBox(width: 6),
+                                                const Text('AI 生成简报', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: Material(
+                                          color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(12),
+                                            onTap: () async {
+                                              try {
+                                                final resp = await _api.dio
+                                                    .get('/marketing/projects/${p['id']}/timeline');
+                                                final events = resp.data['events'] as List<dynamic>? ?? [];
+                                                if (mounted) {
+                                                  Navigator.push(context, MaterialPageRoute(
+                                                    builder: (_) => _TimelineViewPage(
+                                                      projectName: p['name'] as String? ?? '',
+                                                      events: events,
+                                                    ),
+                                                  ));
+                                                }
+                                              } catch (_) {}
+                                            },
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                                const Icon(Icons.timeline_rounded, size: 16, color: AppTheme.purple),
+                                                const SizedBox(width: 6),
+                                                const Text('时间轴', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ]);
+                                  }
+                                },
+                              ),
                             ),
                           ],
                         ),
@@ -187,6 +297,7 @@ class _TimelineViewPage extends StatelessWidget {
                 final title = e['title'] as String? ?? '';
                 final detail = e['detail'] as String? ?? '';
                 final type = e['type'] as String? ?? '';
+                final isDark = theme.brightness == Brightness.dark;
                 return IntrinsicHeight(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     // Timeline connector
@@ -209,19 +320,36 @@ class _TimelineViewPage extends StatelessWidget {
                         ),
                       ]),
                     ),
-                    // Content
+                    // Content card
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(date.substring(0, 10), style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(120))),
-                          const SizedBox(height: 2),
-                          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                          if (detail.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(detail, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withAlpha(180))),
-                          ],
-                        ]),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+                            border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+                            boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Row(children: [
+                                Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.purple)),
+                                const SizedBox(width: 8),
+                                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              ]),
+                              const SizedBox(height: 4),
+                              if (detail.isNotEmpty) ...[
+                                Text(detail, maxLines: 3, overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                                const SizedBox(height: 4),
+                              ],
+                              Text(date.substring(0, 10),
+                                  style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                            ]),
+                          ),
+                        ),
                       ),
                     ),
                   ]),

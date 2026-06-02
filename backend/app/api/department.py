@@ -15,12 +15,14 @@ class CreateDepartmentRequest(BaseModel):
     name: str
     description: str = ""
     accessible_modules: list[str] = []
+    color: str = "#2196F3"
 
 
 class UpdateDepartmentRequest(BaseModel):
     name: str | None = None
     description: str | None = None
     accessible_modules: list[str] | None = None
+    color: str | None = None
 
 
 class SetLeaderRequest(BaseModel):
@@ -57,6 +59,7 @@ def _department_row(d, members_count: int = 0):
         if d.leader
         else None,
         "accessible_modules": d.accessible_modules or [],
+        "color": d.color or "#2196F3",
         "member_count": members_count,
         "created_at": d.created_at.isoformat() if d.created_at else None,
     }
@@ -96,7 +99,8 @@ async def create_department(
         raise HTTPException(status_code=400, detail="部门名称已存在")
 
     dept = Department(name=body.name, description=body.description,
-                      accessible_modules=body.accessible_modules)
+                      accessible_modules=body.accessible_modules,
+                      color=body.color)
     db.add(dept)
     await db.commit()
     await db.refresh(dept)
@@ -133,6 +137,8 @@ async def update_department(
         dept.description = body.description
     if body.accessible_modules is not None:
         dept.accessible_modules = body.accessible_modules
+    if body.color is not None:
+        dept.color = body.color
 
     await db.commit()
 

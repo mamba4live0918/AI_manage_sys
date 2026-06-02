@@ -1,0 +1,141 @@
+<h2>水平进度条 — 详细设计</h2>
+<p class="subtitle">预算列表卡片里的 stacked progress bar 升级版</p>
+
+<div style="background:linear-gradient(135deg,#E8EAF0,#EBEDF3);padding:20px;border-radius:12px;min-height:400px">
+
+  <div style="font-size:12px;font-weight:700;color:#1E1E3D;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+    <svg width="16" height="16" viewBox="0 0 16 16"><rect x="0" y="0" width="16" height="16" rx="4" fill="#4F46E5"/></svg>
+    2026年 预算使用情况
+  </div>
+
+  <!-- Item 1: 办公费 -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.03),inset 0 1px 1px rgba(255,255,255,0.6)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#4F46E5"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">办公费</span>
+      </div>
+      <div style="text-align:right">
+        <span style="font-size:12px;font-weight:700;color:#1E1E3D">¥238,000</span>
+        <span style="font-size:10px;color:#8B8BB0;margin-left:4px">/ ¥500,000</span>
+      </div>
+    </div>
+    <div style="height:32px;background:rgba(99,102,241,0.06);border-radius:8px;overflow:hidden;position:relative">
+      <!-- Used portion -->
+      <div style="position:absolute;left:0;top:0;bottom:0;width:47.6%;background:linear-gradient(135deg,#4F46E5,#6366F1);border-radius:8px 0 0 8px"></div>
+      <!-- Used amount overlay -->
+      <div style="position:absolute;left:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.15)">¥238K (47.6%)</span>
+      </div>
+      <!-- Remaining overlay -->
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:9px;color:#8B8BB0">剩余 ¥262K</span>
+      </div>
+    </div>
+    <!-- Category items breakdown -->
+    <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#8B8BB0">
+        <div style="width:6px;height:6px;border-radius:1px;background:#4F46E5"></div> 办公用品 ¥120K
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#8B8BB0">
+        <div style="width:6px;height:6px;border-radius:1px;background:#818CF8"></div> 设备采购 ¥80K
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#8B8BB0">
+        <div style="width:6px;height:6px;border-radius:1px;background:#A5B4FC"></div> 耗材 ¥38K
+      </div>
+    </div>
+  </div>
+
+  <!-- Item 2: 差旅费 -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.03),inset 0 1px 1px rgba(255,255,255,0.6)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#F59E0B"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">差旅费</span>
+        <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,0.1);color:#F59E0B;font-weight:500">预警</span>
+      </div>
+      <div style="text-align:right">
+        <span style="font-size:12px;font-weight:700;color:#1E1E3D">¥45,000</span>
+        <span style="font-size:10px;color:#8B8BB0;margin-left:4px">/ ¥80,000</span>
+      </div>
+    </div>
+    <div style="height:32px;background:rgba(245,158,11,0.06);border-radius:8px;overflow:hidden;position:relative">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:56.3%;background:linear-gradient(135deg,#F59E0B,#FBBF24);border-radius:8px 0 0 8px"></div>
+      <div style="position:absolute;left:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.12)">¥45K (56.3%)</span>
+      </div>
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:9px;color:#8B8BB0">剩余 ¥35K</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item 3: 设备费 (safe) -->
+  <div style="backdrop-filter:blur(12px);background:rgba(255,255,255,0.55);border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.03),inset 0 1px 1px rgba(255,255,255,0.6)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:3px;background:#14B8A6"></div>
+        <span style="font-size:12px;font-weight:600;color:#1E1E3D">设备费</span>
+      </div>
+      <div style="text-align:right">
+        <span style="font-size:12px;font-weight:700;color:#1E1E3D">¥12,000</span>
+        <span style="font-size:10px;color:#8B8BB0;margin-left:4px">/ ¥50,000</span>
+      </div>
+    </div>
+    <div style="height:32px;background:rgba(20,184,166,0.06);border-radius:8px;overflow:hidden;position:relative">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:24%;background:linear-gradient(135deg,#14B8A6,#5EEAD4);border-radius:8px 0 0 8px"></div>
+      <div style="position:absolute;left:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#1E1E3D">¥12K (24%)</span>
+      </div>
+      <div style="position:absolute;right:12px;top:0;bottom:0;display:flex;align-items:center">
+        <span style="font-size:9px;color:#8B8BB0">剩余 ¥38K</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:9px;color:#8B8BB0;text-align:center;margin-top:12px">
+    色块高度 32px · 圆角 8px · 左侧金额覆盖 · 右侧剩余 · 色块<70%黑色文字/≥70%白色文字
+  </div>
+</div>
+
+<div class="section">
+  <h3>Flutter 实现要点</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>关键参数</h4>
+    <ul>
+      <li>条高 32px，圆角 8px</li>
+      <li>使用 Container + Stack 代替 LinearProgressIndicator</li>
+      <li>背景 = accent.withAlpha(isDark?20:15)</li>
+      <li>前景渐变 = [accent, accentLight]</li>
+      <li>文字：已用金额在色块上 overlay</li>
+      <li>预警标记：>70% 橙色，>90% 红色</li>
+      <li>子项分类用 Row 小圆点+文字</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>预算用途</h4>
+    <ul>
+      <li>每个预算一个条</li>
+      <li>如果有多分类，条下面用小字列出分类消耗</li>
+      <li>颜色和预算项的 icon color 挂钩</li>
+      <li>30% 以下使用量文字用黑色，以上用白色</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认开始</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="go" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认这个设计</h3>
+      <p>32px水平条 + gradient + 金额overlay + 子项分类 + 预警色</p>
+    </div>
+  </div>
+</div>

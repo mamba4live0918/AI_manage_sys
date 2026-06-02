@@ -113,42 +113,16 @@ AI_manage_sys/
 
 ## 当前状态
 
-**阶段五进行中**
+阶段一到四全部完成。阶段五基础完成，当前在 `saas-ui-overhaul` 分支做财务模块 UI 重构和预算树形改造。详细进度见 memory/SaaS UI overhaul progress。
 
-### 阶段一 ✅ · 阶段二 ✅ (2.1 文案，2.2/2.3 跳过)
-### 阶段三 ✅ — 17模型 + 34端点 + 20页面，E2E 54/54
-### 阶段四 ✅ — 10模型 + 36端点 + 14页面，E2E 48/48，回归 54/54
-### 阶段五 ✅ — User-Employee 表合并、审批流引擎、面试排期、图表/日历、ES 全文检索、课件/凭证附件
+待完成：Android .apk 编译、Windows 签名打包、Docker Compose 生产部署。
 
-### 阶段五进行中 — 2026-05-29 新增
+## 已知问题
 
-**ES 语义搜索：** ES hybrid search — BM25 全文 + knn 向量（DeepSeek embedding 768维）→ RRF 融合排序。覆盖全局搜索 + 7个模块内搜索（客户、市场知识库、招投标知识库、供应商、讲师、文件、权限）。
-
-**财务模块升级：**
-- 合同到收款链路：Invoice + Payment 模型，收款自动更新发票状态（partial/paid）
-- 预算管控：部门+项目两级预算，超预算 API 警告
-- 财务 Dashboard：KPI 卡片 + 12月收入趋势折线图 + 预算进度条
-- 发票管理页：搜索+筛选、双方信息（销售方/购买方）、收款进度条、凭证上传/下载
-- 快捷操作：发票/预算/结算/报销/凭证，state 切换无动画
-- 收款弹窗：按支付方式区分校验（银行转账需流水号+凭证，支票需支票号+凭证，现金无需凭证，其他需凭证+说明）
-
-**HR Dashboard 优化：** 快捷操作去动画、饼图 RepaintBoundary、响应式布局（桌面Row/移动端Wrap）
-
-- 全模块联调 + 权限一致性校验
-- 性能压测 + 安全审计
-- Android .apk 编译验证
-- Windows 安装包 + 签名
-- 私有化部署（Docker Compose Prod + Nginx + SSL）
-
-## 已知问题 & 注意事项
-
-1. **bcrypt 必须钉在 4.0.1**：5.x 移除了 `__about__.__version__` 导致 passlib 1.7.4 不兼容
-2. **Docker PostgreSQL 端口改为 5433**：本地有 Windows PostgreSQL 16 服务占用 5432，Docker 映射到 5433
-3. **Flutter SDK 路径**：`C:\Users\Mamba4live\Downloads\flutter\`（未加入 PATH）
-4. **VS BuildTools**：需要安装 "C++ ATL for v142" + "Windows 10 SDK 10.0.22621+" 才能编译 Windows
-5. **Android 编译待配置**：需要 Android Studio 或 cmdline-tools
-6. **LibreOffice 必须安装**：Office 文件预览依赖 LibreOffice headless 转 PDF，安装 `winget install TheDocumentFoundation.LibreOffice`
-7. **User-Employee 已合并**：员工字段（position、hire_date、emp_status、phone、salary 等）已移入 users 表，employees 表已删除。API: `PUT /hr/users/{user_id}/employee`
+1. **bcrypt 4.0.1**：5.x 不兼容 passlib 1.7.4
+2. **PG 端口 5433**：本地 PG 占 5432，Docker 映射 5433
+3. **VS BuildTools**：C++ ATL v142 + Win10 SDK 10.0.22621+
+4. **User-Employee 已合并**：employee 字段已入 users 表
 
 ## 关键约束
 

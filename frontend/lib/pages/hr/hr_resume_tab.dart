@@ -402,6 +402,148 @@ class _HrResumeTabState extends State<HrResumeTab> {
     }
   }
 
+  Widget _buildResumeCard(Map<String, dynamic> r, {bool noMargin = false}) {
+    final id = r['id'] as String;
+    final name = r['name'] as String? ?? '';
+    final fileId = r['file_id'] as String?;
+    final score = r['match_score'] as num? ?? 0;
+    final status = r['status'] as String? ?? 'new';
+    final isAnalyzed = status == 'reviewed';
+
+    final interview = _findInterview(name);
+    final hasInterview = interview != null;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isAnalyzed ? AppTheme.green : AppTheme.orange;
+    return Container(
+      margin: noMargin ? null : const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accentColor)),
+          const SizedBox(width: 8),
+          Text(isAnalyzed ? '已评估' : '待评估', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Spacer(),
+          if (hasInterview)
+            Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.green),
+        ]),
+        const SizedBox(height: 6),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: (fileId != null ? AppTheme.orange : AppTheme.purple).withAlpha(isDark ? 25 : 18)),
+            child: Icon(
+              fileId != null ? Icons.picture_as_pdf_rounded : Icons.description_rounded,
+              color: fileId != null ? AppTheme.orange : AppTheme.purple,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: isDark ? AppTheme.darkText : AppTheme.lightText))),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: isAnalyzed ? AppTheme.green.withAlpha(isDark ? 25 : 18) : (isDark ? Colors.white12 : Colors.grey.shade200),
+                  border: isAnalyzed ? Border.all(color: AppTheme.green.withAlpha(isDark ? 100 : 80)) : null,
+                ),
+                child: Text(
+                  '${_statusNames[status] ?? status}${isAnalyzed ? ' · ${score.toStringAsFixed(0)}分' : ''}',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: isAnalyzed ? AppTheme.green : (isDark ? AppTheme.darkTextSecondary : Colors.grey.shade600)),
+                ),
+              ),
+            ]),
+            if (hasInterview) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.green.withAlpha(isDark ? 25 : 15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppTheme.green.withAlpha(isDark ? 100 : 50)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.event_rounded, size: 13, color: AppTheme.green),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      '面试: ${_formatDateTime(interview['scheduled_at'] as String?)}',
+                      style: TextStyle(fontSize: 11, color: AppTheme.green, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        LayoutBuilder(builder: (_, c) {
+          final wrapChips = c.maxWidth < 400;
+          final chips = <Widget>[
+            if (fileId != null)
+              _actionChip(Icons.visibility_rounded, '查看简历', () {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => PreviewPage(fileId: fileId),
+                ));
+              }),
+            if (hasInterview)
+              _actionChip(Icons.edit_calendar_rounded, '修改面试', () => _scheduleInterview(name, existing: interview))
+            else
+              _actionChip(Icons.calendar_today_rounded, '安排面试', () => _scheduleInterview(name)),
+            if (isAnalyzed)
+              _actionChip(Icons.visibility_rounded, '查看分析', () => _viewAnalysis(name, r['match_result'] as String?)),
+            if (isAnalyzed)
+              _actionChip(Icons.refresh_rounded, '重新分析', () => _analyze(id, name))
+            else
+              _actionChip(Icons.auto_awesome_rounded, 'AI分析', () => _analyze(id, name)),
+          ];
+          if (wrapChips) {
+            return Row(children: [
+              Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: chips)),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onSelected: (action) {
+                  if (action == 'delete') _delete(id, name);
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
+                ],
+              ),
+            ]);
+          }
+          return Row(children: [
+            ...chips.map((c) => Padding(padding: const EdgeInsets.only(right: 6), child: c)),
+            const Spacer(),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onSelected: (action) {
+                if (action == 'delete') _delete(id, name);
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
+              ],
+            ),
+          ]);
+        }),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -420,132 +562,26 @@ class _HrResumeTabState extends State<HrResumeTab> {
             ? const Center(child: CircularProgressIndicator())
             : _resumes.isEmpty
                 ? Center(child: Text('暂无简历', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _resumes.length,
-                    itemBuilder: (_, i) {
-                      final r = _resumes[i];
-                      final id = r['id'] as String;
-                      final name = r['name'] as String? ?? '';
-                      final fileId = r['file_id'] as String?;
-                      final score = r['match_score'] as num? ?? 0;
-                      final status = r['status'] as String? ?? 'new';
-                      final isAnalyzed = status == 'reviewed';
-
-                      final interview = _findInterview(name);
-                      final hasInterview = interview != null;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: fileId != null ? const Color(0xFFFFF3E0) : const Color(0xFFF3E8FF),
-                                  child: Icon(
-                                    fileId != null ? Icons.picture_as_pdf_rounded : Icons.description_rounded,
-                                    color: fileId != null ? AppTheme.orange : AppTheme.purple,
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(children: [
-                                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                        if (hasInterview) ...[
-                                          const SizedBox(width: 8),
-                                          Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.green),
-                                          const SizedBox(width: 2),
-                                          Text('已约面', style: TextStyle(fontSize: 11, color: AppTheme.green, fontWeight: FontWeight.w500)),
-                                        ],
-                                      ]),
-                                      const SizedBox(height: 2),
-                                      Row(children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(4),
-                                            color: isAnalyzed ? AppTheme.green.withAlpha(20) : Colors.grey.shade200,
-                                          ),
-                                          child: Text(
-                                            '${_statusNames[status] ?? status}${isAnalyzed ? ' · ${score.toStringAsFixed(0)}分' : ''}',
-                                            style: TextStyle(fontSize: 11, color: isAnalyzed ? AppTheme.green : Colors.grey.shade600),
-                                          ),
-                                        ),
-                                      ]),
-                                    ],
-                                  ),
-                                ),
-                              ]),
-                              if (hasInterview) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.green.withAlpha(15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: AppTheme.green.withAlpha(50)),
-                                  ),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    Icon(Icons.event_rounded, size: 13, color: AppTheme.green),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        '面试: ${_formatDateTime(interview['scheduled_at'] as String?)}',
-                                        style: TextStyle(fontSize: 11, color: AppTheme.green, fontWeight: FontWeight.w500),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ]),
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  if (fileId != null) ...[
-                                    _actionChip(Icons.visibility_rounded, '查看简历', () {
-                                      Navigator.push(context, MaterialPageRoute(
-                                        builder: (_) => PreviewPage(fileId: fileId),
-                                      ));
-                                    }),
-                                    const SizedBox(width: 6),
-                                  ],
-                                  if (hasInterview)
-                                    _actionChip(Icons.edit_calendar_rounded, '修改面试', () => _scheduleInterview(name, existing: interview))
-                                  else
-                                    _actionChip(Icons.calendar_today_rounded, '安排面试', () => _scheduleInterview(name)),
-                                  const SizedBox(width: 6),
-                                  if (isAnalyzed) ...[
-                                    _actionChip(Icons.visibility_rounded, '查看分析', () => _viewAnalysis(name, r['match_result'] as String?)),
-                                    const SizedBox(width: 6),
-                                  ],
-                                  if (isAnalyzed)
-                                    _actionChip(Icons.refresh_rounded, '重新分析', () => _analyze(id, name))
-                                  else
-                                    _actionChip(Icons.auto_awesome_rounded, 'AI分析', () => _analyze(id, name)),
-                                  const Spacer(),
-                                  PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert_rounded, size: 18),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                    onSelected: (action) {
-                                      if (action == 'delete') _delete(id, name);
-                                    },
-                                    itemBuilder: (_) => [
-                                      const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: AppTheme.red))),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                : LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      final w = constraints.maxWidth;
+                      if (w >= 800) {
+                        return ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: _resumes.length,
+                          itemBuilder: (_, i) => _buildResumeCard(_resumes[i]),
+                        );
+                      }
+                      final cols = w >= 500 ? 2 : 1;
+                      final cardWidth = (w - 12 * (cols + 1)) / cols;
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: [
+                            for (final r in _resumes)
+                              SizedBox(width: cardWidth, child: _buildResumeCard(r, noMargin: true)),
+                          ],
                         ),
                       );
                     },
@@ -555,20 +591,21 @@ class _HrResumeTabState extends State<HrResumeTab> {
   }
 
   Widget _actionChip(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(6),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: AppTheme.blue.withAlpha(isDark ? 20 : 15),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 13, color: AppTheme.blue),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.blue)),
+          ]),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: AppTheme.blue),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.blue)),
-        ]),
       ),
     );
   }

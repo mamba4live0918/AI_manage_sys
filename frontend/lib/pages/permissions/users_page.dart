@@ -719,7 +719,9 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,7 +825,9 @@ class _DepartmentCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
       ),
       child: Column(
         children: [
@@ -847,14 +851,14 @@ class _DepartmentCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: AppTheme.blue.withAlpha(20),
+                        borderRadius: BorderRadius.circular(10),
+                        color: AppTheme.blue.withAlpha(isDark ? 25 : 18),
                       ),
                       child: const Icon(Icons.group_rounded,
-                          size: 18, color: AppTheme.blue),
+                          size: 20, color: AppTheme.blue),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -1085,8 +1089,8 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: color.withAlpha(20),
@@ -1121,22 +1125,19 @@ class _MiniIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ??
-        (Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black)
-            .withAlpha(120);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = color ?? (isDark ? Colors.white : Colors.black).withAlpha(120);
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        color: c.withAlpha(18),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, size: 18, color: c),
+            padding: const EdgeInsets.all(7),
+            child: Icon(icon, size: 17, color: c),
           ),
         ),
       ),

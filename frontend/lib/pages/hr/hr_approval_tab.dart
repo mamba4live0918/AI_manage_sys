@@ -38,47 +38,6 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
     }
   }
 
-  Future<void> _create() async {
-    final contentCtrl = TextEditingController();
-    String type = 'leave';
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setDlg) => AlertDialog(
-          title: const Text('发起审批'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              InputDecorator(
-                decoration: const InputDecoration(labelText: '类型'),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: type, isExpanded: true, isDense: true,
-                    items: _typeNames.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-                    onChanged: (v) => setDlg(() => type = v!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(controller: contentCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '内容')),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('提交')),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-
-    await _api.dio.post('/hr/approvals', data: {
-      'approval_type': type,
-      'content': contentCtrl.text.trim(),
-    });
-    _load();
-  }
-
   Future<void> _approve(String id, String action) async {
     final commentCtrl = TextEditingController();
 
@@ -228,19 +187,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
 
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          Expanded(
-            child: SizedBox(height: 40, child: ElevatedButton.icon(
-              onPressed: _create,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('发起审批'),
-            )),
-          ),
-        ]),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 30),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: ['', 'pending', 'approved', 'rejected'].map((s) {
@@ -262,7 +209,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
             : _approvals.isEmpty
                 ? Center(child: Text('暂无审批', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
                     itemCount: _approvals.length,
                     itemBuilder: (_, i) {
                       final a = _approvals[i];
@@ -315,6 +262,24 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
                                 const SizedBox(height: 6),
                               ],
                               Text(a['content'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+                              if (status == 'pending') ...[
+                                const SizedBox(height: 8),
+                                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                  TextButton.icon(
+                                    onPressed: () => _approve(a['id'] as String, 'rejected'),
+                                    icon: const Icon(Icons.close, size: 14, color: AppTheme.red),
+                                    label: const Text('驳回', style: TextStyle(fontSize: 12, color: AppTheme.red)),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  FilledButton.icon(
+                                    onPressed: () => _approve(a['id'] as String, 'approved'),
+                                    icon: const Icon(Icons.check, size: 14),
+                                    label: const Text('通过', style: TextStyle(fontSize: 12)),
+                                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 30), minimumSize: const Size(0, 32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                  ),
+                                ]),
+                              ],
                             ]),
                           ),
                         ),
