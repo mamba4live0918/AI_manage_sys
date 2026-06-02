@@ -1249,7 +1249,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
       else
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
             child: Table(
               columnWidths: const {
                 0: FlexColumnWidth(1.0),  // 金额
@@ -1365,7 +1365,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
         ),
       if (_totalPages > 1)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             IconButton(
               icon: const Icon(Icons.chevron_left, size: 20),

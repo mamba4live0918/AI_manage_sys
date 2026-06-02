@@ -187,7 +187,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
 
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 30),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: ['', 'pending', 'approved', 'rejected'].map((s) {
@@ -209,7 +209,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
             : _approvals.isEmpty
                 ? Center(child: Text('暂无审批', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
                     itemCount: _approvals.length,
                     itemBuilder: (_, i) {
                       final a = _approvals[i];
@@ -276,7 +276,7 @@ class _HrApprovalTabState extends State<HrApprovalTab> {
                                     onPressed: () => _approve(a['id'] as String, 'approved'),
                                     icon: const Icon(Icons.check, size: 14),
                                     label: const Text('通过', style: TextStyle(fontSize: 12)),
-                                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 30), minimumSize: const Size(0, 32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                                   ),
                                 ]),
                               ],

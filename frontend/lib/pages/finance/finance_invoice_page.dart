@@ -169,7 +169,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                         children: [
                           Expanded(
                             child: SingleChildScrollView(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                               child: Table(
                                 columnWidths: const {
                                   0: FlexColumnWidth(1.0),  // 编号
@@ -257,7 +257,7 @@ class _FinanceInvoicePageState extends ConsumerState<FinanceInvoicePage> {
                           ),
                           if (_totalPages > 1)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                 IconButton(
                                   icon: const Icon(Icons.chevron_left, size: 20),
