@@ -310,127 +310,220 @@ class _FinanceVoucherTabState extends State<FinanceVoucherTab> {
             : _filteredItems.isEmpty
                 ? Center(child: Text('暂无凭证',
                     style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(1.6),
-                        1: FlexColumnWidth(0.8),
-                        2: FlexColumnWidth(1.0),
-                        3: FlexColumnWidth(1.2),
-                        4: FlexColumnWidth(0.6),
-                      },
-                      border: TableBorder(
-                        horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
-                      ),
-                      children: [
-                        TableRow(
-                          decoration: BoxDecoration(
-                            color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
-                          ),
-                          children: const [
-                            _TableHeader('描述'),
-                            _TableHeader('类型'),
-                            _TableHeader('关联'),
-                            _TableHeader('日期'),
-                            _TableHeader('操作'),
-                          ],
-                        ),
-                        ..._pagedItems.map((v) {
-                          final id = v['id'] as String;
-                          final type = v['type'] as String? ?? 'invoice';
-                          final desc = v['description'] as String? ?? '';
-                          final fileId = v['file_id'] as String?;
-                          final hasSettlement = v['settlement_id'] != null;
-                          final hasExpense = v['expense_id'] != null;
-                          final hasInvoice = v['invoice_id'] != null;
-                          final date = (v['created_at'] as String? ?? '');
-
-                          String? relationText;
-                          if (hasSettlement && hasExpense && hasInvoice) {
-                            relationText = '结算+报销+发票';
-                          } else if (hasSettlement && hasExpense) {
-                            relationText = '结算+报销';
-                          } else if (hasSettlement && hasInvoice) {
-                            relationText = '结算+发票';
-                          } else if (hasExpense && hasInvoice) {
-                            relationText = '报销+发票';
-                          } else if (hasSettlement) {
-                            relationText = '结算';
-                          } else if (hasExpense) {
-                            relationText = '报销';
-                          } else if (hasInvoice) {
-                            relationText = '发票';
-                          }
-
-                          return TableRow(children: [
-                            _TableCell(
-                              Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              isDark: isDark,
-                            ),
-                            _TableCell(
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                Container(width: 8, height: 8, decoration: BoxDecoration(color: AppTheme.green, shape: BoxShape.circle)),
-                                const SizedBox(width: 6),
-                                Text(_typeNames[type] ?? type, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                              ]),
-                              isDark: isDark,
-                            ),
-                            _TableCell(
-                              Text(relationText ?? '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                              isDark: isDark,
-                            ),
-                            _TableCell(
-                              Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                              isDark: isDark,
-                            ),
-                            _TableCell(
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                if (fileId != null)
-                                  IconButton(
-                                    icon: Icon(Icons.visibility_rounded, size: 16, color: AppTheme.blue),
-                                    onPressed: () {
-                                      Navigator.push(context, MaterialPageRoute(
-                                        builder: (_) => PreviewPage(fileId: fileId),
-                                      ));
-                                    },
-                                    tooltip: '预览凭证',
-                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                    padding: EdgeInsets.zero,
-                                    splashRadius: 16,
-                                  ),
-                                IconButton(
-                                  icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade300),
-                                  onPressed: () => _delete(id),
-                                  tooltip: '删除',
-                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                  padding: EdgeInsets.zero,
-                                  splashRadius: 16,
-                                ),
-                              ]),
-                              isDark: isDark,
-                            ),
-                          ]);
-                        }),
-                      ],
-                    ),
+                : LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      final w = constraints.maxWidth;
+                      if (w >= 800) return _buildVoucherTable(isDark);
+                      return _buildVoucherCards(isDark, w);
+                    },
                   ),
-      ),  // closes Expanded
-      if (_totalPages > 1)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 20),
-              onPressed: _page > 0 ? () => setState(() => _page--) : null,
-            ),
-            Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 20),
-              onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
-            ),
-          ]),
-        ),
+      ),
+      if (_filteredItems.isNotEmpty && _totalPages > 1) _buildPagination(isDark),
     ]);
+  }
+
+  Widget _buildVoucherTable(bool isDark) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(1.6), 1: FlexColumnWidth(0.8),
+          2: FlexColumnWidth(1.0), 3: FlexColumnWidth(1.2),
+          4: FixedColumnWidth(100),
+        },
+        border: TableBorder(
+          horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+        ),
+        children: [
+          TableRow(
+            decoration: BoxDecoration(color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
+            children: const [
+              _TableHeader('描述'), _TableHeader('类型'), _TableHeader('关联'),
+              _TableHeader('日期'), _TableHeader('操作'),
+            ],
+          ),
+          ..._pagedItems.map((v) => _buildVoucherTableRow(v, isDark)),
+        ],
+      ),
+    );
+  }
+
+  TableRow _buildVoucherTableRow(Map<String, dynamic> v, bool isDark) {
+    final id = v['id'] as String;
+    final type = v['type'] as String? ?? 'invoice';
+    final desc = v['description'] as String? ?? '';
+    final fileId = v['file_id'] as String?;
+    final date = (v['created_at'] as String? ?? '');
+    final hasS = v['settlement_id'] != null;
+    final hasE = v['expense_id'] != null;
+    final hasI = v['invoice_id'] != null;
+    final rel = (hasS && hasE && hasI) ? '结算+报销+发票'
+        : (hasS && hasE) ? '结算+报销'
+        : (hasS && hasI) ? '结算+发票'
+        : (hasE && hasI) ? '报销+发票'
+        : hasS ? '结算' : hasE ? '报销' : hasI ? '发票' : '-';
+
+    return TableRow(children: [
+      _TableCell(Text(desc, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis), isDark: isDark),
+      _TableCell(Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: AppTheme.green, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Text(_typeNames[type] ?? type, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+      ]), isDark: isDark),
+      _TableCell(Text(rel, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)), isDark: isDark),
+      _TableCell(Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)), isDark: isDark),
+      _TableCell(Row(mainAxisSize: MainAxisSize.min, children: [
+        if (fileId != null)
+          Tooltip(
+            message: '预览',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: fileId))),
+              child: Container(width: 28, height: 28, alignment: Alignment.center, child: Icon(Icons.visibility_rounded, size: 16, color: AppTheme.blue)),
+            ),
+          ),
+        Tooltip(
+          message: '删除',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => _delete(id),
+            child: Container(width: 28, height: 28, alignment: Alignment.center, child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade300)),
+          ),
+        ),
+      ]), isDark: isDark),
+    ]);
+  }
+
+  Widget _buildVoucherCards(bool isDark, double width) {
+    final cols = width >= 500 ? 2 : 1;
+    if (cols == 1) {
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: _pagedItems.length,
+        itemBuilder: (_, i) => _buildVoucherCard(_pagedItems[i], isDark),
+      );
+    }
+    final cardWidth = (width - 12 * (cols + 1)) / cols;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        children: _pagedItems.map((v) => SizedBox(
+          width: cardWidth,
+          child: _buildVoucherCard(v, isDark),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildVoucherCard(Map<String, dynamic> v, bool isDark) {
+    final type = v['type'] as String? ?? 'invoice';
+    final desc = v['description'] as String? ?? '';
+    final date = (v['created_at'] as String? ?? '');
+    final fileId = v['file_id'] as String?;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: fileId != null ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: fileId!))) : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+            child: Row(children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: (_typeColor(type)).withAlpha(isDark ? 20 : 15)),
+                child: Icon(_typeIcons[type] ?? Icons.attach_file_rounded, color: _typeColor(type), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _typeColor(type))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      _typeNames[type] ?? type,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                    )),
+                  ]),
+                  const SizedBox(height: 2),
+                  Text(desc.isNotEmpty ? desc : '无描述', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                  const SizedBox(height: 2),
+                  Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                ]),
+              ),
+              const SizedBox(width: 4),
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                if (fileId != null)
+                  _VoucherActionChip(Icons.visibility_rounded, '查看', AppTheme.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewPage(fileId: fileId!)))),
+                const SizedBox(height: 4),
+                _VoucherActionChip(Icons.delete_outline, '删除', Colors.red.shade300, () => _delete(v['id'] as String)),
+              ]),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _typeColor(String type) {
+    switch (type) {
+      case 'invoice': return AppTheme.blue;
+      case 'receipt': return AppTheme.green;
+      case 'contract': return AppTheme.orange;
+      default: return Colors.grey;
+    }
+  }
+
+  Widget _buildPagination(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(icon: const Icon(Icons.chevron_left, size: 20), onPressed: _page > 0 ? () => setState(() => _page--) : null),
+        Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        IconButton(icon: const Icon(Icons.chevron_right, size: 20), onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null),
+      ]),
+    );
+  }
+}
+
+class _VoucherActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _VoucherActionChip(this.icon, this.label, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 2),
+              Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }

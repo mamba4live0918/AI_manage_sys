@@ -56,7 +56,7 @@ class _TableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
     );
   }
@@ -73,7 +73,7 @@ class _TableCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         child: child,
       ),
     );
@@ -84,58 +84,89 @@ class _ActionsCell extends StatelessWidget {
   final String id;
   final String status;
   final String expType;
-  final bool isDark;
+  final VoidCallback? onDetail;
   final ValueChanged<String> onApprove;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _ActionsCell({
     required this.id, required this.status, required this.expType,
-    required this.isDark, required this.onApprove, required this.onEdit,
+    this.onDetail, required this.onApprove, required this.onEdit,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final isReimbursement = expType == 'reimbursement';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (isReimbursement && status == 'pending') ...[
-          _MiniBtn(Icons.check, '通过', AppTheme.green, () => onApprove('approved')),
-          const SizedBox(width: 4),
-          _MiniBtn(Icons.close, '驳回', Colors.red, () => onApprove('rejected')),
-        ] else if (isReimbursement && status == 'approved') ...[
-          _MiniBtn(Icons.payment, '支付', AppTheme.green, () => onApprove('paid')),
-        ] else if (expType == 'direct') ...[
-          _MiniBtn(Icons.edit_outlined, '编辑', isDark ? Colors.white54 : Colors.black54, onEdit),
-          const SizedBox(width: 4),
-          _MiniBtn(Icons.delete_outline, '删除', Colors.red, onDelete),
-        ],
-      ]),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = isDark ? Colors.white54 : Colors.black54;
+
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (isReimbursement && status == 'pending') ...[
+        _ActionIcon(Icons.check_rounded, '通过', AppTheme.green, () => onApprove('approved')),
+        const SizedBox(width: 2),
+        _ActionIcon(Icons.close_rounded, '驳回', AppTheme.red, () => onApprove('rejected')),
+      ] else if (isReimbursement && status == 'approved')
+        _ActionIcon(Icons.payment_rounded, '支付', AppTheme.green, () => onApprove('paid')),
+      if (expType == 'direct') ...[
+        _ActionIcon(Icons.edit_outlined, '编辑', AppTheme.accent, onEdit),
+        const SizedBox(width: 2),
+        _ActionIcon(Icons.delete_outline, '删除', AppTheme.red, onDelete),
+      ],
+      if (onDetail != null) ...[
+        const SizedBox(width: 2),
+        _ActionIcon(Icons.info_outline_rounded, '详情', fg, onDetail!),
+      ],
+    ]);
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionIcon(this.icon, this.tooltip, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: Container(
+          width: 32, height: 32,
+          alignment: Alignment.center,
+          child: Icon(icon, size: 18, color: color),
+        ),
+      ),
     );
   }
 }
 
-class _MiniBtn extends StatelessWidget {
+class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _MiniBtn(this.icon, this.label, this.color, this.onTap);
+  const _ActionChip(this.icon, this.label, this.color, this.onTap);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 28,
-      child: TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 14, color: color),
-        label: Text(label, style: TextStyle(fontSize: 11, color: color)),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Material(
+      color: color.withAlpha(20),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+          ]),
         ),
       ),
     );
@@ -493,6 +524,61 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
 
   // ─── Edit dialog ───
 
+  Future<void> _reassignBudget(Map<String, dynamic> e) async {
+    final expenseId = e['id'] as String;
+    final currentBudgetId = e['budget_id'] as String?;
+    String? selectedBudgetId = currentBudgetId;
+    List<Map<String, dynamic>>? budgets;
+    bool loading = true;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          if (loading) {
+            _api.dio.get('/finance/budgets').then((r) {
+              setD(() { budgets = List<Map<String, dynamic>>.from(r.data['items']); loading = false; });
+            });
+          }
+          return AlertDialog(
+            title: const Text('分配预算'),
+            content: loading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedBudgetId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: '选择预算'),
+                      items: [
+                        const DropdownMenuItem<String>(value: null, child: Text('取消分配（归入未分类）')),
+                        ...?budgets?.map((b) => DropdownMenuItem<String>(
+                          value: b['id'] as String,
+                          child: Text('${b['name']} ${b['department_name'] ?? ""}'.trim(), style: const TextStyle(fontSize: 13)),
+                        )),
+                      ],
+                      onChanged: (v) => setD(() => selectedBudgetId = v),
+                    ),
+                  ]),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, selectedBudgetId), child: const Text('确定')),
+            ],
+          );
+        },
+      ),
+    );
+    if (result == null || result == currentBudgetId) return;
+    try {
+      await _api.dio.put('/finance/expenses/$expenseId', data: {'budget_id': result == '' ? null : result});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('预算分配已更新'), backgroundColor: AppTheme.green));
+        _load();
+      }
+    } catch (ex) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('更新失败: $ex')));
+    }
+  }
+
   Future<void> _edit(Map<String, dynamic> expense) async {
     final id = expense['id'] as String;
     final amountCtrl = TextEditingController(text: (expense['amount'] as num?)?.toStringAsFixed(2) ?? '');
@@ -742,6 +828,11 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                         _edit(e);
                       },
                     ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.account_balance_wallet_rounded, size: 18),
+                    label: const Text('分配预算'),
+                    onPressed: () { Navigator.pop(ctx); _reassignBudget(e); },
+                  ),
                 ]),
                 const SizedBox(height: 20),
                 // Amount prominent
@@ -919,7 +1010,7 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
           }
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Row(
             children: [
               Container(
@@ -1235,181 +1326,151 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
 
       const SizedBox(height: 8),
 
-      // ── Content: DataTable ──
+      // ── Content ──
       if (_loading)
-        const Center(child: CircularProgressIndicator())
+        const Expanded(child: Center(child: CircularProgressIndicator()))
       else if (_items.isEmpty)
-        Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 8),
-            Text('暂无支出记录', style: TextStyle(color: Colors.grey.shade500)),
-          ]),
+        Expanded(
+          child: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 8),
+              Text('暂无支出记录', style: TextStyle(color: Colors.grey.shade500)),
+            ]),
+          ),
         )
       else
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-            child: Table(
-              columnWidths: const {
-                0: FlexColumnWidth(1.0),  // 金额
-                1: FlexColumnWidth(0.6),  // 类别
-                2: FlexColumnWidth(0.6),  // 类型
-                3: FlexColumnWidth(0.9),  // 部门
-                4: FlexColumnWidth(1.3),  // 描述
-                5: FlexColumnWidth(0.7),  // 日期
-                6: FlexColumnWidth(0.7),  // 状态
-                7: FlexColumnWidth(1.2),  // 操作
-              },
-              border: TableBorder(
-                horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
-              ),
-              children: [
-                // Header row
-                TableRow(
-                  decoration: BoxDecoration(
-                    color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA),
-                  ),
-                  children: const [
-                    _TableHeader('金额'),
-                    _TableHeader('类别'),
-                    _TableHeader('类型'),
-                    _TableHeader('部门'),
-                    _TableHeader('描述'),
-                    _TableHeader('日期'),
-                    _TableHeader('状态'),
-                    _TableHeader('操作'),
-                  ],
-                ),
-                // Data rows
-                ..._pagedItems.map((e) {
-                  final status = e['status'] as String? ?? 'pending';
-                  final cat = e['category'] as String? ?? 'other';
-                  final type = e['expense_type'] as String? ?? 'reimbursement';
-                  final desc = e['description'] as String? ?? '';
-                  final date = (e['created_at'] as String? ?? '');
-                  final deptId = e['department_id'] as String?;
-                  final deptName = deptId != null ? (_deptNames[deptId] ?? '-') : '-';
-                  final deptColor = _deptColor(deptId);
-                  return TableRow(
-                    children: [
-                      _TableCell(
-                        Text('\u{FFE5}${(e['amount'] as num?)?.toStringAsFixed(0) ?? '0'}',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(width: 8, height: 8, decoration: BoxDecoration(color: _categoryColor(cat), shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text(_categoryLabel(cat), style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                        ]),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (type == 'direct' ? AppTheme.green : AppTheme.accent).withAlpha(isDark ? 25 : 15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(type == 'direct' ? '直接' : '报销', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: type == 'direct' ? AppTheme.green : AppTheme.accent)),
-                        ),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: deptColor.withAlpha(isDark ? 30 : 20),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(deptName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: deptColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Text(desc.isNotEmpty ? desc : '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _TableCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _statusColor(status).withAlpha(isDark ? 30 : 20),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status))),
-                        ),
-                        isDark: isDark, onTap: () => _showDetailSheet(e),
-                      ),
-                      _ActionsCell(
-                        id: e['id'] as String,
-                        status: status,
-                        expType: type,
-                        isDark: isDark,
-                        onApprove: (action) => _approve(e['id'] as String, action),
-                        onEdit: () => _edit(e),
-                        onDelete: () => _delete(e['id'] as String),
-                      ),
-                    ],
-                  );
-                }),
-              ],
-            ),
+          child: LayoutBuilder(
+            builder: (ctx, constraints) {
+              final w = constraints.maxWidth;
+              if (w >= 900) return _buildTable(isDark);
+              return _buildMobileCards(isDark, w);
+            },
           ),
         ),
-      if (_totalPages > 1)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 20),
-              onPressed: _page > 0 ? () => setState(() => _page--) : null,
-            ),
-            Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 20),
-              onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
-            ),
-          ]),
-        ),
+      if (_items.isNotEmpty && _totalPages > 1)
+        _buildPagination(isDark),
     ]);
   }
 
-  // ─── Empty state ───
+  // ─── Desktop table ───
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget _buildTable(bool isDark) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(1.0),
+          1: FlexColumnWidth(0.5),
+          2: FlexColumnWidth(0.5),
+          3: FlexColumnWidth(0.7),
+          4: FlexColumnWidth(1.2),
+          5: FlexColumnWidth(0.6),
+          6: FlexColumnWidth(0.6),
+          7: FixedColumnWidth(132),
+        },
+        border: TableBorder(
+          horizontalInside: BorderSide(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder, width: 0.5),
+        ),
         children: [
-          Icon(
-            Icons.receipt_long,
-            size: 80,
-            color: theme.colorScheme.primary.withValues(alpha: 0.4),
+          TableRow(
+            decoration: BoxDecoration(color: isDark ? AppTheme.darkSurfaceAlt : const Color(0xFFF5F5FA)),
+            children: const [
+              _TableHeader('金额'), _TableHeader('类别'), _TableHeader('类型'),
+              _TableHeader('部门'), _TableHeader('描述'), _TableHeader('日期'),
+              _TableHeader('状态'), _TableHeader('操作'),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            '暂无支出记录',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('点击 + 创建'),
-            onPressed: _create,
-          ),
+          ..._pagedItems.map((e) => _buildTableRow(e, isDark)),
         ],
       ),
     );
   }
+
+  TableRow _buildTableRow(Map<String, dynamic> e, bool isDark) {
+    final status = e['status'] as String? ?? 'pending';
+    final cat = e['category'] as String? ?? 'other';
+    final type = e['expense_type'] as String? ?? 'reimbursement';
+    final desc = e['description'] as String? ?? '';
+    final date = (e['created_at'] as String? ?? '');
+    final deptId = e['department_id'] as String?;
+    final deptName = deptId != null ? (_deptNames[deptId] ?? '-') : '-';
+    final deptColor = _deptColor(deptId);
+    return TableRow(children: [
+      _TableCell(Text('\u{FFE5}${(e['amount'] as num?)?.toStringAsFixed(0) ?? '0'}',
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+        isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: _categoryColor(cat), shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(_categoryLabel(cat), style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+      ]), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(color: (type == 'direct' ? AppTheme.green : AppTheme.accent).withAlpha(isDark ? 25 : 15), borderRadius: BorderRadius.circular(4)),
+        child: Text(type == 'direct' ? '直接' : '报销', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: type == 'direct' ? AppTheme.green : AppTheme.accent)),
+      ), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(color: deptColor.withAlpha(isDark ? 30 : 20), borderRadius: BorderRadius.circular(4)),
+        child: Text(deptName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: deptColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Text(desc.isNotEmpty ? desc : '-', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 1, overflow: TextOverflow.ellipsis), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Text(date.length >= 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _TableCell(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(color: _statusColor(status).withAlpha(isDark ? 30 : 20), borderRadius: BorderRadius.circular(4)),
+        child: Text(_expenseStatusNames[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _statusColor(status))),
+      ), isDark: isDark, onTap: () => _showDetailSheet(e)),
+      _ActionsCell(
+        id: e['id'] as String, status: status, expType: type,
+        onApprove: (action) => _approve(e['id'] as String, action),
+        onEdit: () => _edit(e), onDelete: () => _delete(e['id'] as String),
+        onDetail: () => _showDetailSheet(e),
+      ),
+    ]);
+  }
+
+  // ─── Mobile cards ───
+
+  Widget _buildMobileCards(bool isDark, double width) {
+    final theme = Theme.of(context);
+    final cols = width >= 500 ? 2 : 1;
+    if (cols == 1) {
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: _pagedItems.length,
+        itemBuilder: (_, i) => _buildExpenseCard(_pagedItems[i], isDark, theme),
+      );
+    }
+    final cardWidth = (width - 12 * (cols + 1)) / cols;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        children: _pagedItems.map((item) => SizedBox(
+          width: cardWidth,
+          child: _buildExpenseCard(item, isDark, theme),
+        )).toList(),
+      ),
+    );
+  }
+
+  // ─── Pagination ───
+
+  Widget _buildPagination(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(icon: const Icon(Icons.chevron_left, size: 20), onPressed: _page > 0 ? () => setState(() => _page--) : null),
+        Text('${_page + 1} / $_totalPages', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        IconButton(icon: const Icon(Icons.chevron_right, size: 20), onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null),
+      ]),
+    );
+  }
+
 
   // ─── Expense card ───
 
@@ -1423,7 +1484,6 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
     final createdAt = e['created_at'] as String? ?? '';
     final bool isReimbursement = expType == 'reimbursement';
 
-    final catColor = _categoryColor(category);
     final statColor = _statusColor(status);
 
     // Progress for reimbursement approval
@@ -1437,92 +1497,75 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
       }
     }
 
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtitleColor = isDark ? Colors.white54 : Colors.black45;
+    final textColor = isDark ? AppTheme.darkText : AppTheme.lightText;
+    final subtitleColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 2))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
         onTap: () => _showDetailSheet(e),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: amount + status chip
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      '\u{FFE5}${amount.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                  ),
-                  // Type tag
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isReimbursement
-                          ? AppTheme.blue.withValues(alpha: isDark ? 0.3 : 0.15)
-                          : AppTheme.green.withValues(alpha: isDark ? 0.3 : 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      isReimbursement ? '报销' : '支出',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isReimbursement ? AppTheme.blue : AppTheme.green,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  // Status chip
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: statColor.withValues(alpha: isDark ? 0.35 : 0.9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _expenseStatusNames[status] ?? status,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // Category chip
-              Wrap(spacing: 6, runSpacing: 4, children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: catColor.withValues(alpha: isDark ? 0.25 : 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: catColor.withValues(alpha: 0.3), width: 0.5),
-                  ),
+              // Row 1: accent bar + category label + type badge + status badge
+              Row(children: [
+                Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: statColor)),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     _expenseCategoryNames[category] ?? category,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: catColor),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: subtitleColor),
+                  ),
+                ),
+                // Type tag
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isReimbursement ? AppTheme.blue.withAlpha(isDark ? 25 : 15) : AppTheme.green.withAlpha(isDark ? 25 : 15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isReimbursement ? '报销' : '支出',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isReimbursement ? AppTheme.blue : AppTheme.green),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Status badge (outlined)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statColor.withAlpha(isDark ? 25 : 18),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: statColor.withAlpha(isDark ? 100 : 80)),
+                  ),
+                  child: Text(
+                    _expenseStatusNames[status] ?? status,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statColor),
                   ),
                 ),
               ]),
-
-              const SizedBox(height: 8),
-
-              // Subtitle: category label + description preview + date
+              const SizedBox(height: 6),
+              // Row 2: big amount with FittedBox
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                child: Text(
+                  '\u{FFE5}${amount.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: textColor),
+                ),
+              ),
+              const SizedBox(height: 2),
+              // Row 3: description + date
               if (description.isNotEmpty || createdAt.isNotEmpty)
                 Text(
                   [
@@ -1531,12 +1574,12 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: subtitleColor),
+                  style: TextStyle(fontSize: 10, color: subtitleColor),
                 ),
 
               // Progress indicator for reimbursements
               if (isReimbursement) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(3),
                   child: LinearProgressIndicator(
@@ -1551,87 +1594,38 @@ class _FinanceExpenseTabState extends ConsumerState<FinanceExpenseTab> {
                 const SizedBox(height: 4),
                 Text(
                   '审批进度 · ${_expenseStatusNames[status] ?? status}',
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38),
+                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
                 ),
               ],
 
-              // Action buttons row
+              // Action buttons: chip style (not TextButton.icon)
               if (isReimbursement && status == 'pending') ...[
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _approve(id, 'rejected'),
-                      icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                      label: const Text('驳回', style: TextStyle(color: Colors.red, fontSize: 13)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => _approve(id, 'approved'),
-                      icon: const Icon(Icons.check, size: 16, color: AppTheme.green),
-                      label: const Text('通过', style: TextStyle(color: AppTheme.green, fontSize: 13)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 8),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  _ActionChip(Icons.close, '驳回', Colors.red, () => _approve(id, 'rejected')),
+                  const SizedBox(width: 8),
+                  _ActionChip(Icons.check, '通过', AppTheme.green, () => _approve(id, 'approved')),
+                ]),
               ],
               if (isReimbursement && status == 'approved') ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  TextButton.icon(
-                    onPressed: () => _approve(id, 'paid'),
-                    icon: const Icon(Icons.payment, size: 16, color: AppTheme.green),
-                    label: const Text('标记已支付', style: TextStyle(color: AppTheme.green, fontSize: 13)),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
+                  _ActionChip(Icons.payment, '标记已支付', AppTheme.green, () => _approve(id, 'paid')),
                 ]),
               ],
 
               if (!isReimbursement) ...[
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _edit(e),
-                      icon: Icon(Icons.edit_outlined, size: 16, color: isDark ? Colors.white54 : Colors.black45),
-                      label: Text('编辑', style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : Colors.black45)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _delete(id),
-                      icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                      label: const Text('删除', style: TextStyle(color: Colors.red, fontSize: 13)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 8),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  _ActionChip(Icons.edit_outlined, '编辑', isDark ? Colors.white54 : Colors.black45, () => _edit(e)),
+                  const SizedBox(width: 8),
+                  _ActionChip(Icons.delete_outline, '删除', Colors.red, () => _delete(id)),
+                ]),
               ],
             ],
           ),
         ),
+      ),
       ),
     );
   }

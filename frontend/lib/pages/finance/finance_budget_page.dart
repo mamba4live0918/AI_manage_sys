@@ -101,7 +101,7 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
             : null,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateDialog(context),
+        onPressed: () => _showCreateRootDialog(context),
         child: const Icon(Icons.add),
       ),
       body: state.loading
@@ -119,58 +119,80 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                     ref.read(financeBudgetProvider.notifier).load();
                     _loadSummary();
                   },
-                  child: _buildBudgetTree(context, state.items),
+                  child: LayoutBuilder(
+                    builder: (ctx, constraints) =>
+                        _buildBudgetTree(context, state.items, constraints.maxWidth),
+                  ),
                 ),
     );
   }
 
-  Widget _buildBudgetTree(BuildContext context, List<BudgetData> items) {
+  Widget _buildBudgetTree(BuildContext context, List<BudgetData> items, double width) {
     final roots = items.where((b) => b.parentId == null).toList();
 
-    if (roots.isEmpty && items.isNotEmpty) {
-      // All budgets have parents but no roots found — show flat list
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: items.length + 1,
-        itemBuilder: (_, i) {
-          if (i == 0) return _buildSummaryCard(context);
-          return _buildBudgetCard(context, items[i - 1]);
-        },
-      );
-    }
-
-    // Build flat list from tree
-    final flatList = <Widget>[];
-    flatList.add(_buildSummaryCard(context));
-    for (final root in roots) {
-      flatList.add(_buildBudgetCard(context, root));
-      if (_expandedNodes.contains(root.id)) {
-        final children = items.where((b) => b.parentId == root.id).toList();
-        for (final child in children) {
-          flatList.add(
-            Padding(
-              padding: const EdgeInsets.only(left: 24),
-              child: _buildBudgetCard(context, child, isChild: true),
-            ),
-          );
-          if (_expandedNodes.contains(child.id)) {
-            final grandchildren = items.where((b) => b.parentId == child.id).toList();
-            for (final gc in grandchildren) {
-              flatList.add(
-                Padding(
-                  padding: const EdgeInsets.only(left: 48),
-                  child: _buildBudgetCard(context, gc, isChild: true),
-                ),
-              );
+    // Build flat list from tree — single-column used when trees are expanded or very narrow
+    List<Widget> buildFlatList() {
+      final flatList = <Widget>[];
+      flatList.add(_buildSummaryCard(context));
+      for (final root in roots) {
+        flatList.add(_buildBudgetCard(context, root));
+        if (_expandedNodes.contains(root.id)) {
+          final children = items.where((b) => b.parentId == root.id).toList();
+          for (final child in children) {
+            flatList.add(
+              Padding(
+                padding: const EdgeInsets.only(left: 24),
+                child: _buildBudgetCard(context, child, isChild: true),
+              ),
+            );
+            if (_expandedNodes.contains(child.id)) {
+              final grandchildren = items.where((b) => b.parentId == child.id).toList();
+              for (final gc in grandchildren) {
+                flatList.add(
+                  Padding(
+                    padding: const EdgeInsets.only(left: 48),
+                    child: _buildBudgetCard(context, gc, isChild: true),
+                  ),
+                );
+              }
             }
           }
         }
       }
+      return flatList;
     }
 
-    return ListView(
+    // Always single-column when trees are expanded or width < 500
+    final hasExpandedNode = _expandedNodes.isNotEmpty;
+    if (width < 500 || hasExpandedNode) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        children: buildFlatList(),
+      );
+    }
+
+    // 2-column layout: summary full width, roots in Wrap
+    final summary = _buildSummaryCard(context);
+    final cols = width >= 500 ? 2 : 1;
+    final cardWidth = (width - 16 * 2 - 12 * (cols - 1)) / cols;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      children: flatList,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          summary,
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: roots.map((root) => SizedBox(
+              width: cardWidth,
+              child: _buildBudgetCard(context, root),
+            )).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -182,10 +204,21 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
     final warnColor = pct > 0.9 ? AppTheme.green : pct > 0.7 ? Colors.orange : Colors.green;
     final hasChildren = ref.watch(financeBudgetProvider).items.any((i) => i.parentId == b.id);
 
-    return Card(
+    final isNarrow = MediaQuery.of(context).size.width < 800;
+    final pad = isNarrow ? 12.0 : 16.0;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 0.5)
+            : Border.all(color: AppTheme.lightBorder, width: 0.5),
+        boxShadow: isDark
+            ? []
+            : const [BoxShadow(color: AppTheme.lightBorder, blurRadius: 8, offset: Offset(0, 2))],
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
@@ -198,100 +231,203 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
           });
         },
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Row 1: name + status + menu
-              Row(children: [
-                Expanded(
-                  child: Row(children: [
-                    if (isChild) ...[
-                      if (b.quarter != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text('季', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.blue)),
-                        ),
-                      if (b.departmentId != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text('部', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
-                        ),
-                    ],
-                    Flexible(
-                      child: Text(b.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _yearQuarterBgColor(b, isDark),
-                        borderRadius: BorderRadius.circular(8),
+              if (isNarrow) ...[
+                Row(children: [
+                  Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: statusColor)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(children: [
+                      Flexible(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(b.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), overflow: TextOverflow.ellipsis),
+                          if (b.departmentName != null)
+                            Text(b.departmentName!, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        ]),
                       ),
-                      child: Text(
-                        _yearQuarterLabel(b),
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _yearQuarterBgColor(b, isDark),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _yearQuarterLabel(b),
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  if (hasChildren)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        _expandedNodes.contains(b.id) ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                        size: 18,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                       ),
                     ),
-                  ]),
-                ),
-                if (hasChildren)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Icon(
-                      _expandedNodes.contains(b.id) ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
-                      size: 18,
-                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ]),
+                const SizedBox(height: 8),
+                Row(children: [
+                  if (isChild) ...[
+                    if (b.quarter != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('季', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.blue)),
+                      ),
+                    if (b.departmentId != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('部', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
+                      ),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withAlpha(isDark ? 25 : 18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: statusColor.withAlpha(isDark ? 100 : 80)),
                     ),
+                    child: Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor)),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                  const Spacer(),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 20, color: isDark ? Colors.white70 : Colors.black54),
+                    onSelected: (v) {
+                      if (v == 'edit') _showEditDialog(context, b);
+                      if (v == 'delete') _confirmDelete(context, b.id, b.name);
+                      if (v == 'adjust') _showAdjustDialog(context, b);
+                      if (v == 'add_child') _showCreateDialog(context, parent: b);
+                      if (v == 'add_category') _showAddCategoryItemDialog(context, b);
+                    },
+                    itemBuilder: (_) {
+                      final isLeaf = b.quarter != null && b.departmentId != null;
+                      final isQuarter = b.quarter != null && b.departmentId == null;
+                      final childLabel = isLeaf
+                          ? '添加分类预算'
+                          : isQuarter
+                              ? '添加Q${b.quarter}部门预算'
+                              : '添加季度预算';
+                      return [
+                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
+                        PopupMenuItem(value: isLeaf ? 'add_category' : 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text(childLabel, style: const TextStyle(color: AppTheme.accent))])),
+                        const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
+                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
+                      ];
+                    },
                   ),
-                  child: Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor)),
-                ),
-                const SizedBox(width: 4),
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, size: 20, color: isDark ? Colors.white70 : Colors.black54),
-                  onSelected: (v) {
-                    if (v == 'edit') _showEditDialog(context, b);
-                    if (v == 'delete') _confirmDelete(context, b.id, b.name);
-                    if (v == 'adjust') _showAdjustDialog(context, b);
-                    if (v == 'add_child') _showCreateDialog(context, parent: b);
-                    if (v == 'add_category') _showAddCategoryItemDialog(context, b);
-                  },
-                  itemBuilder: (_) {
-                    final isLeaf = b.quarter != null && b.departmentId != null;
-                    final isQuarter = b.quarter != null && b.departmentId == null;
-                    final childLabel = isLeaf
-                        ? '添加分类预算'
-                        : isQuarter
-                            ? '添加Q${b.quarter}部门预算'
-                            : '添加季度预算';
-                    return [
-                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
-                      PopupMenuItem(value: isLeaf ? 'add_category' : 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text(childLabel, style: const TextStyle(color: AppTheme.accent))])),
-                      const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
-                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
-                    ];
-                  },
-                ),
-              ]),
+                ]),
+              ] else ...[
+                Row(children: [
+                  Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: statusColor)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(children: [
+                      if (isChild) ...[
+                        if (b.quarter != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('季', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.blue)),
+                          ),
+                        if (b.departmentId != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('部', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
+                          ),
+                      ],
+                      Flexible(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(b.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), overflow: TextOverflow.ellipsis),
+                          if (b.departmentName != null)
+                            Text(b.departmentName!, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                        ]),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _yearQuarterBgColor(b, isDark),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _yearQuarterLabel(b),
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  if (hasChildren)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        _expandedNodes.contains(b.id) ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                        size: 18,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withAlpha(isDark ? 25 : 18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: statusColor.withAlpha(isDark ? 100 : 80)),
+                    ),
+                    child: Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor)),
+                  ),
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 20, color: isDark ? Colors.white70 : Colors.black54),
+                    onSelected: (v) {
+                      if (v == 'edit') _showEditDialog(context, b);
+                      if (v == 'delete') _confirmDelete(context, b.id, b.name);
+                      if (v == 'adjust') _showAdjustDialog(context, b);
+                      if (v == 'add_child') _showCreateDialog(context, parent: b);
+                      if (v == 'add_category') _showAddCategoryItemDialog(context, b);
+                    },
+                    itemBuilder: (_) {
+                      final isLeaf = b.quarter != null && b.departmentId != null;
+                      final isQuarter = b.quarter != null && b.departmentId == null;
+                      final childLabel = isLeaf
+                          ? '添加分类预算'
+                          : isQuarter
+                              ? '添加Q${b.quarter}部门预算'
+                              : '添加季度预算';
+                      return [
+                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text('编辑')])),
+                        PopupMenuItem(value: isLeaf ? 'add_category' : 'add_child', child: Row(children: [Icon(Icons.subdirectory_arrow_right, size: 20, color: AppTheme.accent), SizedBox(width: 8), Text(childLabel, style: const TextStyle(color: AppTheme.accent))])),
+                        const PopupMenuItem(value: 'adjust', child: Row(children: [Icon(Icons.tune, size: 20), SizedBox(width: 8), Text('调整')])),
+                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
+                      ];
+                    },
+                  ),
+                ]),
+              ],
               const SizedBox(height: 12),
               // Row 2: stacked progress bar
               _buildStackedProgressBar(b, isDark),
@@ -299,24 +435,35 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
               // Row 3: amounts
               Row(children: [
                 Text('已用: ${_fmt(b.usedAmount)}',
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54)),
+                    style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                 const Spacer(),
                 Text('总额: ${_fmt(b.totalAmount)}',
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54)),
+                    style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                 const Spacer(),
                 Text('${(pct * 100).toStringAsFixed(1)}%',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: warnColor)),
               ]),
               const SizedBox(height: 8),
-              // Row 4: mini breakdown — fee vs settlement
-              Row(children: [
-                _miniChip('费用', b.usedAmount, warnColor, isDark),
-                const SizedBox(width: 12),
-                _miniChip('结算', 0, Colors.blue, isDark),
-                const Spacer(),
-                Text('剩余: ${_fmt(b.totalAmount - b.usedAmount)}',
-                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
-              ]),
+              // Row 4: mini breakdown — fee vs settlement (wrap on narrow)
+              LayoutBuilder(builder: (_, c) {
+                final wrapActions = c.maxWidth < 400;
+                if (wrapActions) {
+                  return Wrap(spacing: 12, runSpacing: 4, children: [
+                    _miniChip('费用', b.usedAmount, warnColor, isDark),
+                    _miniChip('结算', 0, Colors.blue, isDark),
+                    Text('剩余: ${_fmt(b.totalAmount - b.usedAmount)}',
+                        style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                  ]);
+                }
+                return Row(children: [
+                  _miniChip('费用', b.usedAmount, warnColor, isDark),
+                  const SizedBox(width: 12),
+                  _miniChip('结算', 0, Colors.blue, isDark),
+                  const Spacer(),
+                  Text('剩余: ${_fmt(b.totalAmount - b.usedAmount)}',
+                      style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                ]);
+              }),
             ],
           ),
         ),
@@ -1286,6 +1433,70 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
 
   // ── Create Dialog ──
 
+  Widget _buildDeptSelector(
+    dynamic currentUser, String? selectedDeptId, List<Map<String, dynamic>>? deptList,
+    bool deptListLoading, void Function(String?) onChanged, Future<void> Function() onLoad,
+  ) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      deptList == null && !deptListLoading
+          ? TextButton.icon(
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('加载部门列表'),
+              onPressed: onLoad,
+            )
+          : deptListLoading
+              ? const SizedBox(height: 24, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))))
+              : DropdownButtonFormField<String>(
+                  value: selectedDeptId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: '所属部门', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                  items: (deptList ?? []).map((d) => DropdownMenuItem(value: d['id'] as String?, child: Text(d['name'] as String? ?? '', style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: onChanged,
+                ),
+    ]);
+  }
+
+  void _showCreateRootDialog(BuildContext context) {
+    final nameCtrl = TextEditingController(text: '${DateTime.now().year}年总预算');
+    final yearCtrl = TextEditingController(text: '${DateTime.now().year}');
+    final totalAmountCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('创建年度总预算'),
+        content: SizedBox(width: 360, child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称', hintText: '例如：2026年总预算')),
+            const SizedBox(height: 8),
+            TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
+            const SizedBox(height: 8),
+            TextField(controller: totalAmountCtrl, decoration: const InputDecoration(labelText: '预算总额'), keyboardType: TextInputType.number),
+            const SizedBox(height: 4),
+            Text('年度总预算只能创建一个，季度和部门预算请在创建后点击卡片菜单添加', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          ]),
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            if (nameCtrl.text.isEmpty || totalAmountCtrl.text.isEmpty) return;
+            try {
+              await _api.dio.post('/finance/budgets', data: {
+                'name': nameCtrl.text,
+                'year': int.tryParse(yearCtrl.text) ?? 2026,
+                'total_amount': double.tryParse(totalAmountCtrl.text) ?? 0,
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+              ref.read(financeBudgetProvider.notifier).load();
+              _loadSummary();
+            } catch (e) {
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('创建失败: $e')));
+            }
+          }, child: const Text('创建')),
+        ],
+      ),
+    );
+  }
+
   void _showCreateDialog(BuildContext context, {BudgetData? parent}) {
     final authState = ref.read(authProvider);
     final currentUser = authState.user;
@@ -1312,6 +1523,21 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          // Auto-load department list for Level 3 budgets
+          if (parent != null && parent.quarter != null && deptList == null && !deptListLoading) {
+            deptListLoading = true;
+            Future.microtask(() async {
+              try {
+                final resp = await _api.dio.get('/departments');
+                setDialogState(() {
+                  deptList = List<Map<String, dynamic>>.from(resp.data['items']);
+                  deptListLoading = false;
+                });
+              } catch (_) {
+                setDialogState(() => deptListLoading = false);
+              }
+            });
+          }
           return AlertDialog(
             title: Text(dialogTitle),
             content: ConstrainedBox(
@@ -1322,76 +1548,24 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                   TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '预算名称', hintText: '例如：2026年Q1市场部预算')),
                   TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: '年度'), keyboardType: TextInputType.number),
-                  TextField(controller: quarterCtrl, decoration: const InputDecoration(labelText: '季度 (1-4, 留空=全年)'), keyboardType: TextInputType.number),
+                  TextField(controller: quarterCtrl, decoration: InputDecoration(labelText: parent != null ? '季度 (1-4, 必填)' : '季度 (1-4, 留空=全年)'), keyboardType: TextInputType.number),
                   TextField(controller: totalAmountCtrl, decoration: const InputDecoration(labelText: '预算总额'), keyboardType: TextInputType.number),
-                  const SizedBox(height: 12),
-                  // ── Department section ──
-                  currentUser != null && currentUser.departmentId != null
-                      ? Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.business, size: 16, color: Colors.blue),
-                            const SizedBox(width: 8),
-                            Text('所属部门: ${currentUser.department}',
-                                style: const TextStyle(fontSize: 13, color: Colors.blue)),
-                          ]),
-                        )
-                      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(children: [
-                              const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text('请先选择部门', style: TextStyle(fontSize: 13, color: Colors.orange)),
-                              ),
-                            ]),
-                          ),
-                          const SizedBox(height: 8),
-                          deptList == null && !deptListLoading
-                              ? TextButton.icon(
-                                  icon: const Icon(Icons.refresh, size: 16),
-                                  label: const Text('加载部门列表'),
-                                  onPressed: () async {
-                                    setDialogState(() => deptListLoading = true);
-                                    try {
-                                      final resp = await _api.dio.get('/departments');
-                                      setDialogState(() {
-                                        deptList = List<Map<String, dynamic>>.from(resp.data['items']);
-                                        deptListLoading = false;
-                                      });
-                                    } catch (_) {
-                                      setDialogState(() => deptListLoading = false);
-                                    }
-                                  },
-                                )
-                              : deptListLoading
-                                  ? const SizedBox(height: 24, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))))
-                                  : DropdownButtonFormField<String>(
-                                      value: selectedDeptId,
-                                      isExpanded: true,
-                                      decoration: const InputDecoration(
-                                        labelText: '选择部门',
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                      ),
-                                      items: (deptList ?? []).map((d) => DropdownMenuItem(
-                                        value: d['id'] as String?,
-                                        child: Text(d['name'] as String? ?? '', style: const TextStyle(fontSize: 13)),
-                                      )).toList(),
-                                      onChanged: (v) => setDialogState(() => selectedDeptId = v),
-                                    ),
-                        ]),
+                  // ── Department section — only for Level 3 (under a quarter parent) ──
+                  if (parent != null && parent.quarter != null) ...[
+                    const SizedBox(height: 12),
+                    _buildDeptSelector(currentUser, selectedDeptId, deptList, deptListLoading, (v) => setDialogState(() => selectedDeptId = v), () async {
+                      setDialogState(() => deptListLoading = true);
+                      try {
+                        final resp = await _api.dio.get('/departments');
+                        setDialogState(() {
+                          deptList = List<Map<String, dynamic>>.from(resp.data['items']);
+                          deptListLoading = false;
+                        });
+                      } catch (_) {
+                        setDialogState(() => deptListLoading = false);
+                      }
+                    }),
+                  ],
                   const SizedBox(height: 8),
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: _loadProjects(),
@@ -1438,6 +1612,10 @@ class _FinanceBudgetPageState extends ConsumerState<FinanceBudgetPage> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效的预算总额')));
                   }
+                  return;
+                }
+                if (parent != null && quarterCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('季度不能为空'), backgroundColor: Colors.orange));
                   return;
                 }
                 try {

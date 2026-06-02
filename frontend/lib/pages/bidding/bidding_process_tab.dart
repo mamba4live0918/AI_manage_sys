@@ -112,33 +112,45 @@ class _BiddingProcessTabState extends State<BiddingProcessTab> {
     final theme = Theme.of(context);
     final stages = ['preparation', 'bidding', 'evaluation', 'negotiation', 'won', 'lost', 'closed'];
 
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: SizedBox(
-          width: double.infinity, height: 40,
-          child: ElevatedButton.icon(
-            onPressed: _create,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('新建流程'),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
+        final colWidth = isWide ? 220.0 : 160.0;
+        return Column(children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: constraints.maxWidth >= 600
+                ? SizedBox(
+                    width: double.infinity, height: 40,
+                    child: ElevatedButton.icon(
+                      onPressed: _create,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('新建流程'),
+                    ),
+                  )
+                : SizedBox(
+                    width: double.infinity, height: 40,
+                    child: ElevatedButton(
+                      onPressed: _create,
+                      child: const Text('新建流程'),
+                    ),
+                  ),
           ),
-        ),
-      ),
-      Expanded(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _processes.isEmpty
-                ? Center(child: Text('暂无流程', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: stages.map((stage) {
-                        final items = _processes.where((p) => p['stage'] == stage).toList();
-                        return Container(
-                          width: 220,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _processes.isEmpty
+                    ? Center(child: Text('暂无流程', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: stages.map((stage) {
+                            final items = _processes.where((p) => p['stage'] == stage).toList();
+                            return Container(
+                              width: colWidth,
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
                           child: Column(children: [
                             Container(
                               width: double.infinity,
@@ -165,38 +177,57 @@ class _BiddingProcessTabState extends State<BiddingProcessTab> {
                             ...items.map((p) {
                               final deadline = p['deadline'] as String?;
                               final isOverdue = deadline != null && DateTime.tryParse(deadline)?.isBefore(DateTime.now()) == true;
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 4),
+                              final isDark = Theme.of(context).brightness == Brightness.dark;
+                              final accent = _stageColors[stage] ?? Colors.grey;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+                                  border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+                                  boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+                                ),
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(12),
                                   onTap: () => _showDetail(p),
                                   child: Padding(
-                                    padding: const EdgeInsets.all(10),
+                                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
                                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text(p['project_name'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                      Row(children: [
+                                        Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accent)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(p['project_name'] as String? ?? '',
+                                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                                        ),
+                                      ]),
                                       if (deadline != null) ...[
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 6),
                                         Row(children: [
-                                          Icon(Icons.access_time_rounded, size: 12, color: isOverdue ? AppTheme.red : theme.colorScheme.onSurface.withAlpha(120)),
+                                          Icon(Icons.access_time_rounded, size: 12, color: isOverdue ? AppTheme.red : isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
                                           const SizedBox(width: 4),
-                                          Text(deadline.substring(0, 10), style: TextStyle(fontSize: 11, color: isOverdue ? AppTheme.red : theme.colorScheme.onSurface.withAlpha(120))),
+                                          Text(deadline.substring(0, 10), style: TextStyle(fontSize: 11, color: isOverdue ? AppTheme.red : isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                                         ]),
                                       ],
                                       if ((p['notes'] as String? ?? '').isNotEmpty) ...[
                                         const SizedBox(height: 4),
-                                        Text(p['notes'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(120))),
+                                        Text(p['notes'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
                                       ],
                                       const SizedBox(height: 6),
-                                      PopupMenuButton<String>(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        iconSize: 16,
-                                        icon: Icon(Icons.more_horiz_rounded, size: 16, color: theme.colorScheme.onSurface.withAlpha(120)),
-                                        onSelected: (s) => _updateStage(p['id'] as String, s),
-                                        itemBuilder: (_) => stages.where((s) => s != stage).map((s) => PopupMenuItem(
-                                          value: s,
-                                          child: Text('移到 ${_stageLabels[s] ?? s}', style: const TextStyle(fontSize: 13)),
-                                        )).toList(),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: PopupMenuButton<String>(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          iconSize: 16,
+                                          icon: Icon(Icons.more_horiz_rounded, size: 16, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                                          onSelected: (s) => _updateStage(p['id'] as String, s),
+                                          itemBuilder: (_) => stages.where((s) => s != stage).map((s) => PopupMenuItem(
+                                            value: s,
+                                            child: Text('移到 ${_stageLabels[s] ?? s}', style: const TextStyle(fontSize: 13)),
+                                          )).toList(),
+                                        ),
                                       ),
                                     ]),
                                   ),
@@ -210,6 +241,8 @@ class _BiddingProcessTabState extends State<BiddingProcessTab> {
                   ),
       ),
     ]);
+  },
+);
   }
 
   void _showDetail(Map<String, dynamic> p) {

@@ -76,11 +76,45 @@ class _PmVisitLogTabState extends State<PmVisitLogTab> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+  Widget _buildVisitCard(Map<String, dynamic> l, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.blue)),
+          const SizedBox(width: 8),
+          Text('走访日志', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          const Spacer(),
+          Text((l['visited_at'] as String? ?? '').length >= 10 ? (l['visited_at'] as String).substring(0, 10) : '', style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+        ]),
+        const SizedBox(height: 6),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.blue.withAlpha(isDark ? 25 : 18)),
+            child: const Icon(Icons.location_on_rounded, color: AppTheme.blue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l['location'] as String? ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Text(l['content'] as String? ?? '', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+          ])),
+        ]),
+      ]),
+    );
+  }
+
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          Expanded(
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final dropdown = Expanded(
             child: InputDecorator(
               decoration: const InputDecoration(labelText: '项目', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
               child: DropdownButtonHideUnderline(
@@ -96,14 +130,34 @@ class _PmVisitLogTabState extends State<PmVisitLogTab> {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(height: 40, child: ElevatedButton.icon(
-            onPressed: _selectedProjectId != null ? _create : null,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('新增'),
-          )),
-        ]),
+          );
+          final addBtn = SizedBox(
+            height: 40,
+            child: ElevatedButton.icon(
+              onPressed: _selectedProjectId != null ? _create : null,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('新增'),
+            ),
+          );
+          if (constraints.maxWidth < 600) {
+            return Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                dropdown,
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: addBtn),
+              ]),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(children: [
+              dropdown,
+              const SizedBox(width: 8),
+              addBtn,
+            ]),
+          );
+        },
       ),
       Expanded(
         child: _loading
@@ -112,22 +166,20 @@ class _PmVisitLogTabState extends State<PmVisitLogTab> {
                 ? Center(child: Text('请选择一个项目', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : _logs.isEmpty
                     ? Center(child: Text('暂无走访日志', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        itemCount: _logs.length,
-                        itemBuilder: (_, i) {
-                          final l = _logs[i];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 4),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: AppTheme.accent.withAlpha(isDark ? 25 : 15),
-                                child: const Icon(Icons.location_on_rounded, color: AppTheme.blue, size: 20),
-                              ),
-                              title: Text(l['location'] as String? ?? '', maxLines: 1),
-                              subtitle: Text(l['content'] as String? ?? '', maxLines: 2),
-                              trailing: Text((l['visited_at'] as String? ?? '').substring(0, 10), style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(100))),
-                            ),
+                    : LayoutBuilder(
+                        builder: (ctx, constraints) {
+                          final w = constraints.maxWidth;
+                          final cols = w >= 500 ? 2 : 1;
+                          final cardWidth = (w - 12 * (cols + 1)) / cols;
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            child: Wrap(spacing: 8, runSpacing: 8, children: [
+                              for (final l in _logs)
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildVisitCard(l, isDark),
+                                ),
+                            ]),
                           );
                         },
                       ),

@@ -219,6 +219,83 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
     }
   }
 
+  Widget _buildInterviewCard(Map<String, dynamic> e, {bool noMargin = false}) {
+    final status = e['status'] as String? ?? 'scheduled';
+    final statusColor = _statusColors[status] ?? Colors.grey;
+    final scheduledAt = e['scheduled_at'] as String?;
+    final timeStr = scheduledAt != null ? DateFormat('HH:mm').format(DateTime.parse(scheduledAt)) : '未安排';
+    final dur = e['duration_minutes'] as int? ?? 30;
+
+    final ivDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: noMargin ? null : const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: ivDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: ivDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: ivDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: statusColor)),
+          const SizedBox(width: 8),
+          Text(_statusLabels[status] ?? status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: statusColor.withAlpha(ivDark ? 25 : 18),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: statusColor.withAlpha(ivDark ? 100 : 80)),
+            ),
+            child: Text(timeStr, style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w500)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: statusColor.withAlpha(ivDark ? 25 : 18)),
+            child: Icon(Icons.person_rounded, color: statusColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(e['candidate_name'] ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ivDark ? AppTheme.darkText : AppTheme.lightText)),
+            const SizedBox(height: 2),
+            Text('${e['position'] ?? ''}  ·  ${dur}分钟', style: TextStyle(fontSize: 12, color: ivDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        LayoutBuilder(builder: (_, c) {
+          final wrapBtns = c.maxWidth < 360;
+          if (wrapBtns) {
+            return Wrap(spacing: 6, runSpacing: 4, children: [
+              if (status == 'scheduled') ...[
+                _QuickButton(icon: Icons.check_circle_outline_rounded, label: '完成', color: AppTheme.green, onTap: () => _updateStatus(e, 'completed')),
+                _QuickButton(icon: Icons.cancel_outlined, label: '取消', color: Colors.orange, onTap: () => _updateStatus(e, 'cancelled')),
+              ] else ...[
+                _QuickButton(icon: Icons.refresh_rounded, label: '恢复', color: AppTheme.blue, onTap: () => _updateStatus(e, 'scheduled')),
+              ],
+              _QuickButton(icon: Icons.delete_outline_rounded, label: '删除', color: Colors.red, onTap: () => _deleteInterview(e)),
+            ]);
+          }
+          return Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            if (status == 'scheduled') ...[
+              _QuickButton(icon: Icons.check_circle_outline_rounded, label: '完成面试', color: AppTheme.green, onTap: () => _updateStatus(e, 'completed')),
+              const SizedBox(width: 8),
+              _QuickButton(icon: Icons.cancel_outlined, label: '取消面试', color: Colors.orange, onTap: () => _updateStatus(e, 'cancelled')),
+            ] else ...[
+              _QuickButton(icon: Icons.refresh_rounded, label: '恢复待面', color: AppTheme.blue, onTap: () => _updateStatus(e, 'scheduled')),
+            ],
+            const SizedBox(width: 8),
+            _QuickButton(icon: Icons.delete_outline_rounded, label: '删除', color: Colors.red, onTap: () => _deleteInterview(e)),
+          ]);
+        }),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final events = _eventsForDay(_selectedDay);
@@ -390,71 +467,26 @@ class _HrInterviewTabState extends State<HrInterviewTab> {
             ? const Center(child: CircularProgressIndicator())
             : events.isEmpty
                 ? Center(child: Text('当日无面试安排', style: TextStyle(color: AppTheme.lightTextSecondary, fontSize: 13)))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: events.length,
-                    itemBuilder: (_, i) {
-                      final e = events[i];
-                      final status = e['status'] as String? ?? 'scheduled';
-                      final statusColor = _statusColors[status] ?? Colors.grey;
-                      final scheduledAt = e['scheduled_at'] as String?;
-                      final timeStr = scheduledAt != null ? DateFormat('HH:mm').format(DateTime.parse(scheduledAt)) : '未安排';
-                      final dur = e['duration_minutes'] as int? ?? 30;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              Container(width: 4, height: 40, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(2))),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(e['candidate_name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  Text('${e['position'] ?? ''}  ·  $timeStr  ·  ${dur}分钟', style: TextStyle(fontSize: 12, color: AppTheme.lightTextSecondary)),
-                                ]),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: statusColor.withAlpha(20), borderRadius: BorderRadius.circular(4)),
-                                child: Text(_statusLabels[status] ?? status, style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w500)),
-                              ),
-                            ]),
-                            const SizedBox(height: 8),
-                            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                              if (status == 'scheduled') ...[
-                                _QuickButton(
-                                  icon: Icons.check_circle_outline_rounded,
-                                  label: '完成面试',
-                                  color: AppTheme.green,
-                                  onTap: () => _updateStatus(e, 'completed'),
-                                ),
-                                const SizedBox(width: 8),
-                                _QuickButton(
-                                  icon: Icons.cancel_outlined,
-                                  label: '取消面试',
-                                  color: Colors.orange,
-                                  onTap: () => _updateStatus(e, 'cancelled'),
-                                ),
-                              ] else ...[
-                                _QuickButton(
-                                  icon: Icons.refresh_rounded,
-                                  label: '恢复待面',
-                                  color: AppTheme.blue,
-                                  onTap: () => _updateStatus(e, 'scheduled'),
-                                ),
-                              ],
-                              const SizedBox(width: 8),
-                              _QuickButton(
-                                icon: Icons.delete_outline_rounded,
-                                label: '删除',
-                                color: Colors.red,
-                                onTap: () => _deleteInterview(e),
-                              ),
-                            ]),
-                          ]),
+                : LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      final w = constraints.maxWidth;
+                      if (w >= 800) {
+                        return ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: events.length,
+                          itemBuilder: (_, i) => _buildInterviewCard(events[i]),
+                        );
+                      }
+                      final cols = w >= 500 ? 2 : 1;
+                      final cardWidth = (w - 12 * (cols + 1)) / cols;
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: [
+                            for (final e in events)
+                              SizedBox(width: cardWidth, child: _buildInterviewCard(e, noMargin: true)),
+                          ],
                         ),
                       );
                     },
@@ -474,16 +506,21 @@ class _QuickButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
-        ]),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: color.withAlpha(isDark ? 20 : 15),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
+          ]),
+        ),
       ),
     );
   }

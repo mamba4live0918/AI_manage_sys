@@ -675,3 +675,17 @@ class BudgetItem(Base):
     color: Mapped[str] = mapped_column(String(32), default="#FF0000")
     icon: Mapped[str] = mapped_column(String(64), default="description")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmployeeFile(Base):
+    __tablename__ = "employee_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    file_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="CASCADE"), nullable=False)
+    file_type: Mapped[str] = mapped_column(String(32), default="other")
+    name: Mapped[str] = mapped_column(String(256), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], lazy="selectin")
+    file: Mapped["File"] = relationship(foreign_keys=[file_id], lazy="selectin")

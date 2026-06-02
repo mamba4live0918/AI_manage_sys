@@ -20,9 +20,17 @@ def _now():
 
 
 async def _check_department(db: AsyncSession, user: User, target_department_id, action: str, noun: str = "财务记录"):
-    """非admin用户只能操作本部门数据"""
+    """admin和财务模块用户可跨部门操作，其他用户仅限本部门"""
     if user.role == "admin":
         return
+    if "finance" in (user.extra_modules or []):
+        return  # 财务模块用户可跨部门审批
+    # Check department membership
+    if user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            return  # 财务部门成员可跨部门操作
     if target_department_id is not None and user.department_id != target_department_id:
         raise HTTPException(403, f"不能{action}其他部门的{noun}")
 
@@ -253,9 +261,15 @@ def _budget_item_row(item: BudgetItem) -> dict:
 async def _budget_row(b: Budget, db: AsyncSession) -> dict:
     items_result = await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))
     budget_items = items_result.scalars().all()
+    dept_name = None
+    if b.department_id:
+        from app.models import Department
+        dept = await db.get(Department, b.department_id)
+        dept_name = dept.name if dept else None
     return {
         "id": str(b.id),
         "department_id": str(b.department_id) if b.department_id else None,
+        "department_name": dept_name,
         "project_id": str(b.project_id) if b.project_id else None,
         "parent_id": str(b.parent_id) if b.parent_id else None,
         "name": b.name,
@@ -272,19 +286,19 @@ async def _budget_row(b: Budget, db: AsyncSession) -> dict:
 
 
 def _budget_date_range(b):
-    """Return (start, end) datetime range for a budget based on year+quarter. Returns (None, None) if no year."""
+    """Return (start, end) UTC datetime range for a budget based on year+quarter."""
     if not b.year:
         return None, None
     if b.quarter:
         q = b.quarter - 1
         start_month = q * 3 + 1
-        start = datetime(b.year, start_month, 1)
+        start = datetime(b.year, start_month, 1, tzinfo=timezone.utc)
         if q < 3:
-            end = datetime(b.year, start_month + 3, 1)
+            end = datetime(b.year, start_month + 3, 1, tzinfo=timezone.utc)
         else:
-            end = datetime(b.year + 1, 1, 1)
+            end = datetime(b.year + 1, 1, 1, tzinfo=timezone.utc)
         return start, end
-    return datetime(b.year, 1, 1), datetime(b.year + 1, 1, 1)
+    return datetime(b.year, 1, 1, tzinfo=timezone.utc), datetime(b.year + 1, 1, 1, tzinfo=timezone.utc)
 
 
 async def _recalc_budget_usage(db: AsyncSession):
@@ -301,7 +315,7 @@ async def _recalc_budget_usage(db: AsyncSession):
     for b in all_budgets:
         b.used_amount = 0.0
 
-    # Step 0: Auto-assign budget_id for expenses/settlements that don't have one yet
+    # Step 0: Auto-assign budget_id for expenses that don't have one yet
     unlinked = (await db.execute(
         select(Expense).where(
             Expense.budget_id.is_(None),
@@ -309,28 +323,45 @@ async def _recalc_budget_usage(db: AsyncSession):
         )
     )).scalars().all()
     if unlinked:
-        # Build leaf budget index: (department_id, year, quarter, category) → budget_id
-        items_rows = (await db.execute(
-            select(BudgetItem).where(BudgetItem.budget_id.in_(budget_ids))
-        )).scalars().all()
-        budget_items_map = {}  # budget_id → set of categories
-        for item in items_rows:
-            budget_items_map.setdefault(item.budget_id, set()).add(item.category)
-
         leaf_budgets = [b for b in all_budgets if b.quarter is not None and b.department_id is not None]
         for exp in unlinked:
+            if not exp.department_id:
+                continue
             for b in leaf_budgets:
                 if b.department_id != exp.department_id:
                     continue
                 ym_start, ym_end = _budget_date_range(b)
                 if ym_start and not (ym_start <= exp.created_at < ym_end):
                     continue
-                # Match by category if budget has items, otherwise accept any
-                cats = budget_items_map.get(b.id, set())
-                if cats and exp.category not in cats:
-                    continue
                 exp.budget_id = b.id
                 break
+            # If no match, auto-create full tree: Year -> Quarter -> Department
+            if exp.budget_id is None:
+                ey = exp.created_at.year if exp.created_at else datetime.now(timezone.utc).year
+                eq = ((exp.created_at.month - 1) // 3 + 1) if exp.created_at else 1
+                # 1. Year root
+                root = next((b for b in all_budgets if b.parent_id is None and b.year == ey and b.quarter is None and b.department_id is None), None)
+                if root is None:
+                    root = Budget(name=f"{ey}年总预算", year=ey, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(root); await db.flush()
+                    all_budgets.append(root); budget_ids.append(root.id); budget_map[str(root.id)] = root
+                # 2. Quarter budget under root
+                qb = next((b for b in all_budgets if b.parent_id == root.id and b.quarter == eq and b.department_id is None), None)
+                if qb is None:
+                    qb = Budget(name=f"{ey}年Q{eq}", parent_id=root.id, year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(qb); await db.flush()
+                    all_budgets.append(qb); budget_ids.append(qb.id); budget_map[str(qb.id)] = qb
+                # 3. Department budget under quarter
+                from app.models import Department
+                dept_obj = await db.get(Department, exp.department_id)
+                dept_name = dept_obj.name if dept_obj else "未分类"
+                uncat = next((b for b in all_budgets if b.parent_id == qb.id and b.department_id == exp.department_id), None)
+                if uncat is None:
+                    uncat = Budget(name=f"{ey}年Q{eq}{dept_name}", parent_id=qb.id, department_id=exp.department_id,
+                                   year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
+                    db.add(uncat); await db.flush()
+                    all_budgets.append(uncat); budget_ids.append(uncat.id); budget_map[str(uncat.id)] = uncat
+                exp.budget_id = uncat.id
         await db.commit()
 
     # Step 1: Expenses grouped by budget_id (approved or paid)
@@ -343,17 +374,7 @@ async def _recalc_budget_usage(db: AsyncSession):
         if str(bid) in budget_map:
             budget_map[str(bid)].used_amount += float(total or 0)
 
-    # Step 2: Settlements grouped by budget_id (completed or settled)
-    stl_rows = (await db.execute(
-        select(Settlement.budget_id, func.coalesce(func.sum(Settlement.amount), 0.0))
-        .where(Settlement.budget_id.in_(budget_ids), Settlement.status.in_(["completed", "settled"]))
-        .group_by(Settlement.budget_id)
-    )).all()
-    for bid, total in stl_rows:
-        if str(bid) in budget_map:
-            budget_map[str(bid)].used_amount += float(total or 0)
-
-    # Step 3: Per-item used_amount from expenses matching category
+    # Step 2: Per-item used_amount from expenses matching category
     all_items = (await db.execute(
         select(BudgetItem).where(BudgetItem.budget_id.in_(budget_ids))
     )).scalars().all()
@@ -514,10 +535,19 @@ async def list_expenses(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-    _m: User = Depends(require_module("finance")),
 ):
     query = select(Expense).order_by(Expense.updated_at.desc())
-    # Finance module users can see all department expenses for approval
+    # Check if user has finance module (can see all) or only expense (own records)
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all:
+        query = query.where(Expense.submitted_by == user.id)
     if category:
         query = query.where(Expense.category == category)
     if status:
@@ -534,7 +564,7 @@ async def create_expense(
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-    _m: User = Depends(require_module("finance")),
+    _m: User = Depends(require_module("expense")),
 ):
     project_id = uuid.UUID(body.project_id) if body.project_id else None
     budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
@@ -945,9 +975,17 @@ async def list_budgets(
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Budget).order_by(Budget.updated_at.desc())
-    if user.role != "admin":
-        if user.department_id:
-            query = query.where(Budget.department_id == user.department_id)
+    # Finance department users see all budgets; others only see their own department
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all and user.department_id:
+        query = query.where(Budget.department_id == user.department_id)
     if department_id:
         query = query.where(Budget.department_id == department_id)
     if parent_id:
@@ -969,9 +1007,10 @@ async def create_budget(
     user: User = Depends(get_current_user),
     _m: User = Depends(require_module("finance")),
 ):
-    dept_id = uuid.UUID(body.department_id) if body.department_id else user.department_id
+    # Only Level 3 (with explicit department_id) budgets should have department_id
     project_id = uuid.UUID(body.project_id) if body.project_id else None
     parent_id = uuid.UUID(body.parent_id) if body.parent_id else None
+    dept_id = uuid.UUID(body.department_id) if body.department_id else None
 
     # Auto-calculate total_amount from items if items are provided
     total_amount = body.total_amount
@@ -1016,6 +1055,40 @@ async def create_budget(
             siblings_total = siblings_result.scalar() or 0.0
             if siblings_total + total_amount > parent_b.total_amount:
                 raise HTTPException(400, f"子预算总和({siblings_total + total_amount:.0f})超过父预算总额({parent_b.total_amount:.0f})")
+
+    # ── Structural validation ──
+    if parent_id is None:
+        # Level 1: root budget — one per year
+        existing_root = await db.execute(
+            select(Budget).where(Budget.parent_id.is_(None), Budget.year == body.year, Budget.status == "active")
+        )
+        if existing_root.scalar_one_or_none():
+            raise HTTPException(400, f"{body.year}年已存在总预算，每年只能创建一个")
+    elif body.quarter is None:
+        raise HTTPException(400, "季度不能为空")
+    elif body.department_id is None:
+        # Level 2: quarter budget — max 4 per year, no duplicate quarters
+        siblings = (await db.execute(
+            select(Budget).where(Budget.parent_id == parent_id, Budget.status == "active")
+        )).scalars().all()
+        if len(siblings) >= 4:
+            raise HTTPException(400, f"每个年度最多创建4个季度预算")
+        for sib in siblings:
+            if sib.quarter == body.quarter:
+                raise HTTPException(400, f"Q{body.quarter}季度预算已存在，不能重复创建")
+    elif body.quarter is not None and body.department_id is not None:
+        # Level 3: department budget — max N+1, no duplicate departments
+        from app.models import Department
+        dept_count = (await db.execute(select(func.count(Department.id)))).scalar() or 0
+        max_dept_budgets = dept_count + 1
+        siblings = (await db.execute(
+            select(Budget).where(Budget.parent_id == parent_id, Budget.status == "active")
+        )).scalars().all()
+        if len(siblings) >= max_dept_budgets:
+            raise HTTPException(400, f"每个季度最多创建{max_dept_budgets}个部门预算")
+        for sib in siblings:
+            if sib.department_id == dept_id:
+                raise HTTPException(400, "该部门的季度预算已存在，不能重复创建")
 
     b = Budget(
         department_id=dept_id, project_id=project_id, parent_id=parent_id, name=body.name,
@@ -1148,10 +1221,24 @@ async def budgets_summary(
     _m: User = Depends(require_module("finance")),
 ):
     query = select(Budget).where(Budget.status == "active")
-    if user.role != "admin" and user.department_id:
-        query = query.where(Budget.department_id == user.department_id)
+    # Non-admin non-finance users see only their department budgets + shared (null dept) budgets
+    can_see_all = user.role == "admin"
+    if not can_see_all and user.department_id:
+        from app.models import Department
+        dept = await db.get(Department, user.department_id)
+        if dept and "finance" in (dept.accessible_modules or []):
+            can_see_all = True
+    if "finance" in (user.extra_modules or []):
+        can_see_all = True
+    if not can_see_all and user.department_id:
+        query = query.where(
+            (Budget.department_id == user.department_id) | (Budget.department_id == None)
+        )
 
     budgets = (await db.execute(query)).scalars().all()
+
+    # Only count root budgets (parent_id is None) to avoid double-counting
+    root_budgets = [b for b in budgets if b.parent_id is None]
 
     total_budget = 0.0
     total_used = 0.0
@@ -1159,7 +1246,7 @@ async def budgets_summary(
     allocated = 0.0
     categorized_used = 0.0
 
-    for b in budgets:
+    for b in root_budgets:
         total_budget += b.total_amount
         total_used += b.used_amount
         budget_items = (await db.execute(select(BudgetItem).where(BudgetItem.budget_id == b.id))).scalars().all()

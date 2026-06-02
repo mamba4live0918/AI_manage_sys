@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import auth, files, preview, permissions, audit, copywriting, dashboard, department, marketing, bidding, pm, hr, finance, search
@@ -19,6 +20,16 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+    auth = request.headers.get("authorization", "none")[:30]
+    origin = request.headers.get("origin", "no-origin")
+    print(f"[REQ] {request.method} {request.url.path} | {response.status_code} | {duration:.3f}s | origin={origin} | auth={auth}")
+    return response
 
 app.add_middleware(
     CORSMiddleware,

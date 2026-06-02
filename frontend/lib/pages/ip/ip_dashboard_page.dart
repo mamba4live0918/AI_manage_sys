@@ -254,6 +254,168 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
     _loadTemplates();
   }
 
+  Widget _buildTemplateCard(Map<String, dynamic> t, bool isDark, {bool noMargin = false}) {
+    final platform = t['platform_type'] as String? ?? 'wechat';
+    return Container(
+      margin: noMargin ? null : const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          _topicCtrl.text = t['name'] as String? ?? '';
+          _platform = platform;
+          _tabCtrl.animateTo(1);
+          setState(() {});
+        },
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.purple)),
+            const SizedBox(width: 8),
+            Text('模板', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            const Spacer(),
+            Material(
+              color: AppTheme.purple.withAlpha(isDark ? 20 : 15),
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _editTemplate(t),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.edit_rounded, size: 13, color: AppTheme.purple),
+                    const SizedBox(width: 4),
+                    Text('编辑', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                  ]),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Material(
+              color: AppTheme.red.withAlpha(isDark ? 20 : 15),
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _deleteTemplate(t['id']),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.delete_outline_rounded, size: 13, color: AppTheme.red),
+                    const SizedBox(width: 4),
+                    Text('删除', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.red)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.purple.withAlpha(isDark ? 25 : 18)),
+              child: const Icon(Icons.article_rounded, color: AppTheme.purple, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t['name'] ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+              const SizedBox(height: 2),
+              Text(_platformNames[platform] ?? platform, style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            ])),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(Map<String, dynamic> h, bool isDark, {bool noMargin = false}) {
+    final platform = h['platform_type'] as String? ?? 'wechat';
+    return Container(
+      margin: noMargin ? null : const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _viewHistoryDetail(h),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.purple)),
+            const SizedBox(width: 8),
+            Text('生成记录', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                border: Border.all(color: AppTheme.purple.withAlpha(isDark ? 100 : 60)),
+              ),
+              child: Text(_platformNames[platform] ?? platform, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(h['topic'] ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+          const SizedBox(height: 4),
+          Text(
+            (h['content_preview'] as String? ?? '').replaceAll('\n', ' '),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, height: 1.5, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Icon(Icons.auto_awesome_rounded, size: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+            const SizedBox(width: 4),
+            Text(h['model'] ?? '', style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            const Spacer(),
+            Material(
+              color: AppTheme.purple.withAlpha(isDark ? 20 : 15),
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _editHistory(h),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.edit_rounded, size: 13, color: AppTheme.purple),
+                    const SizedBox(width: 4),
+                    Text('编辑', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+                  ]),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Material(
+              color: AppTheme.red.withAlpha(isDark ? 20 : 15),
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _deleteHistory(h['id']),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.delete_outline_rounded, size: 13, color: AppTheme.red),
+                    const SizedBox(width: 4),
+                    Text('删除', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.red)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   void _showPreviewDialog(String title, String content, String html, String model) {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => _CopyPreviewPage(title: title, content: content, html: html, model: model),
@@ -442,75 +604,26 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
                             child: Text('暂无模板，点击"新建"创建',
                               style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _templates.length,
-                            itemBuilder: (_, i) {
-                              final t = _templates[i];
-                              final platform = t['platform_type'] as String? ?? 'wechat';
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () {
-                                      _topicCtrl.text = t['name'] as String? ?? '';
-                                      _platform = platform;
-                                      _tabCtrl.animateTo(1);
-                                      setState(() {});
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 36, height: 36,
-                                            decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(9),
-                                              color: AppTheme.purple.withAlpha(20),
-                                            ),
-                                            child: const Icon(Icons.article_rounded, color: AppTheme.purple, size: 20),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(t['name'] ?? '', style: const TextStyle(fontSize: 17)),
-                                                const SizedBox(height: 2),
-                                                Text(_platformNames[platform] ?? platform,
-                                                  style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withAlpha(100))),
-                                              ],
-                                            ),
-                                          ),
-                                          GestureDetector(
-                                            onTap: () => _editTemplate(t),
-                                            child: Container(
-                                              width: 32, height: 32,
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(8),
-                                                color: AppTheme.purple.withAlpha(15),
-                                              ),
-                                              child: const Icon(Icons.edit_rounded, size: 17, color: AppTheme.purple),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          GestureDetector(
-                                            onTap: () => _deleteTemplate(t['id']),
-                                            child: Container(
-                                              width: 32, height: 32,
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(8),
-                                                color: AppTheme.red.withAlpha(15),
-                                              ),
-                                              child: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.red),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                        : LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              final w = constraints.maxWidth;
+                              if (w >= 800) {
+                                return ListView.builder(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  itemCount: _templates.length,
+                                  itemBuilder: (_, i) => _buildTemplateCard(_templates[i], isDark),
+                                );
+                              }
+                              final cols = w >= 500 ? 2 : 1;
+                              final cardWidth = (w - 16 * (cols + 1)) / cols;
+                              return SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                child: Wrap(
+                                  spacing: 8, runSpacing: 8,
+                                  children: [
+                                    for (final t in _templates)
+                                      SizedBox(width: cardWidth, child: _buildTemplateCard(t, isDark, noMargin: true)),
+                                  ],
                                 ),
                               );
                             },
@@ -671,80 +784,26 @@ class _IpDashboardPageState extends ConsumerState<IpDashboardPage>
                             child: Text('暂无生成记录',
                               style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _history.length,
-                            itemBuilder: (_, i) {
-                              final h = _history[i];
-                              final platform = h['platform_type'] as String? ?? 'wechat';
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => _viewHistoryDetail(h),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(children: [
-                                            Expanded(
-                                              child: Text(h['topic'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                                            ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(6),
-                                                color: AppTheme.purple.withAlpha(20),
-                                              ),
-                                              child: Text(_platformNames[platform] ?? platform,
-                                                style: const TextStyle(fontSize: 11, color: AppTheme.purple, fontWeight: FontWeight.w600)),
-                                            ),
-                                          ]),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            (h['content_preview'] as String? ?? '').replaceAll('\n', ' '),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 13, height: 1.5, color: theme.colorScheme.onSurface.withAlpha(150)),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Row(children: [
-                                            Icon(Icons.auto_awesome_rounded, size: 12, color: theme.colorScheme.onSurface.withAlpha(80)),
-                                            const SizedBox(width: 4),
-                                            Text(h['model'] ?? '',
-                                              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(100))),
-                                            const Spacer(),
-                                            GestureDetector(
-                                              onTap: () => _editHistory(h),
-                                              child: Container(
-                                                width: 28, height: 28,
-                                                decoration: BoxDecoration(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  color: AppTheme.purple.withAlpha(15),
-                                                ),
-                                                child: const Icon(Icons.edit_rounded, size: 15, color: AppTheme.purple),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            GestureDetector(
-                                              onTap: () => _deleteHistory(h['id']),
-                                              child: Container(
-                                                width: 28, height: 28,
-                                                decoration: BoxDecoration(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  color: AppTheme.red.withAlpha(15),
-                                                ),
-                                                child: const Icon(Icons.delete_outline_rounded, size: 15, color: AppTheme.red),
-                                              ),
-                                            ),
-                                          ]),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                        : LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              final w = constraints.maxWidth;
+                              if (w >= 800) {
+                                return ListView.builder(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  itemCount: _history.length,
+                                  itemBuilder: (_, i) => _buildHistoryCard(_history[i], isDark),
+                                );
+                              }
+                              final cols = w >= 500 ? 2 : 1;
+                              final cardWidth = (w - 16 * (cols + 1)) / cols;
+                              return SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                child: Wrap(
+                                  spacing: 8, runSpacing: 8,
+                                  children: [
+                                    for (final h in _history)
+                                      SizedBox(width: cardWidth, child: _buildHistoryCard(h, isDark, noMargin: true)),
+                                  ],
                                 ),
                               );
                             },

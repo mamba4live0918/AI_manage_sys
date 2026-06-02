@@ -206,6 +206,7 @@ class _BiddingKnowledgeTabState extends State<BiddingKnowledgeTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(children: [
       Padding(
         padding: const EdgeInsets.all(12),
@@ -233,43 +234,52 @@ class _BiddingKnowledgeTabState extends State<BiddingKnowledgeTab> {
       ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(children: [
-          SizedBox(
-            height: 36,
-            child: ElevatedButton.icon(
-              onPressed: _openQA,
-              icon: const Icon(Icons.chat_rounded, size: 16),
-              label: const Text('AI 问答', style: TextStyle(fontSize: 13)),
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10)),
-            ),
-          ),
-          const SizedBox(width: 6),
-          SizedBox(
-            height: 36,
-            child: ElevatedButton.icon(
-              onPressed: _uploading ? null : _pickAndUpload,
-              icon: _uploading
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.upload_file_rounded, size: 16),
-              label: Text(_uploading ? '上传中...' : '上传文件', style: const TextStyle(fontSize: 13)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.purple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final buttons = <Widget>[
+              SizedBox(
+                height: 36,
+                child: ElevatedButton.icon(
+                  onPressed: _openQA,
+                  icon: const Icon(Icons.chat_rounded, size: 16),
+                  label: const Text('AI 问答', style: TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10)),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          SizedBox(
-            height: 36,
-            child: OutlinedButton.icon(
-              onPressed: _createDir,
-              icon: const Icon(Icons.create_new_folder_rounded, size: 14),
-              label: const Text('目录', style: TextStyle(fontSize: 13)),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
-            ),
-          ),
-        ]),
+              const SizedBox(width: 6, height: 6),
+              SizedBox(
+                height: 36,
+                child: ElevatedButton.icon(
+                  onPressed: _uploading ? null : _pickAndUpload,
+                  icon: _uploading
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.upload_file_rounded, size: 16),
+                  label: Text(_uploading ? '上传中...' : '上传文件', style: const TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6, height: 6),
+              SizedBox(
+                height: 36,
+                child: OutlinedButton.icon(
+                  onPressed: _createDir,
+                  icon: const Icon(Icons.create_new_folder_rounded, size: 14),
+                  label: const Text('目录', style: TextStyle(fontSize: 13)),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                ),
+              ),
+            ];
+            if (constraints.maxWidth >= 600) {
+              return Row(children: buttons);
+            } else {
+              return Wrap(children: buttons);
+            }
+          },
+        ),
       ),
       if (_dirs.isNotEmpty)
         SizedBox(
@@ -311,46 +321,92 @@ class _BiddingKnowledgeTabState extends State<BiddingKnowledgeTab> {
                       Text('暂无文档，点击"上传文件"添加', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))),
                     ]),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _docs.length,
-                    itemBuilder: (_, i) {
-                      final d = _docs[i];
-                      final tags = (d['tags'] as List<dynamic>?)?.map((t) => t.toString()).toList() ?? <String>[];
-                      final title = d['title'] as String? ?? '';
-                      final docId = d['id'] as String;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _fileIconColor(title).withAlpha(25),
-                            radius: 18,
-                            child: Icon(_fileIcon(title), color: _fileIconColor(title), size: 20),
-                          ),
-                          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(d['content_preview'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            if (tags.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Wrap(spacing: 4, children: tags.map((t) => Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    color: AppTheme.purple.withAlpha(15),
-                                  ),
-                                  child: Text(t, style: const TextStyle(fontSize: 10, color: AppTheme.purple)),
-                                )).toList()),
-                              ),
-                          ]),
-                          trailing: Text(d['updated_at']?.toString().substring(0, 10) ?? '', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(120))),
-                          onTap: () => _showDetail(docId, title),
-                        ),
+                : LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      final w = constraints.maxWidth;
+                      final cols = w >= 500 ? 2 : 1;
+                      final cardWidth = (w - 12 * (cols + 1)) / cols;
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Wrap(spacing: 8, runSpacing: 8, children: [
+                          for (final d in _docs)
+                            SizedBox(
+                              width: cardWidth,
+                              child: _buildDocCard(d, isDark),
+                            ),
+                        ]),
                       );
                     },
                   ),
       ),
     ]);
+  }
+
+  Widget _buildDocCard(Map<String, dynamic> d, bool isDark) {
+    final tags = (d['tags'] as List<dynamic>?)?.map((t) => t.toString()).toList() ?? <String>[];
+    final title = d['title'] as String? ?? '';
+    final docId = d['id'] as String;
+    final fileColor = _fileIconColor(title);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showDetail(docId, title),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: fileColor)),
+                const SizedBox(width: 10),
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: fileColor.withAlpha(isDark ? 30 : 20),
+                  ),
+                  child: Icon(_fileIcon(title), color: fileColor, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                    const SizedBox(height: 2),
+                    Text(d['content_preview'] as String? ?? '',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                  ]),
+                ),
+                const SizedBox(width: 8),
+                Text(d['updated_at']?.toString().substring(0, 10) ?? '',
+                    style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+              ]),
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 13),
+                  child: Wrap(spacing: 4, children: tags.map((t) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: AppTheme.purple.withAlpha(isDark ? 25 : 18),
+                    ),
+                    child: Text(t, style: const TextStyle(fontSize: 10, color: AppTheme.purple)),
+                  )).toList()),
+                ),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showDetail(String docId, String title) async {

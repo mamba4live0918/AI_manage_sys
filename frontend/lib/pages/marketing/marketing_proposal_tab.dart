@@ -84,6 +84,70 @@ class _MarketingProposalTabState extends State<MarketingProposalTab> {
     ));
   }
 
+  Widget _buildProposalCard(Map<String, dynamic> p, bool isDark) {
+    const statusLabels = {'draft': '草稿', 'final': '定稿', 'archived': '已归档'};
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            try {
+              final resp =
+                  await _api.dio.get('/marketing/proposals/${p['id']}');
+              final d = resp.data;
+              if (mounted)
+                _showPreview(d['title'] ?? '', d['content'] ?? '',
+                    d['content_html'] ?? '', '');
+            } catch (_) {}
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+            child: Row(children: [
+              Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: AppTheme.purple)),
+              const SizedBox(width: 10),
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: AppTheme.purple.withAlpha(isDark ? 30 : 20),
+                ),
+                child: const Icon(Icons.description_rounded, color: AppTheme.purple, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p['title'] as String? ?? '',
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? AppTheme.darkText : AppTheme.lightText)),
+                  const SizedBox(height: 2),
+                  Text(p['content_preview'] as String? ?? '',
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: AppTheme.purple.withAlpha(isDark ? 25 : 18)),
+                child: Text(statusLabels[p['status']] ?? p['status'] ?? '',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.purple)),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -142,32 +206,20 @@ class _MarketingProposalTabState extends State<MarketingProposalTab> {
         else if (_proposals.isEmpty)
           Center(child: Text('暂无方案', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
         else
-          ..._proposals.map((p) {
-            final statusLabels = {'draft': '草稿', 'final': '定稿', 'archived': '已归档'};
-            return Card(
-              margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFF3E8FF),
-                  child: Icon(Icons.description_rounded, color: AppTheme.purple, size: 20),
-                ),
-                title: Text(p['title'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(p['content_preview'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.purple.withAlpha(20)),
-                  child: Text(statusLabels[p['status']] ?? p['status'] ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.purple)),
-                ),
-                onTap: () async {
-                  try {
-                    final resp = await _api.dio.get('/marketing/proposals/${p['id']}');
-                    final d = resp.data;
-                    if (mounted) _showPreview(d['title'] ?? '', d['content'] ?? '', d['content_html'] ?? '', '');
-                  } catch (_) {}
-                },
-              ),
-            );
-          }),
+          LayoutBuilder(
+            builder: (ctx, constraints) {
+              final w = constraints.maxWidth;
+              final cols = w >= 500 ? 2 : 1;
+              final cardWidth = (w - 12 * (cols + 1)) / cols;
+              return Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final p in _proposals)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _buildProposalCard(p, theme.brightness == Brightness.dark),
+                  ),
+              ]);
+            },
+          ),
       ]),
     );
   }

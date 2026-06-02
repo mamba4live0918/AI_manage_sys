@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User, File, Resume, Approval, ApprovalStep, Interview, AuditLog
-from app.security import get_current_user
+from app.security import get_current_user, require_module
 from app.services.llm.router import get_llm
 from app.services.audit import log as audit_log
 from app.services.search import index_document as es_index, delete_document as es_delete
@@ -187,6 +187,79 @@ async def update_user_employee(
     await db.refresh(u)
     await audit_log(db, current_user, "employee_update", "user", u.id, u.username, request=request)
     return {"ok": True}
+
+
+# ── Employee Files (multiple files per employee) ──
+
+from app.models import EmployeeFile  # noqa: E402
+
+
+@router.get("/users/{user_id}/files")
+async def list_employee_files(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(EmployeeFile).where(EmployeeFile.user_id == user_id).order_by(EmployeeFile.created_at.desc())
+    )
+    items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": str(f.id),
+                "user_id": str(f.user_id),
+                "file_id": str(f.file_id),
+                "file_type": f.file_type,
+                "name": f.name,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in items
+        ]
+    }
+
+
+@router.post("/users/{user_id}/files")
+async def add_employee_file(
+    user_id: str,
+    file_id: str = Form(...),
+    file_type: str = Form("other"),
+    name: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role != "admin":
+        raise HTTPException(403, "仅管理员可操作")
+    ef = EmployeeFile(
+        user_id=uuid.UUID(user_id),
+        file_id=uuid.UUID(file_id),
+        file_type=file_type,
+        name=name,
+    )
+    db.add(ef)
+    await db.commit()
+    return {"ok": True, "id": str(ef.id)}
+
+
+@router.delete("/users/{user_id}/files/{ef_id}")
+async def remove_employee_file(
+    user_id: str,
+    ef_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role != "admin":
+        raise HTTPException(403, "仅管理员可操作")
+    result = await db.execute(
+        select(EmployeeFile).where(EmployeeFile.id == uuid.UUID(ef_id), EmployeeFile.user_id == uuid.UUID(user_id))
+    )
+    ef = result.scalar_one_or_none()
+    if not ef:
+        raise HTTPException(404, "文件关联不存在")
+    await db.delete(ef)
+    await db.commit()
+    return {"ok": True}
+
 
 
 # ── Resumes ──
@@ -450,12 +523,22 @@ async def list_approvals(
 ):
     query = select(Approval).order_by(Approval.updated_at.desc())
     if user.role != "admin":
+        # HR department members can see all approvals
+        is_hr = False
         if user.department_id:
-            query = query.where(Approval.department_id == user.department_id)
-        else:
-            query = query.where(
-                (Approval.applicant_id == user.id) | (Approval.approver_id == user.id)
-            )
+            from app.models import Department
+            dept = await db.get(Department, user.department_id)
+            if dept and "hr" in (dept.accessible_modules or []):
+                is_hr = True
+        if "hr" in (user.extra_modules or []):
+            is_hr = True
+        if not is_hr:
+            if user.department_id:
+                query = query.where(Approval.department_id == user.department_id)
+            else:
+                query = query.where(
+                    (Approval.applicant_id == user.id) | (Approval.approver_id == user.id)
+                )
     if approval_type:
         query = query.where(Approval.approval_type == approval_type)
     if status:
@@ -493,7 +576,7 @@ async def create_approval(
     await db.commit()
     await db.refresh(a)
     await audit_log(db, user, "approval_create", "approval", a.id, a.approval_type, request=request)
-    return _approval_row(a, steps)
+    return _approval_row(a, None)
 
 
 @router.get("/approvals/{approval_id}")
@@ -721,9 +804,8 @@ async def delete_interview(
 async def get_hr_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _m: User = Depends(require_module("hr")),
 ):
-    if user.role not in ("admin", "hr"):
-        raise HTTPException(403, "仅HR/管理员可访问")
 
     dept_filter = []
     if user.role != "admin" and user.department_id:

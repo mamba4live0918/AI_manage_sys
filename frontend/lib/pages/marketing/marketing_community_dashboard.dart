@@ -90,9 +90,86 @@ class _MarketingCommunityDashboardState extends State<MarketingCommunityDashboar
     _load();
   }
 
+  Widget _buildInteractionCard(Map<String, dynamic> interaction, bool isDark,
+      Map<String, String> sentimentLabels, Map<String, Color> sentimentColors) {
+    final sentiment = interaction['sentiment'] as String? ?? 'neutral';
+    final accent = sentimentColors[sentiment] ?? Colors.grey;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+        border: isDark ? Border.all(color: AppTheme.darkBorder, width: 0.5) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 1))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accent)),
+            const SizedBox(width: 8),
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: accent.withAlpha(isDark ? 30 : 20),
+              ),
+              child: Icon(
+                sentiment == 'positive'
+                    ? Icons.sentiment_satisfied_rounded
+                    : sentiment == 'negative'
+                        ? Icons.sentiment_dissatisfied_rounded
+                        : Icons.sentiment_neutral_rounded,
+                size: 20, color: accent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Row(children: [
+                Expanded(child: Text(interaction['user_name'] as String? ?? '匿名',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.darkText : AppTheme.lightText))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: accent.withAlpha(isDark ? 25 : 18),
+                  ),
+                  child: Text(sentimentLabels[sentiment] ?? sentiment,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: accent)),
+                ),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 13),
+            child: Text(interaction['content'] as String? ?? '',
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          ),
+          if ((interaction['tags'] as List<dynamic>?)?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(left: 13, top: 4),
+              child: Wrap(spacing: 4, children: (interaction['tags'] as List<dynamic>).map((t) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.purple.withAlpha(isDark ? 25 : 18)),
+                child: Text(t.toString(), style: const TextStyle(fontSize: 10, color: AppTheme.purple)),
+              )).toList()),
+            ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 13),
+            child: Text(interaction['interaction_date']?.toString().substring(0, 10) ?? '',
+                style: TextStyle(fontSize: 10, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final sentimentLabels = {'positive': '正面', 'neutral': '中性', 'negative': '负面'};
     final sentimentColors = {'positive': Colors.green, 'neutral': Colors.grey, 'negative': Colors.red};
 
@@ -107,7 +184,24 @@ class _MarketingCommunityDashboardState extends State<MarketingCommunityDashboar
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 150,
-                  child: Card(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: isDark
+                          ? AppTheme.darkSurface
+                          : AppTheme.lightSurfaceSolid,
+                      border: Border.all(
+                          color: isDark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                          width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withAlpha(isDark ? 20 : 8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1)),
+                      ],
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Row(
@@ -187,47 +281,20 @@ class _MarketingCommunityDashboardState extends State<MarketingCommunityDashboar
               if (_interactions.isEmpty)
                 Center(child: Text('暂无互动', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
               else
-                ..._interactions.map((interaction) {
-                  final sentiment = interaction['sentiment'] as String? ?? 'neutral';
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 4),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: (sentimentColors[sentiment] ?? Colors.grey).withAlpha(30),
-                        radius: 16,
-                        child: Icon(
-                          sentiment == 'positive' ? Icons.sentiment_satisfied_rounded : sentiment == 'negative' ? Icons.sentiment_dissatisfied_rounded : Icons.sentiment_neutral_rounded,
-                          size: 16,
-                          color: sentimentColors[sentiment] ?? Colors.grey,
+                LayoutBuilder(
+                  builder: (ctx, constraints) {
+                    final w = constraints.maxWidth;
+                    final cols = w >= 500 ? 2 : 1;
+                    final cardWidth = (w - 12 * (cols + 1)) / cols;
+                    return Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final interaction in _interactions)
+                        SizedBox(
+                          width: cardWidth,
+                          child: _buildInteractionCard(interaction, isDark, sentimentLabels, sentimentColors),
                         ),
-                      ),
-                      title: Row(children: [
-                        Expanded(child: Text(interaction['user_name'] as String? ?? '匿名', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            color: (sentimentColors[sentiment] ?? Colors.grey).withAlpha(20),
-                          ),
-                          child: Text(sentimentLabels[sentiment] ?? sentiment, style: TextStyle(fontSize: 10, color: sentimentColors[sentiment] ?? Colors.grey)),
-                        ),
-                      ]),
-                      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(interaction['content'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                        if ((interaction['tags'] as List<dynamic>?)?.isNotEmpty == true)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Wrap(spacing: 4, children: (interaction['tags'] as List<dynamic>).map((t) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: AppTheme.purple.withAlpha(15)),
-                              child: Text(t.toString(), style: const TextStyle(fontSize: 10, color: AppTheme.purple)),
-                            )).toList()),
-                          ),
-                      ]),
-                      trailing: Text(interaction['interaction_date']?.toString().substring(0, 10) ?? '', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withAlpha(120))),
-                    ),
-                  );
-                }),
+                    ]);
+                  },
+                ),
             ]),
           );
   }

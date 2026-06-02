@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_windows/webview_windows.dart';
-import 'package:pdfrx/pdfrx.dart';
 import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
@@ -107,7 +106,7 @@ $tag{$dim;outline:none}</style></head><body>
       final name = info['name'] as String? ?? '';
 
       if (type == 'media' && mime == 'application/pdf') {
-        content = PdfViewer.uri(Uri.parse(url));
+        content = _PdfPreview(url: url);
       } else if (type == 'media' && (mime.startsWith('video/') || mime.startsWith('audio/')) && _avCtrl != null) {
         content = Webview(_avCtrl!);
       } else if (type == 'media' && mime.startsWith('image/')) {
@@ -133,6 +132,54 @@ $tag{$dim;outline:none}</style></head><body>
         body: content,
       ),
     );
+  }
+}
+
+class _PdfPreview extends StatefulWidget {
+  final String url;
+  const _PdfPreview({required this.url});
+
+  @override
+  State<_PdfPreview> createState() => _PdfPreviewState();
+}
+
+class _PdfPreviewState extends State<_PdfPreview> {
+  WebviewController? _ctrl;
+  bool _initFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      final ctrl = WebviewController();
+      await ctrl.initialize();
+      await ctrl.loadStringContent('''
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0">
+<iframe src="${widget.url}" width="100%" height="100%" style="border:none;position:fixed;top:0;left:0"></iframe>
+</body></html>''');
+      if (mounted) setState(() => _ctrl = ctrl);
+    } catch (e) {
+      appLog('[PDF_PREVIEW] init error: $e');
+      if (mounted) setState(() => _initFailed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_initFailed) return const Center(child: Text('PDF加载失败'));
+    if (_ctrl == null) return const Center(child: CircularProgressIndicator());
+    return Webview(_ctrl!);
   }
 }
 
