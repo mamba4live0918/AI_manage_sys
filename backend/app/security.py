@@ -82,3 +82,11 @@ def require_module(module: str):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无此模块访问权限")
         return user
     return checker
+
+
+async def require_department_access(dept_id: str, user: User = Depends(get_current_user)):
+    """管理员可访问所有部门，普通用户只能访问自己部门的知识库"""
+    if user.role == "admin":
+        return
+    if str(user.department_id) != dept_id:
+        raise HTTPException(status_code=403, detail="无权访问该部门知识库")

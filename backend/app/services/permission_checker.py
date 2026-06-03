@@ -27,10 +27,12 @@ async def check_permission(
     # 部门长可访问本部门成员的文件
     if user and resource.uploaded_by is not None:
         from app.models import Department
+        from sqlalchemy import select
         dept_result = await db.execute(
-            select(Department).where(
+            select(Department)
+            .join(User, Department.id == User.department_id)
+            .where(
                 Department.leader_id == user.id,
-                Department.id == User.department_id,
                 User.id == resource.uploaded_by,
             )
         )

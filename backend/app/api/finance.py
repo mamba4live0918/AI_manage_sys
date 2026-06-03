@@ -315,54 +315,6 @@ async def _recalc_budget_usage(db: AsyncSession):
     for b in all_budgets:
         b.used_amount = 0.0
 
-    # Step 0: Auto-assign budget_id for expenses that don't have one yet
-    unlinked = (await db.execute(
-        select(Expense).where(
-            Expense.budget_id.is_(None),
-            Expense.status.in_(["approved", "paid"]),
-        )
-    )).scalars().all()
-    if unlinked:
-        leaf_budgets = [b for b in all_budgets if b.quarter is not None and b.department_id is not None]
-        for exp in unlinked:
-            if not exp.department_id:
-                continue
-            for b in leaf_budgets:
-                if b.department_id != exp.department_id:
-                    continue
-                ym_start, ym_end = _budget_date_range(b)
-                if ym_start and not (ym_start <= exp.created_at < ym_end):
-                    continue
-                exp.budget_id = b.id
-                break
-            # If no match, auto-create full tree: Year -> Quarter -> Department
-            if exp.budget_id is None:
-                ey = exp.created_at.year if exp.created_at else datetime.now(timezone.utc).year
-                eq = ((exp.created_at.month - 1) // 3 + 1) if exp.created_at else 1
-                # 1. Year root
-                root = next((b for b in all_budgets if b.parent_id is None and b.year == ey and b.quarter is None and b.department_id is None), None)
-                if root is None:
-                    root = Budget(name=f"{ey}年总预算", year=ey, total_amount=0.0, status="active", created_by=exp.submitted_by)
-                    db.add(root); await db.flush()
-                    all_budgets.append(root); budget_ids.append(root.id); budget_map[str(root.id)] = root
-                # 2. Quarter budget under root
-                qb = next((b for b in all_budgets if b.parent_id == root.id and b.quarter == eq and b.department_id is None), None)
-                if qb is None:
-                    qb = Budget(name=f"{ey}年Q{eq}", parent_id=root.id, year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
-                    db.add(qb); await db.flush()
-                    all_budgets.append(qb); budget_ids.append(qb.id); budget_map[str(qb.id)] = qb
-                # 3. Department budget under quarter
-                from app.models import Department
-                dept_obj = await db.get(Department, exp.department_id)
-                dept_name = dept_obj.name if dept_obj else "未分类"
-                uncat = next((b for b in all_budgets if b.parent_id == qb.id and b.department_id == exp.department_id), None)
-                if uncat is None:
-                    uncat = Budget(name=f"{ey}年Q{eq}{dept_name}", parent_id=qb.id, department_id=exp.department_id,
-                                   year=ey, quarter=eq, total_amount=0.0, status="active", created_by=exp.submitted_by)
-                    db.add(uncat); await db.flush()
-                    all_budgets.append(uncat); budget_ids.append(uncat.id); budget_map[str(uncat.id)] = uncat
-                exp.budget_id = uncat.id
-        await db.commit()
 
     # Step 1: Expenses grouped by budget_id (approved or paid)
     exp_rows = (await db.execute(
@@ -570,6 +522,14 @@ async def create_expense(
     budget_id = uuid.UUID(body.budget_id) if body.budget_id else None
     submitted_by = uuid.UUID(body.submitted_by) if body.submitted_by else user.id
     status = "paid" if body.expense_type == "direct" else "pending"
+
+    # Budget balance validation
+    if budget_id and status in ("approved", "paid"):
+        budget_result = await db.execute(select(Budget).where(Budget.id == budget_id))
+        bgt = budget_result.scalar_one_or_none()
+        if bgt and bgt.used_amount + body.amount > bgt.total_amount:
+            raise HTTPException(400, f"预算余额不足: 已用{bgt.used_amount:.0f}, 总额{bgt.total_amount:.0f}, 本次{body.amount:.0f}")
+
     e = Expense(
         project_id=project_id,
         budget_id=budget_id,
@@ -617,6 +577,12 @@ async def approve_expense(
             status_changed = True
         elif v is not None:
             setattr(e, k, v)
+    # Budget balance validation on status change
+    if e.budget_id and e.status in ("approved", "paid"):
+        budget_result = await db.execute(select(Budget).where(Budget.id == e.budget_id))
+        bgt = budget_result.scalar_one_or_none()
+        if bgt and bgt.used_amount + e.amount > bgt.total_amount:
+            raise HTTPException(400, f"预算余额不足: 已用{bgt.used_amount:.0f}, 总额{bgt.total_amount:.0f}, 本次{e.amount:.0f}")
     e.updated_at = _now()
     await db.commit()
     if status_changed or e.status in ("approved", "paid"):

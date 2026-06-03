@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import User, File, Permission
 from app.security import get_current_user, require_roles
+import asyncio
 from app.services.audit import log as audit_log
 from app.services.search import index_document as es_index, delete_document as es_delete
 
@@ -121,13 +122,13 @@ async def grant(
     await db.commit()
     await db.refresh(perm)
 
-    await es_index(
+    asyncio.create_task(es_index(
         str(perm.id), "permissions",
         f"Permission for {body.grantee_type}:{body.grantee_value}",
         f"Resource: {body.resource_type} {body.resource_id}, Action: {body.action}",
         extra=body.action,
         department_id=str(user.department_id) if user.department_id else None,
-    )
+    ))
 
     await audit_log(
         db, user, "permission_change", "permission", perm.id,
@@ -153,7 +154,7 @@ async def revoke(
     await db.delete(perm)
     await db.commit()
 
-    await es_delete(str(perm.id), "permissions")
+    asyncio.create_task(es_delete(str(perm.id), "permissions"))
 
     await audit_log(db, user, "permission_change", "permission", uuid.UUID(perm_id), detail, request=request)
     return {"message": "已撤销"}

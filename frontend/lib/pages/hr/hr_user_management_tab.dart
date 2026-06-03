@@ -29,6 +29,8 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
   List<Map<String, dynamic>> _unassigned = [];
   final Set<String> _expandedDeptIds = {};
   bool _loading = true;
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
 
   static const _roleNames = {
     'admin': '管理员',
@@ -692,6 +694,32 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
     );
   }
 
+  bool _userMatches(Map<String, dynamic> u) {
+    if (_searchQuery.isEmpty) return true;
+    final q = _searchQuery.toLowerCase();
+    final fields = [
+      u['username'], u['email'], u['position'], u['phone'],
+    ];
+    return fields.any((f) => (f as String? ?? '').toLowerCase().contains(q));
+  }
+
+  List<Map<String, dynamic>> get _filteredDepts {
+    if (_searchQuery.isEmpty) return _departments;
+    final q = _searchQuery.toLowerCase();
+    final out = <Map<String, dynamic>>[];
+    for (final d in _departments) {
+      final members = List<Map<String, dynamic>>.from(d['members'] ?? []);
+      final matching = members.where((m) => _userMatches(m)).toList();
+      final deptName = (d['name'] as String? ?? '').toLowerCase();
+      if (deptName.contains(q) || matching.isNotEmpty) {
+        final copy = Map<String, dynamic>.from(d);
+        copy['_filtered_members'] = matching;
+        out.add(copy);
+      }
+    }
+    return out;
+  }
+
   Widget _emptyHint(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -731,6 +759,27 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
                   ),
                 ),
                 SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  sliver: SliverToBoxAdapter(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: '搜索姓名、邮箱、职位、电话...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
+                            : null,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? AppTheme.darkBorder : Colors.grey.shade300)),
+                        filled: true,
+                        fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+                      ),
+                      onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                    ),
+                  ),
+                ),
+                SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   sliver: SliverToBoxAdapter(child: _buildUnassignedCard(isDark)),
                 ),
@@ -743,28 +792,32 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (ctx, i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _DepartmentCard(
-                          dept: _departments[i],
-                          isExpanded: _expandedDeptIds.contains(_departments[i]['id']),
-                          isDark: isDark,
-                          roleColor: _roleColor,
-                          roleName: _roleName,
-                          onToggle: () => _toggleExpand(_departments[i]['id']),
-                          onSetLeader: () => _setLeader(_departments[i]['id'], _departments[i]['name']),
-                          onAddMember: () => _addMember(_departments[i]['id']),
-                          onDeleteDept: () => _deleteDepartment(_departments[i]['id'], _departments[i]['name']),
-                          onEditDept: () => _editDepartment(_departments[i]),
-                          onRemoveMember: (uid) => _removeMember(_departments[i]['id'], uid),
-                          onChangeRole: _changeRole,
-                          onChangeStatus: _changeStatus,
-                          onDeleteUser: _deleteUser,
-                          onEditUserModules: _editUserModules,
-                          onEditEmployee: (uid, uname) => _showEmployeeForm(userId: uid, userName: uname),
-                        ),
-                      ),
-                      childCount: _departments.length,
+                      (ctx, i) {
+                        final dept = _filteredDepts[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _DepartmentCard(
+                            dept: dept,
+                            filteredMembers: _searchQuery.isEmpty ? null : dept['_filtered_members'] as List<Map<String, dynamic>>?,
+                            isExpanded: _expandedDeptIds.contains(dept['id']),
+                            isDark: isDark,
+                            roleColor: _roleColor,
+                            roleName: _roleName,
+                            onToggle: () => _toggleExpand(dept['id']),
+                            onSetLeader: () => _setLeader(dept['id'], dept['name']),
+                            onAddMember: () => _addMember(dept['id']),
+                            onDeleteDept: () => _deleteDepartment(dept['id'], dept['name']),
+                            onEditDept: () => _editDepartment(dept),
+                            onRemoveMember: (uid) => _removeMember(dept['id'], uid),
+                            onChangeRole: _changeRole,
+                            onChangeStatus: _changeStatus,
+                            onDeleteUser: _deleteUser,
+                            onEditUserModules: _editUserModules,
+                            onEditEmployee: (uid, uname) => _showEmployeeForm(userId: uid, userName: uname),
+                          ),
+                        );
+                      },
+                      childCount: _filteredDepts.length,
                     ),
                   ),
                 ),
@@ -795,6 +848,9 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
   }
 
   Widget _buildUnassignedCard(bool isDark) {
+    final filtered = _searchQuery.isEmpty
+        ? _unassigned
+        : _unassigned.where((u) => _userMatches(u)).toList();
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -813,17 +869,17 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.grey.withAlpha(20)),
-              child: Text('${_unassigned.length}人', style: const TextStyle(fontSize: 12)),
+              child: Text('${filtered.length}人', style: const TextStyle(fontSize: 12)),
             ),
           ]),
         ),
-        if (_unassigned.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 14),
-            child: Text('暂无未安排人员', style: TextStyle(fontSize: 13, color: Colors.grey)),
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+            child: Text(_searchQuery.isEmpty ? '暂无未安排人员' : '无匹配结果', style: const TextStyle(fontSize: 13, color: Colors.grey)),
           )
         else
-          ..._unassigned.map((u) => _UserRow(
+          ...filtered.map((u) => _UserRow(
             user: u, isDark: isDark, roleColor: _roleColor, roleName: _roleName,
             onChangeRole: (uid, uname, role) => _changeRole(uid, uname, role),
             onChangeStatus: _changeStatus,
@@ -841,6 +897,7 @@ class _HrUserManagementTabState extends ConsumerState<HrUserManagementTab> {
 
 class _DepartmentCard extends StatelessWidget {
   final Map<String, dynamic> dept;
+  final List<Map<String, dynamic>>? filteredMembers;
   final bool isExpanded;
   final bool isDark;
   final Color Function(String) roleColor;
@@ -858,7 +915,7 @@ class _DepartmentCard extends StatelessWidget {
   final void Function(String userId, String? userName) onEditEmployee;
 
   const _DepartmentCard({
-    required this.dept, required this.isExpanded, required this.isDark,
+    required this.dept, this.filteredMembers, required this.isExpanded, required this.isDark,
     required this.roleColor, required this.roleName,
     required this.onToggle, required this.onSetLeader, required this.onAddMember,
     required this.onDeleteDept, required this.onEditDept,
@@ -871,9 +928,10 @@ class _DepartmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final leader = dept['leader'] as Map<String, dynamic>?;
-    final members = List<Map<String, dynamic>>.from(dept['members'] ?? []);
+    final allMembers = List<Map<String, dynamic>>.from(dept['members'] ?? []);
+    final members = filteredMembers ?? allMembers;
     final name = dept['name'] as String? ?? '';
-    final memberCount = dept['member_count'] as int? ?? members.length;
+    final memberCount = dept['member_count'] as int? ?? allMembers.length;
 
     return Container(
       decoration: BoxDecoration(

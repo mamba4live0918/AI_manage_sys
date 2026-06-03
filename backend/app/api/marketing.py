@@ -147,8 +147,9 @@ class KnowledgeEntryUpdate(BaseModel):
 
 class KnowledgeQARequest(BaseModel):
     question: str
-    top_k: int = 5
-    history: list[dict] = []  # [{role: "user"|"assistant", content: "..."}]
+    mode: str = "flexible"  # "precise" | "flexible"
+    top_k: int = 12
+    history: list[dict] = []
 
 
 # ── Helpers ──
@@ -1362,18 +1363,25 @@ async def delete_knowledge(
     return {"message": "已删除"}
 
 
-QA_SYSTEM_PROMPT = """你是公司内部知识助手，根据知识库资料回答同事的问题。回答前必须先逐篇判断每篇资料与问题的相关性，再进行回答。
+QA_PRECISE_PROMPT = """你是知识库问答助手。严格基于知识库资料回答，不得编造。
 
-注意：语义相关不要求关键词一致。比如用户问"AI方向做了什么"，资料里"智能客服系统上线"就是高度相关。
+规则：
+- 每句话都要有知识库依据，标注来源文件名
+- 找不到 → "知识库中暂无相关内容"
+- 简洁专业，不推测"""
 
-只有在逐篇判断后发现确实没有任何资料与问题相关时，才用自己的知识回答并标注⚠️以上内容由AI生成，非公司内部资料，仅供参考。不确定就说"这块我还不太确定"。
+QA_FLEXIBLE_PROMPT = """你是公司内部知识助手兼同事。自然专业地帮助大家。
 
-保持自然、专业的同事聊天风格。"""
+规则：
+- 优先基于知识库内容，自然融入回答
+- 可补充行业经验，用【个人看法】开头
+- 知识库没有的 → "这块我还不太确定"
+- 简单问题聊两句，复杂问题才展开"""
 
-QA_HISTORY_WRAP_PROMPT = """之前和用户的对话：
+QA_HISTORY_WRAP_PROMPT = """之前对话：
 {history}
 
-根据上面的对话历史，结合知识库内容，自然地回答用户的最新问题。注意上下文连贯，就像在继续刚才的聊天。"""
+结合对话历史和知识库，回答用户最新问题。"""
 
 
 @router.post("/knowledge/qa")
@@ -1383,6 +1391,11 @@ async def knowledge_qa(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    mode = body.mode if body.mode else "flexible"
+    system_prompt = QA_PRECISE_PROMPT if mode == "precise" else QA_FLEXIBLE_PROMPT
+    temperature = 0.1 if mode == "precise" else 0.3
+    max_tokens = 2000 if mode == "precise" else 4096
+
     # Fetch all knowledge entries for this user/department
     base_query = select(KnowledgeEntry).order_by(KnowledgeEntry.updated_at.desc())
     if user.role != "admin":
@@ -1393,29 +1406,17 @@ async def knowledge_qa(
     result = await db.execute(base_query.limit(50))
     all_entries = result.scalars().all()
 
-    # Build knowledge base catalog for LLM to search through
+    # Build knowledge base catalog for LLM
     if all_entries:
         catalog_parts = []
         for i, k in enumerate(all_entries, 1):
-            # Show full content so LLM can do semantic matching
-            catalog_parts.append(f"[{i}] 标题: {k.title}\n内容: {k.content[:2000]}")
+            catalog_parts.append(f"[{i}] 标题: {k.title}\n内容: {k.content[:1500]}")
         catalog = "\n\n---\n\n".join(catalog_parts)
-        instruction = f"""以下是公司知识库的全部{len(all_entries)}篇资料。请按以下步骤处理：
+        instruction = f"""以下是知识库资料（共{len(all_entries)}篇）。请简洁回答用户问题：
 
-第一步：逐篇判断是否与用户问题相关，给出你的判断（相关/不相关+理由）
-第二步：用相关的资料来回答用户问题，先引用原文关键内容，再给分析
-
-知识库资料：
 {catalog}
 
-回答格式：
-【相关性判断】
-第1篇：相关/不相关 — 理由
-第2篇：相关/不相关 — 理由
-...
-【回答】
-（你的回答内容）
-【来源】第X篇、第Y篇"""
+要求：直接回答，两三段即可，不要逐篇列出相关性判断。引用原文时标注来源文件名。如果资料不相关，直接说"知识库里还没有这块的内容"。"""
     else:
         instruction = "（知识库中暂无资料）"
 
@@ -1429,23 +1430,26 @@ async def knowledge_qa(
     else:
         user_prompt = f"{instruction}\n\n用户问题：{body.question}"
 
-    sources = [
-        {
-            "id": str(k.id), "title": k.title, "content_preview": k.content[:150],
-            "source_file_id": str(k.source_file_id) if k.source_file_id else None,
-        }
-        for k in all_entries
-    ]
-
+    # 只用 LLM 回答中提到的标题匹配来源，不再把所有条目都列为 sources
     llm = get_llm()
     try:
         resp = await llm.generate(
-            system_prompt=QA_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
-            config=LLMConfig(temperature=0.3, max_tokens=4096),
+            config=LLMConfig(temperature=temperature, max_tokens=max_tokens),
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM调用失败: {e}")
+
+    # 按 LLM 回答中的标题名匹配 source
+    sources = []
+    answer_lower = resp.content.lower()
+    for k in all_entries:
+        if k.title.lower() in answer_lower:
+            sources.append({
+                "id": str(k.id), "title": k.title, "content_preview": k.content[:150],
+                "source_file_id": str(k.source_file_id) if k.source_file_id else None,
+            })
 
     # Save QA record
     qa = QAChatRecord(

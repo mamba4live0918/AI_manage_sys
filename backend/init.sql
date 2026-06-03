@@ -403,3 +403,6 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_type VARCHAR(32) DEFAULT '
 
 -- 2026-06-01: hierarchical budget parent_id
 ALTER TABLE budgets ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES budgets(id) ON DELETE CASCADE;
+
+-- Prevent duplicate root budgets per year
+CREATE UNIQUE INDEX IF NOT EXISTS uq_root_budget_per_year ON budgets (parent_id, year) WHERE parent_id IS NULL;

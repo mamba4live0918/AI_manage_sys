@@ -2,14 +2,14 @@
 E2E tests for the budget module.
 
 Run:  pytest tests/test_budget_e2e.py -v
-Requires: backend running on http://localhost:8001
+Requires: backend running on http://localhost:8000
 """
 
 import pytest
 import httpx
 import uuid
 
-BASE = "http://localhost:8001/api"
+BASE = "http://localhost:8000/api"
 ADMIN_CREDS = {"username": "admin", "password": "admin123"}
 
 

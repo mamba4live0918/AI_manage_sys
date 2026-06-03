@@ -514,9 +514,32 @@ async def list_knowledge_dirs(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    dept_id = user.department_id if user.role != "admin" else None
+
+    # 确保"未分类"目录始终存在 — 为每个部门创建
+    # 先获取用户所属部门
+    user_dept = user.department_id
+    if user.role == "admin" and not user_dept:
+        # admin 无部门时取第一个部门
+        all_depts = (await db.execute(select(Department).limit(1))).scalars().all()
+        if all_depts:
+            user_dept = all_depts[0].id
+    if user_dept:
+        dept_uuid = uuid.UUID(user_dept) if isinstance(user_dept, str) else user_dept
+        result = await db.execute(
+            select(BiddingKnowledgeDir).where(
+                BiddingKnowledgeDir.department_id == dept_uuid,
+                BiddingKnowledgeDir.name == "未分类",
+                BiddingKnowledgeDir.parent_id.is_(None),
+            )
+        )
+        if not result.scalar_one_or_none():
+            db.add(BiddingKnowledgeDir(name="未分类", department_id=dept_uuid))
+            await db.commit()
+
     query = select(BiddingKnowledgeDir).order_by(BiddingKnowledgeDir.name)
-    if user.role != "admin" and user.department_id:
-        query = query.where(BiddingKnowledgeDir.department_id == user.department_id)
+    if dept_id:
+        query = query.where(BiddingKnowledgeDir.department_id == dept_id)
     if parent_id is not None:
         if parent_id == "":
             query = query.where(BiddingKnowledgeDir.parent_id.is_(None))
@@ -756,39 +779,44 @@ async def doc_file_delete(
 
 # ── Knowledge QA ──
 
-BIDDING_QA_SYSTEM_PROMPT = """你是一个熟悉公司招投标业务的同事，大家对招投标流程、合同、供应商等问题都会来问你。你根据招投标知识库的内容帮助大家。
+BIDDING_QA_PRECISE = """你是招投标知识库问答助手。严格基于知识库内容回答，不得编造。
 
-回答方式：
-- 知识库有相关内容时：先引用原文关键内容，再给出你自己的理解
-- 引用原文用「📋 资料原文：...」的格式，你自己的理解另起一段，这样大家能分清哪些是资料说的、哪些是你的解读
-- 像同事聊天一样自然，可以适当用"咱们""其实""不过"这种人味儿的表达
-- 回答长度看情况，简单问题一两句话说清楚就行，复杂问题可以展开讲
+规则：
+- 每句话都要有知识库依据，标注来源文件名
+- 找不到 → "知识库中暂无相关内容"
+- 简洁专业，不推测"""
 
-知识库覆盖不到的问题：
-- 如果知识库里没找到相关信息，你可以用自己的知识来回答
-- 但必须在回答末尾加上醒目标注：⚠️ 以上内容由AI生成，非公司内部资料，仅供参考
-- 如果既没有知识库依据，自己也不太确定，就坦诚说"这块我还不太确定"
+BIDDING_QA_FLEXIBLE = """你是招投标业务同事，自然专业地帮助大家。
 
-保持专业但不死板。"""
+规则：
+- 优先基于知识库内容，自然融入回答
+- 可补充行业经验，用【个人看法】开头
+- 知识库没有的 → "这块我还不太确定"
+- 简单问题聊两句，复杂问题才展开"""
 
-BIDDING_QA_HISTORY_PROMPT = """之前和用户的对话：
+BIDDING_QA_HISTORY_PROMPT = """之前对话：
 {history}
 
-根据上面的对话历史，结合知识库内容，自然地回答用户的最新问题。注意上下文连贯，就像在继续刚才的聊天。"""
+结合对话历史和知识库，回答用户最新问题。"""
 
 
 @router.post("/knowledge/qa")
 async def bidding_knowledge_qa(
-    body: dict,  # {question, top_k, history}
+    body: dict,  # {question, mode, top_k, history}
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     question = body.get("question", "")
-    top_k = body.get("top_k", 5)
+    mode = body.get("mode", "flexible")
+    top_k = body.get("top_k", 12 if mode == "flexible" else 6)
     history = body.get("history", [])
 
     if not question.strip():
         raise HTTPException(status_code=400, detail="问题不能为空")
+
+    system_prompt = BIDDING_QA_PRECISE if mode == "precise" else BIDDING_QA_FLEXIBLE
+    temperature = 0.1 if mode == "precise" else 0.3
+    max_tokens = 2000 if mode == "precise" else 4096
 
     search_text = question
     if history:
@@ -855,9 +883,9 @@ async def bidding_knowledge_qa(
     llm = get_llm()
     try:
         resp = await llm.generate(
-            system_prompt=BIDDING_QA_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
-            config=LLMConfig(temperature=0.3, max_tokens=4096),
+            config=LLMConfig(temperature=temperature, max_tokens=max_tokens),
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM调用失败: {e}")

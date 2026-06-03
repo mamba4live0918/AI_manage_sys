@@ -19,6 +19,7 @@ const _moduleConfig = <String, _NavItem>{
   'pm': (Icons.engineering_rounded, Icons.engineering_outlined, '项目管理', '/pm'),
   'hr': (Icons.people_rounded, Icons.people_outline_rounded, 'HR', '/hr'),
   'finance': (Icons.account_balance_rounded, Icons.account_balance_outlined, '财务', '/finance'),
+  'knowledge': (Icons.menu_book_rounded, Icons.menu_book_outlined, '知识库', '/knowledge'),
 };
 
 typedef _NavItem = (IconData, IconData, String, String);

@@ -134,6 +134,18 @@ class _HrResumeTabState extends State<HrResumeTab> {
   List<Map<String, dynamic>> _resumes = [];
   List<Map<String, dynamic>> _interviews = [];
   bool _loading = true;
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
+
+  List<Map<String, dynamic>> get _filteredResumes {
+    if (_searchQuery.isEmpty) return _resumes;
+    final q = _searchQuery.toLowerCase();
+    return _resumes.where((r) {
+      final name = (r['name'] as String? ?? '').toLowerCase();
+      final status = _statusNames[r['status'] as String?] ?? '';
+      return name.contains(q) || status.contains(q);
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -548,28 +560,62 @@ class _HrResumeTabState extends State<HrResumeTab> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final isDark = theme.brightness == Brightness.dark;
+    final resumes = _filteredResumes;
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.all(12),
-        child: SizedBox(height: 40, child: ElevatedButton.icon(
-          onPressed: _upload,
-          icon: const Icon(Icons.upload_file_rounded, size: 18),
-          label: const Text('上传简历 (PDF/DOC/DOCX)'),
-        )),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: '搜索候选人姓名...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? AppTheme.darkBorder : Colors.grey.shade300)),
+                filled: true,
+                fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceSolid,
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Material(
+            color: AppTheme.blue.withAlpha(isDark ? 25 : 18),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _upload,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.upload_file_rounded, size: 18, color: AppTheme.blue),
+                  const SizedBox(width: 6),
+                  Text('上传简历', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.blue)),
+                ]),
+              ),
+            ),
+          ),
+        ]),
       ),
       Expanded(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : _resumes.isEmpty
-                ? Center(child: Text('暂无简历', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
+            : resumes.isEmpty
+                ? Center(child: Text(_searchQuery.isEmpty ? '暂无简历' : '无匹配结果', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120))))
                 : LayoutBuilder(
                     builder: (ctx, constraints) {
                       final w = constraints.maxWidth;
                       if (w >= 800) {
                         return ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: _resumes.length,
-                          itemBuilder: (_, i) => _buildResumeCard(_resumes[i]),
+                          itemCount: resumes.length,
+                          itemBuilder: (_, i) => _buildResumeCard(resumes[i]),
                         );
                       }
                       final cols = w >= 500 ? 2 : 1;
@@ -579,7 +625,7 @@ class _HrResumeTabState extends State<HrResumeTab> {
                         child: Wrap(
                           spacing: 8, runSpacing: 8,
                           children: [
-                            for (final r in _resumes)
+                            for (final r in resumes)
                               SizedBox(width: cardWidth, child: _buildResumeCard(r, noMargin: true)),
                           ],
                         ),

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, BigInteger, Integer, DateTime, Float, ForeignKey, Text, JSON, func
+from sqlalchemy import String, Boolean, BigInteger, Integer, DateTime, Float, ForeignKey, Text, JSON, func, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -662,6 +662,12 @@ class Budget(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
 
+    __table_args__ = (
+        # Prevent duplicate root budgets per year (only when parent_id IS NULL)
+        Index("uq_root_budget_per_year", "parent_id", "year",
+              postgresql_where=text("parent_id IS NULL")),
+    )
+
 
 class BudgetItem(Base):
     __tablename__ = "budget_items"
@@ -689,3 +695,57 @@ class EmployeeFile(Base):
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], lazy="selectin")
     file: Mapped["File"] = relationship(foreign_keys=[file_id], lazy="selectin")
+
+
+# ── Unified Knowledge Base ──
+
+class KBCategory(Base):
+    __tablename__ = "kb_categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="")
+    icon: Mapped[str] = mapped_column(String(50), default="folder")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("kb_categories.id", ondelete="CASCADE"), nullable=True)
+    department_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    children: Mapped[list["KBCategory"]] = relationship(back_populates="parent", cascade="all, delete-orphan", lazy="selectin")
+    parent: Mapped["KBCategory | None"] = relationship(back_populates="children", remote_side=[id])
+
+    __table_args__ = (
+        Index("idx_kb_categories_dept", "department_id"),
+        Index("idx_kb_categories_parent", "parent_id"),
+    )
+
+
+class KBDocument(Base):
+    __tablename__ = "kb_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    file_path: Mapped[str] = mapped_column(String(500), default="")
+    file_type: Mapped[str] = mapped_column(String(20), default="")
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="")
+    content_preview: Mapped[str] = mapped_column(String(200), default="")
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    department_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=utcnow)
+
+    __table_args__ = (
+        Index("idx_kb_documents_dept", "department_id"),
+        Index("idx_kb_documents_title", "title"),
+    )
+
+
+class KBDocumentCategory(Base):
+    __tablename__ = "kb_document_categories"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kb_documents.id", ondelete="CASCADE"), primary_key=True)
+    category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kb_categories.id", ondelete="CASCADE"), primary_key=True)

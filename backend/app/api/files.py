@@ -17,6 +17,36 @@ class FolderCreate(BaseModel):
     parent_id: str | None = None
 
 
+class RenameRequest(BaseModel):
+    name: str
+
+
+@router.get("/tree")
+async def file_tree(
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Return full file/folder tree (flat list with parent_id for frontend assembly)."""
+    q = select(File).order_by(File.is_folder.desc(), File.name)
+    result = await db.execute(q)
+    rows = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "is_folder": r.is_folder,
+                "parent_id": str(r.parent_id) if r.parent_id else None,
+                "mime_type": r.mime_type,
+                "size_bytes": r.size_bytes,
+                "confidentiality_level": r.confidentiality_level,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
+    }
+
+
 @router.get("/list")
 async def list_files(
     parent_id: str | None = None,
@@ -158,6 +188,25 @@ async def delete(
 
 class LevelUpdate(BaseModel):
     confidentiality_level: int
+
+
+@router.patch("/{file_id}/rename")
+async def rename_file(
+    file_id: str,
+    body: RenameRequest,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(File).where(File.id == uuid.UUID(file_id)))
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    old_name = record.name
+    record.name = body.name
+    await db.commit()
+    await audit_log(db, user, "rename", "file", record.id, f"{old_name} → {body.name}", request=request)
+    return {"id": str(record.id), "name": record.name}
 
 
 @router.patch("/{file_id}/level")

@@ -55,6 +55,7 @@ class _MarketingKnowledgeQAPageState extends State<MarketingKnowledgeQAPage> {
   List<Map<String, dynamic>> _historyItems = [];
   bool _historyLoading = false;
   String? _historyError;
+  String _mode = 'flexible'; // 'precise' | 'flexible'
 
   @override
   void dispose() {
@@ -103,6 +104,7 @@ class _MarketingKnowledgeQAPageState extends State<MarketingKnowledgeQAPage> {
 
       final resp = await _api.dio.post(widget.qaEndpoint, data: {
         'question': text,
+        'mode': _mode,
         'history': history.length > 20 ? history.sublist(history.length - 20) : history,
       });
 
@@ -271,6 +273,8 @@ class _MarketingKnowledgeQAPageState extends State<MarketingKnowledgeQAPage> {
   Widget _buildChatArea(ThemeData theme) {
     return Column(children: [
       _buildHeader(theme),
+      // Mode toggle
+      _buildModeToggle(theme),
       Expanded(
         child: _messages.isEmpty && !_loading
             ? Center(
@@ -292,6 +296,43 @@ class _MarketingKnowledgeQAPageState extends State<MarketingKnowledgeQAPage> {
       ),
       _buildInputBar(theme),
     ]);
+  }
+
+  Widget _buildModeToggle(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(children: [
+        _modeChip('precise', '精准', Icons.precision_manufacturing_rounded, isDark),
+        const SizedBox(width: 8),
+        _modeChip('flexible', '灵活', Icons.lightbulb_rounded, isDark),
+      ]),
+    );
+  }
+
+  Widget _modeChip(String mode, String label, IconData icon, bool isDark) {
+    final active = _mode == mode;
+    return Material(
+      color: active ? AppTheme.blue.withAlpha(25) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => setState(() => _mode = mode),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 14, color: active ? AppTheme.blue : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary)),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                color: active ? AppTheme.blue : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary))),
+            if (active) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.check_rounded, size: 14, color: AppTheme.blue),
+            ],
+          ]),
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader(ThemeData theme) {

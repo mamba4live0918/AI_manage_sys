@@ -22,6 +22,8 @@ from app.models.models import (
     # Phase 5: Finance upgrade
     Invoice, Payment, Budget, BudgetItem,
     EmployeeFile,
+    # Unified Knowledge Base
+    KBCategory, KBDocument, KBDocumentCategory,
 )
 
 __all__ = [
@@ -40,4 +42,5 @@ __all__ = [
     "Settlement", "Expense", "Voucher",
     "Invoice", "Payment", "Budget", "BudgetItem",
     "EmployeeFile",
+    "KBCategory", "KBDocument", "KBDocumentCategory",
 ]

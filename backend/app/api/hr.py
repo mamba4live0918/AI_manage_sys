@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models import User, File, Resume, Approval, ApprovalStep, Interview, AuditLog
 from app.security import get_current_user, require_module
 from app.services.llm.router import get_llm
+import asyncio
 from app.services.audit import log as audit_log
 from app.services.search import index_document as es_index, delete_document as es_delete
 from app.services.file_extractor import extract_text
@@ -303,7 +304,7 @@ async def create_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_create", "resume", r.id, r.name, request=request)
-    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
+    asyncio.create_task(es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id)) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -345,7 +346,7 @@ async def upload_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_upload", "resume", r.id, r.name, request=request)
-    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
+    asyncio.create_task(es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id)) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -380,7 +381,7 @@ async def update_resume(
     await db.commit()
     await db.refresh(r)
     await audit_log(db, user, "resume_update", "resume", r.id, r.name, request=request)
-    await es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id) if user.department_id else None)
+    asyncio.create_task(es_index(str(r.id), "resumes", r.name, r.content or "", extra=r.status or "", department_id=str(user.department_id)) if user.department_id else None)
     return _resume_row(r)
 
 
@@ -398,7 +399,7 @@ async def delete_resume(
     await db.delete(r)
     await db.commit()
     await audit_log(db, user, "resume_delete", "resume", r.id, r.name, request=request)
-    await es_delete(str(r.id), "resumes")
+    asyncio.create_task(es_delete(str(r.id), "resumes"))
     return {"ok": True}
 
 
