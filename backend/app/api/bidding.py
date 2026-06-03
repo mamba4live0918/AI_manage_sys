@@ -188,6 +188,9 @@ async def expiring_contracts(
     result = await db.execute(query.limit(50))
     contracts = result.scalars().all()
     return {"items": [_contract_row(c) for c in contracts], "count": len(contracts)}
+
+
+def _contract_row(c: Contract) -> dict:
     return {
         "id": str(c.id),
         "title": c.title,
