@@ -1,12 +1,13 @@
 import difflib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile, Response
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
 
 from app.database import get_db
 from app.models import (
@@ -164,7 +165,29 @@ def _template_row(t: ContractTemplate) -> dict:
     }
 
 
-def _contract_row(c: Contract) -> dict:
+@router.get("/contracts/expiring")
+async def expiring_contracts(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """返回在n天内到期的合同"""
+    now = _now()
+    cutoff = now + timedelta(days=days)
+    query = select(Contract).where(
+        Contract.status == "signed",
+        Contract.expires_at.isnot(None),
+        Contract.expires_at <= cutoff,
+        Contract.expires_at >= now,
+    ).order_by(Contract.expires_at.asc())
+    if user.role != "admin":
+        if user.department_id:
+            query = query.where(Contract.department_id == user.department_id)
+        else:
+            query = query.where(Contract.created_by == user.id)
+    result = await db.execute(query.limit(50))
+    contracts = result.scalars().all()
+    return {"items": [_contract_row(c) for c in contracts], "count": len(contracts)}
     return {
         "id": str(c.id),
         "title": c.title,
@@ -237,6 +260,16 @@ async def list_templates(
         query = query.where(ContractTemplate.type == type)
     result = await db.execute(query.offset(offset).limit(limit))
     return {"items": [_template_row(t) for t in result.scalars().all()]}
+
+
+@router.get("/templates/{template_id}")
+async def get_template(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    t = await _get_template(template_id, db)
+    return _template_row(t)
 
 
 @router.post("/templates")
@@ -424,6 +457,84 @@ async def update_contract(
     await audit_log(db, user, "contract_update", "contract", c.id, c.title, "success", request=request)
     await es_index(str(c.id), "contracts", c.title, "", extra=c.status or "", department_id=str(user.department_id) if user.department_id else None)
     return _contract_row(c)
+
+
+class ContractApproveAction(BaseModel):
+    action: str  # "approve" or "reject"
+    comment: str = ""
+
+
+@router.get("/contracts/{contract_id}/pdf")
+async def contract_pdf(
+    contract_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """生成合同PDF（markdown→LibreOffice→PDF）"""
+    c = await _get_contract(contract_id, db, user)
+    cv = (await db.execute(
+        select(ContractVersion)
+        .where(ContractVersion.contract_id == uuid.UUID(contract_id))
+        .order_by(ContractVersion.version_number.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if not cv or not cv.content:
+        raise HTTPException(status_code=404, detail="无合同内容")
+
+    md_content = cv.content
+    # 转成临时 .md → LibreOffice 转 PDF
+    import tempfile
+    from app.services.converter import _find_soffice
+    import subprocess
+    import asyncio
+
+    loop = asyncio.get_running_loop()
+    def _convert():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            md_path = Path(tmpdir) / "contract.md"
+            md_path.write_text(md_content, encoding="utf-8")
+            soffice = _find_soffice()
+            subprocess.run(
+                [soffice, "--headless", "--convert-to", "pdf", "--outdir", tmpdir, str(md_path)],
+                check=True, capture_output=True, timeout=30,
+            )
+            pdf_path = Path(tmpdir) / "contract.pdf"
+            if not pdf_path.exists():
+                raise RuntimeError("PDF conversion failed")
+            return pdf_path.read_bytes()
+
+    pdf_bytes = await loop.run_in_executor(None, _convert)
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={c.title}.pdf"})
+
+
+@router.post("/contracts/{contract_id}/approve")
+async def approve_contract(
+    contract_id: str,
+    body: ContractApproveAction,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """审批合同：通过→签署中，驳回→退回草稿"""
+    c = await _get_contract(contract_id, db, user)
+    if c.status not in ("draft", "review"):
+        raise HTTPException(status_code=400, detail="当前状态不可审批")
+
+    if body.action == "approve":
+        c.status = "pending_sign"
+        msg = f"合同已通过审批 → 待签署"
+    elif body.action == "reject":
+        c.status = "draft"
+        msg = f"合同已驳回 → 退回草稿"
+    else:
+        raise HTTPException(status_code=400, detail="操作只能是 approve 或 reject")
+
+    await db.commit()
+    await db.refresh(c)
+    await audit_log(db, user, "contract_approve", "contract", c.id, c.title, f"{body.action}: {body.comment}", request=request)
+    await es_index(str(c.id), "contracts", c.title, "", extra=c.status or "", department_id=str(user.department_id) if user.department_id else None)
+    return {"message": msg, "status": c.status}
 
 
 @router.delete("/contracts/{contract_id}")
