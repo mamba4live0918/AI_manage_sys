@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/watermark.dart';
-import 'bidding_contract_tab.dart';
 import 'bidding_knowledge_tab.dart';
 import 'bidding_process_tab.dart';
 import 'bidding_supplier_tab.dart';
@@ -55,7 +54,7 @@ class _BiddingDashboardPageState extends ConsumerState<BiddingDashboardPage>
         body: TabBarView(
           controller: _tabCtrl,
           children: const [
-            BiddingContractTab(),
+            Placeholder(),
             BiddingKnowledgeTab(),
             BiddingProcessTab(),
             BiddingSupplierTab(),
